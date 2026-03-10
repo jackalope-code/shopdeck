@@ -116,6 +116,13 @@ export function TopNav({ active }: { active?: string }) {
       <header className="h-14 w-full shrink-0 flex items-center justify-between px-4 gap-4 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#101922]/80 backdrop-blur-md sticky top-0 z-30">
         {/* Left: hamburger + logo + nav links */}
         <div className="flex items-center gap-3 shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-2 text-blue-500 font-bold shrink-0">
+            <div className="size-8 bg-blue-500 rounded-lg flex items-center justify-center text-white shrink-0">
+              <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+            </div>
+            <span className="text-sm hidden sm:block">ShopDeck</span>
+          </Link>
+
           {/* Hamburger */}
           <button
             onClick={() => setDrawerOpen(o => !o)}
@@ -130,13 +137,6 @@ export function TopNav({ active }: { active?: string }) {
               {drawerOpen ? 'close' : 'menu'}
             </span>
           </button>
-
-          <Link href="/dashboard" className="flex items-center gap-2 text-blue-500 font-bold shrink-0">
-            <div className="size-8 bg-blue-500 rounded-lg flex items-center justify-center text-white shrink-0">
-              <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
-            </div>
-            <span className="text-sm hidden sm:block">ShopDeck</span>
-          </Link>
 
           <nav className="hidden md:flex items-center gap-0.5">
             {TOP_NAV_LINKS.map(l => {

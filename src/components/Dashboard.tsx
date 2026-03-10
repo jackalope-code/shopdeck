@@ -615,6 +615,15 @@ export default function Dashboard() {
   const [showLayoutPanel, setShowLayoutPanel] = useState(false);
   const [showDataPanel, setShowDataPanel] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const DASH_DRAWER_LINKS = [
+    { href: '/my-electronics',           label: 'Electronics', icon: 'inventory_2' },
+    { href: '/ram-availability-tracker', label: 'RAM',         icon: 'memory' },
+    { href: '/gpu-availability-tracker', label: 'GPU',         icon: 'videogame_asset' },
+    { href: '/keyboard-comparison',      label: 'Keyboards',   icon: 'compare' },
+    { href: '/keycaps-tracker',          label: 'Keycaps',     icon: 'format_color_text' },
+  ];
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -707,6 +716,9 @@ export default function Dashboard() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Close drawer on navigation
+  useEffect(() => { setDrawerOpen(false); }, [router.pathname]);
+
   function handleLogout() {
     clearToken();
     router.push('/login');
@@ -736,14 +748,22 @@ export default function Dashboard() {
 
       {/* ── Toolbar ── */}
       <header className="flex h-14 w-full items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-[#f5f7f8] dark:bg-[#101922] px-4 z-30 shrink-0 gap-4">
-        {/* Left: logo + nav */}
-        <div className="flex items-center gap-6 shrink-0">
+        {/* Left: logo + hamburger + nav */}
+        <div className="flex items-center gap-3 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2 text-blue-500 font-bold shrink-0">
             <div className="size-8 bg-blue-500 rounded-lg flex items-center justify-center text-white shrink-0">
               <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
             </div>
             <span className="text-base hidden sm:block">ShopDeck</span>
           </Link>
+          {/* Hamburger */}
+          <button
+            onClick={() => setDrawerOpen(o => !o)}
+            title="More pages"
+            className={`p-2 rounded-lg transition-colors ${drawerOpen ? 'text-blue-500 bg-blue-500/10' : 'text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+          >
+            <span className="material-symbols-outlined text-[20px]">{drawerOpen ? 'close' : 'menu'}</span>
+          </button>
           <nav className="hidden md:flex items-center gap-1">
             {[
               { href: '/dashboard', label: 'Dashboard', icon: 'grid_view' },
@@ -855,6 +875,48 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+
+      {/* Hamburger drawer */}
+      {drawerOpen && (
+        <>
+          <div className="fixed inset-0 z-20 bg-black/20 dark:bg-black/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <aside className="fixed top-14 left-0 bottom-0 z-20 w-64 bg-white dark:bg-[#101922] border-r border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-y-auto">
+            <div className="px-4 pt-5 pb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">Trackers</p>
+              <nav className="space-y-0.5">
+                {DASH_DRAWER_LINKS.map(l => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setDrawerOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">{l.icon}</span>
+                    {l.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+            <div className="mt-auto px-4 pb-6 pt-4 border-t border-slate-200 dark:border-slate-800 space-y-0.5">
+              <button
+                onClick={() => { setDrawerOpen(false); document.dispatchEvent(new CustomEvent('sd:open-ai')); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px] text-blue-500">smart_toy</span>
+                AI Assistant
+              </button>
+              <Link
+                href="/settings"
+                onClick={() => setDrawerOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]">settings</span>
+                Settings
+              </Link>
+            </div>
+          </aside>
+        </>
+      )}
 
       {/* ── Widget grid ── */}
       <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
