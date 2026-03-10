@@ -176,10 +176,14 @@ export function TopNav({ active }: { active?: string }) {
           >
             <span className="material-symbols-outlined text-[18px]">settings</span>
           </Link>
-          <button className="relative p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Notifications">
+          <Link
+            href="/notifications"
+            className="relative p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            title="Notifications"
+          >
             <span className="material-symbols-outlined text-[18px]">notifications</span>
             <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-blue-500 rounded-full border border-white dark:border-[#101922]" />
-          </button>
+          </Link>
           <div className="size-8 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold ml-1 shrink-0">
             {initials}
           </div>

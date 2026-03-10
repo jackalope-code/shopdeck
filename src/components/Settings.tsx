@@ -96,9 +96,111 @@ const WIDGET_LABELS: Record<string, string> = {
   'electronics-watchlist': 'Electronics Watchlist',
 };
 
-const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant'];
+const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences'];
 
-// ─── Tab 1: Feed Sources ──────────────────────────────────────────────────────
+const STORAGE_KEY_NOTIFS = 'sd-browser-alerts';
+
+// ─── Tab 4: Preferences ─────────────────────────────────────────────────────────────
+function PreferencesTab() {
+  const [notifEnabled, setNotifEnabled] = React.useState(() => {
+    try { return localStorage.getItem(STORAGE_KEY_NOTIFS) === 'true'; } catch { return false; }
+  });
+  const [perm, setPerm] = React.useState<NotificationPermission | 'unsupported'>(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+    return Notification.permission;
+  });
+
+  async function handleToggle() {
+    if (perm === 'unsupported') return;
+    if (!notifEnabled) {
+      if (perm !== 'granted') {
+        const result = await Notification.requestPermission();
+        setPerm(result);
+        if (result !== 'granted') return;
+      }
+      setNotifEnabled(true);
+      localStorage.setItem(STORAGE_KEY_NOTIFS, 'true');
+    } else {
+      setNotifEnabled(false);
+      localStorage.setItem(STORAGE_KEY_NOTIFS, 'false');
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Notifications card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-500">notifications</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Browser Notifications</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Receive native OS notifications when prices drop, stock becomes available, or your watchlist items change.
+          </p>
+
+          {/* Toggle row */}
+          <button
+            onClick={handleToggle}
+            disabled={perm === 'unsupported'}
+            className={`w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+              notifEnabled
+                ? 'border-blue-500 bg-blue-500/5'
+                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-colors ${
+              notifEnabled ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+            }`}>
+              <span
+                className="material-symbols-outlined text-[20px]"
+                style={{ fontVariationSettings: notifEnabled ? "'FILL' 1" : "'FILL' 0" }}
+              >notifications</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${
+                notifEnabled ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'
+              }`}>Alert me about deals &amp; stock changes</p>
+              <p className="text-xs text-slate-400 mt-0.5">Push to your OS notification centre</p>
+            </div>
+            {/* Toggle switch */}
+            <div className="ml-2 shrink-0 relative inline-flex items-center rounded-full pointer-events-none" style={{ width: 44, height: 24 }}>
+              <span className={`block rounded-full transition-colors`} style={{ width: 44, height: 24, background: notifEnabled ? '#3b82f6' : undefined }} />
+              <span className={`absolute block rounded-full bg-white shadow transition-transform ${
+                notifEnabled ? 'translate-x-5' : 'translate-x-0.5'
+              }`} style={{ width: 20, height: 20, top: 2, left: 2 }} />
+            </div>
+          </button>
+
+          {/* Permission status */}
+          {perm === 'unsupported' && (
+            <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+              <span className="material-symbols-outlined text-[16px]">warning</span>
+              Your browser doesn&apos;t support notifications.
+            </div>
+          )}
+          {perm === 'denied' && (
+            <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2.5 text-xs text-red-700 dark:text-red-400">
+              <span className="material-symbols-outlined text-[16px] mt-0.5">block</span>
+              <span>Notifications are <strong>blocked</strong> for this site. To enable them, open your browser&apos;s site settings and allow notifications for this origin, then reload.</span>
+            </div>
+          )}
+          {perm === 'granted' && notifEnabled && (
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2.5 text-xs text-emerald-700 dark:text-emerald-400">
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              Permission granted — ShopDeck can send you notifications.
+            </div>
+          )}
+          {perm === 'default' && !notifEnabled && (
+            <p className="text-[11px] text-slate-400">
+              Enabling will prompt your browser for notification permission.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 function FeedSourcesTab({ config, saving, onToggle, onSave }: {
   config: FeedConfig;
   saving: string | null;
@@ -708,6 +810,8 @@ export default function Settings() {
             />
           )}
           {tab === 2 && <AISettingsTab />}
+          {tab === 3 && <PreferencesTab />}
+          {tab === 4 && <NotificationsSettingsTab />}
         </main>
       </div>
     </div>

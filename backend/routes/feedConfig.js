@@ -83,4 +83,55 @@ router.post('/test', verifyToken, testLimiter, async (req, res) => {
   }
 });
 
+// In-memory result cache: { [widgetId]: { at: number, results: object } }
+const feedDataCache = new Map();
+const FEED_DATA_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — matches scraper scheduled cooldown
+
+// GET /api/feed-config/data/:widgetId  — scrape enabled built-in + custom sources for a widget
+router.get('/data/:widgetId', verifyToken, async (req, res) => {
+  const { widgetId } = req.params;
+
+  // Serve cached result if still fresh
+  const cached = feedDataCache.get(widgetId);
+  if (cached && (Date.now() - cached.at) < FEED_DATA_CACHE_TTL_MS) {
+    return res.json({ sources: cached.results, at: new Date(cached.at).toISOString(), cached: true });
+  }
+
+  const users = readUsers();
+  const user = users.find(u => u.id === req.user.id);
+  const defaults = readDefaults();
+
+  const widgetCfg = user?.profile?.feedConfig?.[widgetId] ?? defaults[widgetId] ?? {};
+  const sources = widgetCfg.sources ?? [];
+  const custom  = widgetCfg.custom  ?? [];
+
+  const results = {};
+
+  // Run enabled built-in sources
+  for (const src of sources.filter(s => s.enabled)) {
+    const rule = scraper.BUILTIN_SOURCE_RULES[src.id];
+    if (!rule) continue;
+    try {
+      const data = await scraper.runSource(rule, 'scheduled');
+      results[src.id] = { name: src.name, data, error: null };
+    } catch (err) {
+      results[src.id] = { name: src.name, data: [], error: err.message };
+    }
+  }
+
+  // Run enabled custom rules
+  for (const rule of custom) {
+    try {
+      const data = await scraper.runSource(rule, 'scheduled');
+      results[`custom:${rule.name}`] = { name: rule.name, data, error: null };
+    } catch (err) {
+      results[`custom:${rule.name}`] = { name: rule.name, data: [], error: err.message };
+    }
+  }
+
+  // Cache and respond
+  feedDataCache.set(widgetId, { at: Date.now(), results });
+  res.json({ sources: results, at: new Date().toISOString(), cached: false });
+});
+
 module.exports = router;

@@ -191,6 +191,52 @@ async function scratchBatch(sources) {
   return results;
 }
 
+// ─── Built-in source rules ────────────────────────────────────────────────────
+// Maps a feed-config source ID to its ready-to-run scraping definition.
+// These selectors target Microcenter category listing pages (h2.h_name a is the
+// product-name anchor inside each result card). Adjust if Microcenter ever
+// redesigns their listing markup.
+const BUILTIN_SOURCE_RULES = {
+  'microcenter-ram': {
+    url: 'https://www.microcenter.com/category/4294967029/memory',
+    ruleType: 'css',
+    selector: 'h2.h_name a',
+    fieldName: 'name',
+    label: 'Microcenter — Memory',
+  },
+  'microcenter-gpu': {
+    url: 'https://www.microcenter.com/category/4294966937/video-cards',
+    ruleType: 'css',
+    selector: 'h2.h_name a',
+    fieldName: 'name',
+    label: 'Microcenter — Video Cards',
+  },
+  'microcenter-keyboards': {
+    url: 'https://www.microcenter.com/category/4294966635/keyboards',
+    ruleType: 'css',
+    selector: 'h2.h_name a',
+    fieldName: 'name',
+    label: 'Microcenter — Keyboards',
+  },
+  'microcenter-electronics': {
+    url: 'https://www.microcenter.com/category/4294966773/development-boards-kits',
+    ruleType: 'css',
+    selector: 'h2.h_name a',
+    fieldName: 'name',
+    label: 'Microcenter — Dev Boards & Kits',
+  },
+};
+
+/**
+ * Scrape a built-in source by its source ID.
+ * Returns [] if no rule is registered for the given ID.
+ */
+async function scrapeBuiltinSource(sourceId, mode = 'scheduled') {
+  const rule = BUILTIN_SOURCE_RULES[sourceId];
+  if (!rule) return [];
+  return runSource(rule, mode);
+}
+
 // ─── Legacy stubs (backward-compat with existing cron wiring) ─────────────────
 
 async function scrapeAdafruit() {
@@ -229,7 +275,8 @@ async function updateCache() {
 }
 
 module.exports = {
-  runSource, testRule, scratchBatch,
+  BUILTIN_SOURCE_RULES,
+  runSource, testRule, scratchBatch, scrapeBuiltinSource,
   scrapeHtml, scrapeJson,
   scrapeAdafruit, scrapeUserDigikey, scrapeUserMouser, updateCache,
 };

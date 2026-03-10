@@ -844,10 +844,14 @@ export default function Dashboard() {
           </button>
 
           {/* Notifications */}
-          <button className="relative p-1.5 text-slate-400 hover:text-blue-500 transition-colors">
+          <Link
+            href="/notifications"
+            className="relative p-1.5 text-slate-400 hover:text-blue-500 transition-colors rounded-lg"
+            title="Notifications"
+          >
             <span className="material-symbols-outlined text-[20px]">notifications</span>
             <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-          </button>
+          </Link>
 
           {/* User avatar / logout */}
           <div className="relative" ref={userMenuRef}>

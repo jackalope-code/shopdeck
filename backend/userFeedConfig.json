@@ -4,6 +4,7 @@
       "sources": [
         { "id": "newegg-ram", "name": "Newegg", "enabled": true },
         { "id": "amazon-ram", "name": "Amazon", "enabled": true },
+        { "id": "microcenter-ram", "name": "Microcenter", "enabled": true },
         { "id": "tigerdirect-ram", "name": "TigerDirect", "enabled": true },
         { "id": "mouser-ram", "name": "Mouser", "enabled": true },
         { "id": "digikey-ram", "name": "DigiKey", "enabled": true }
@@ -14,6 +15,7 @@
       "sources": [
         { "id": "newegg-gpu", "name": "Newegg", "enabled": true },
         { "id": "amazon-gpu", "name": "Amazon", "enabled": true },
+        { "id": "microcenter-gpu", "name": "Microcenter", "enabled": true },
         { "id": "tigerdirect-gpu", "name": "TigerDirect", "enabled": true }
       ],
       "custom": []
@@ -30,6 +32,7 @@
         { "id": "geekhack", "name": "Geekhack", "enabled": true },
         { "id": "kbdfans", "name": "KBDfans", "enabled": true },
         { "id": "novelkeys", "name": "Novelkeys", "enabled": true },
+        { "id": "microcenter-keyboards", "name": "Microcenter", "enabled": true },
         { "id": "stupidbulletstech", "name": "Stupid Bullets Tech", "enabled": true },
         { "id": "customkeysco", "name": "Custom Keys Co.", "enabled": true }
       ],
@@ -40,6 +43,7 @@
         { "id": "geekhack", "name": "Geekhack", "enabled": true },
         { "id": "kbdfans", "name": "KBDfans", "enabled": true },
         { "id": "novelkeys", "name": "Novelkeys", "enabled": true },
+        { "id": "microcenter-keyboards", "name": "Microcenter", "enabled": true },
         { "id": "stupidbulletstech", "name": "Stupid Bullets Tech", "enabled": true },
         { "id": "customkeysco", "name": "Custom Keys Co.", "enabled": true }
       ],
@@ -48,7 +52,8 @@
     "electronics-watchlist": {
       "sources": [
         { "id": "digikey-electronics", "name": "DigiKey", "enabled": true },
-        { "id": "mouser-electronics", "name": "Mouser", "enabled": true }
+        { "id": "mouser-electronics", "name": "Mouser", "enabled": true },
+        { "id": "microcenter-electronics", "name": "Microcenter", "enabled": true }
       ],
       "custom": []
     }
