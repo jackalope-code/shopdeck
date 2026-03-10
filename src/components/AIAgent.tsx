@@ -76,6 +76,43 @@ const CONTEXT_CHIPS = [
 
 const STORAGE_KEY = 'sd-ai-config';
 const HISTORY_KEY = 'sd-ai-history';
+const PERMS_KEY   = 'sd-ai-perms';
+
+// ─── Permissions ─────────────────────────────────────────────────────────────
+interface AIPermissions {
+  projects:  boolean;   // saved projects & budgets
+  inventory: boolean;   // electronics parts inventory
+  watchlist: boolean;   // price alerts & watchlists
+  deals:     boolean;   // active deals & price history
+}
+
+const DEFAULT_PERMS: AIPermissions = { projects: false, inventory: false, watchlist: false, deals: false };
+
+const PERM_DEFS: { key: keyof AIPermissions; label: string; desc: string; icon: string }[] = [
+  { key: 'projects',  label: 'Projects',       desc: 'Budgets, build lists, status',      icon: 'workspaces' },
+  { key: 'inventory', label: 'Inventory',       desc: 'Electronics parts & stock levels',  icon: 'inventory_2' },
+  { key: 'watchlist', label: 'Price Alerts',    desc: 'Watchlists & alert thresholds',     icon: 'notifications_active' },
+  { key: 'deals',     label: 'Active Deals',    desc: 'Current discounts & price history', icon: 'sell' },
+];
+
+function loadPerms(): AIPermissions {
+  try {
+    const raw = localStorage.getItem(PERMS_KEY);
+    return raw ? { ...DEFAULT_PERMS, ...JSON.parse(raw) } : DEFAULT_PERMS;
+  } catch { return DEFAULT_PERMS; }
+}
+
+function savePerms(p: AIPermissions) {
+  localStorage.setItem(PERMS_KEY, JSON.stringify(p));
+}
+
+function buildSystemContext(perms: AIPermissions): string {
+  const granted = PERM_DEFS.filter(d => perms[d.key]).map(d => d.label);
+  if (granted.length === 0) return '';
+  return `[SYSTEM] The user has granted ShopDeck AI access to their: ${
+    granted.join(', ')
+  }. Use this context to give personalised recommendations. Do not ask for permission — it has already been granted.`;
+}
 
 function loadConfig(): AIConfig {
   try {
@@ -122,8 +159,37 @@ export default function AIAgent() {
   const [config, setConfig] = useState<AIConfig>({ provider: 'openai', model: 'gpt-4o', apiKey: '' });
   const [showSettings, setShowSettings] = useState(false);
   const [pendingCfg, setPendingCfg] = useState<AIConfig>(config);
+  const [showPerms, setShowPerms] = useState(false);
+  const [perms, setPerms] = useState<AIPermissions>(DEFAULT_PERMS);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  function togglePerm(key: keyof AIPermissions) {
+    setPerms(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      savePerms(next);
+      return next;
+    });
+  }
+
+  function copyMessage(content: string, idx: number) {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx(null), 1500);
+    });
+  }
+
+  function copyAll() {
+    const text = messages
+      .map(m => `${m.role === 'user' ? 'You' : 'AI'}: ${m.content}`)
+      .join('\n\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 1500);
+    });
+  }
 
   // Register global open trigger
   useEffect(() => {
@@ -138,6 +204,7 @@ export default function AIAgent() {
     setConfig(cfg);
     setPendingCfg(cfg);
     setMessages(loadHistory());
+    setPerms(loadPerms());
   }, []);
 
   // Persist history on change
@@ -174,6 +241,12 @@ export default function AIAgent() {
     setMessages(nextMessages);
     setLoading(true);
 
+    // Prepend system context if any permissions are granted
+    const sysCtx = buildSystemContext(perms);
+    const apiMessages: Message[] = sysCtx
+      ? [{ role: 'user', content: sysCtx }, { role: 'assistant', content: 'Understood. I will use your ShopDeck data to give personalised help.' }, ...nextMessages]
+      : nextMessages;
+
     try {
       let res: Response;
       try {
@@ -187,7 +260,7 @@ export default function AIAgent() {
             provider: config.provider,
             model: config.model,
             apiKey: config.apiKey,
-            messages: nextMessages,
+            messages: apiMessages,
           }),
         });
       } catch {
@@ -230,7 +303,7 @@ export default function AIAgent() {
 
       {/* Slide-in panel */}
       <div
-        className={`fixed top-0 left-0 h-full z-50 flex flex-col bg-white dark:bg-[#101922] border-r border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed top-0 left-0 h-full z-50 flex flex-col bg-white dark:bg-[#101922] text-slate-900 dark:text-slate-100 border-r border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
         style={{ width: 'min(420px, 92vw)' }}
       >
         {/* Header */}
@@ -240,22 +313,38 @@ export default function AIAgent() {
               <span className="material-symbols-outlined text-blue-500 text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
             </div>
             <div>
-              <h2 className="font-bold text-sm">AI Assistant</h2>
-              <p className="text-[10px] text-slate-400">{providerInfo.label} · {config.model}</p>
+              <h2 className="font-bold text-sm text-blue-500 dark:text-slate-100">AI Assistant</h2>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">{providerInfo.label} · {config.model}</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => { setShowSettings(v => !v); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors">
+            <button
+              onClick={() => { setShowPerms(v => !v); setShowSettings(false); }}
+              className={`p-1.5 rounded-lg transition-colors ${showPerms ? 'bg-emerald-500/10 text-emerald-500' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-100'}`}
+              title="Data permissions"
+            >
+              <span className="material-symbols-outlined text-[18px]">lock_open</span>
+            </button>
+            <button onClick={() => { setShowSettings(v => !v); setShowPerms(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-100 transition-colors">
               <span className="material-symbols-outlined text-[18px]">settings</span>
             </button>
+            {messages.length > 0 && (
+              <button
+                onClick={copyAll}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-100 transition-colors"
+                title="Copy conversation"
+              >
+                <span className="material-symbols-outlined text-[18px]">{copiedAll ? 'check' : 'content_copy'}</span>
+              </button>
+            )}
             <button
               onClick={() => { setMessages([]); localStorage.removeItem(HISTORY_KEY); }}
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-100 transition-colors"
               title="Clear chat"
             >
               <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
             </button>
-            <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+            <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-100 transition-colors">
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           </div>
@@ -311,8 +400,49 @@ export default function AIAgent() {
           </div>
         )}
 
+        {/* Permissions panel (inline) */}
+        {showPerms && (
+          <div className="border-b border-slate-200 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-800/50 shrink-0 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Data Access</p>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${Object.values(perms).some(Boolean) ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+                {Object.values(perms).filter(Boolean).length} granted
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Allow the AI to reference your ShopDeck data for personalised recommendations. Your data never leaves your backend.
+            </p>
+            <div className="space-y-2">
+              {PERM_DEFS.map(d => (
+                <button
+                  key={d.key}
+                  onClick={() => togglePerm(d.key)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${perms[d.key] ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                >
+                  <span className={`material-symbols-outlined text-[18px] shrink-0 ${perms[d.key] ? 'text-emerald-500' : 'text-slate-400'}`} style={{ fontVariationSettings: perms[d.key] ? "'FILL' 1" : "'FILL' 0" }}>{d.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold ${perms[d.key] ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}`}>{d.label}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{d.desc}</p>
+                  </div>
+                  <div className={`size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${perms[d.key] ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                    {perms[d.key] && <span className="material-symbols-outlined text-white text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {Object.values(perms).some(Boolean) && (
+              <button
+                onClick={() => { setPerms(DEFAULT_PERMS); savePerms(DEFAULT_PERMS); }}
+                className="w-full py-1.5 rounded-lg text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                Revoke all access
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Context chips */}
-        {messages.length === 0 && !showSettings && (
+        {messages.length === 0 && !showSettings && !showPerms && (
           <div className="px-4 pt-4 pb-2 shrink-0">
             <p className="text-xs text-slate-400 mb-2 font-medium">Quick prompts</p>
             <div className="flex flex-wrap gap-1.5">
@@ -331,7 +461,7 @@ export default function AIAgent() {
 
         {/* Message thread */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-          {messages.length === 0 && !showSettings && (
+          {messages.length === 0 && !showSettings && !showPerms && (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-8">
               <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-700" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
               <div>
@@ -342,17 +472,27 @@ export default function AIAgent() {
           )}
 
           {messages.map((m, i) => (
-            <div key={i} className={`flex gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div key={i} className={`group flex gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
               <div className={`size-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${m.role === 'user' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                 {m.role === 'user'
                   ? (user?.username?.[0]?.toUpperCase() ?? 'U')
                   : <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
                 }
               </div>
-              <div
-                className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${m.role === 'user' ? 'bg-blue-500 text-white rounded-tr-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-sm'}`}
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
-              />
+              <div className="relative max-w-[85%] flex flex-col">
+                <div
+                  className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${m.role === 'user' ? 'bg-blue-500 rounded-tr-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-sm'}`}
+                  style={m.role === 'user' ? { color: '#ffffff' } : undefined}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
+                />
+                <button
+                  onClick={() => copyMessage(m.content, i)}
+                  className={`self-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 ${m.role === 'user' ? 'text-blue-200 hover:text-blue-500' : 'text-slate-400 hover:text-slate-600'}`}
+                  title="Copy message"
+                >
+                  <span className="material-symbols-outlined text-[13px]">{copiedIdx === i ? 'check' : 'content_copy'}</span>
+                </button>
+              </div>
             </div>
           ))}
 

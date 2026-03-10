@@ -389,14 +389,46 @@ function CustomSourcesTab({ config, onAdd, onDelete }: {
   );
 }
 
+// ─── AI Permissions ──────────────────────────────────────────────────────────
+const AI_PERMS_KEY = 'sd-ai-perms';
+
+interface AIPermissions {
+  projects:  boolean;
+  inventory: boolean;
+  watchlist: boolean;
+  deals:     boolean;
+}
+
+const DEFAULT_AI_PERMS: AIPermissions = { projects: false, inventory: false, watchlist: false, deals: false };
+
+const AI_PERM_DEFS: { key: keyof AIPermissions; label: string; desc: string; icon: string }[] = [
+  { key: 'projects',  label: 'Projects',    desc: 'Budgets, build lists, status',      icon: 'workspaces' },
+  { key: 'inventory', label: 'Inventory',   desc: 'Electronics parts & stock levels',  icon: 'inventory_2' },
+  { key: 'watchlist', label: 'Price Alerts', desc: 'Watchlists & alert thresholds',    icon: 'notifications_active' },
+  { key: 'deals',     label: 'Active Deals', desc: 'Current discounts & price history', icon: 'sell' },
+];
+
+function loadAIPerms(): AIPermissions {
+  try {
+    const raw = localStorage.getItem(AI_PERMS_KEY);
+    return raw ? { ...DEFAULT_AI_PERMS, ...JSON.parse(raw) } : DEFAULT_AI_PERMS;
+  } catch { return DEFAULT_AI_PERMS; }
+}
+
+function saveAIPerms(p: AIPermissions) {
+  localStorage.setItem(AI_PERMS_KEY, JSON.stringify(p));
+}
+
 // ─── Tab 3: AI Assistant settings ─────────────────────────────────────────────
 function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
   const [cfg, setCfg] = useState<AIConfig>({ provider: 'openai', model: 'gpt-4o', apiKey: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [perms, setPerms] = useState<AIPermissions>(DEFAULT_AI_PERMS);
 
   useEffect(() => {
+    setPerms(loadAIPerms());
     try {
       const raw = localStorage.getItem('sd-ai-config');
       if (raw) setCfg(JSON.parse(raw));
@@ -490,6 +522,67 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
           >
             {saved ? '✓ Saved' : saving ? 'Saving…' : 'Save settings'}
           </button>
+        </div>
+      </div>
+
+      {/* ── Permissions card ── */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-emerald-500">lock_open</span>
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Data Access Permissions</h3>
+          </div>
+          {Object.values(perms).some(Boolean) && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              {Object.values(perms).filter(Boolean).length} granted
+            </span>
+          )}
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Grant the AI Assistant access to your ShopDeck data for personalised recommendations. Your data is only sent to your own backend — never to third-party servers.
+          </p>
+          <div className="space-y-2">
+            {AI_PERM_DEFS.map(d => (
+              <button
+                key={d.key}
+                onClick={() => {
+                  const next = { ...perms, [d.key]: !perms[d.key] };
+                  setPerms(next);
+                  saveAIPerms(next);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                  perms[d.key]
+                    ? 'border-emerald-500/50 bg-emerald-500/5'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                }`}
+              >
+                <span
+                  className={`material-symbols-outlined text-[18px] shrink-0 ${perms[d.key] ? 'text-emerald-500' : 'text-slate-400'}`}
+                  style={{ fontVariationSettings: perms[d.key] ? "'FILL' 1" : "'FILL' 0" }}
+                >{d.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold ${perms[d.key] ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>{d.label}</p>
+                  <p className="text-xs text-slate-400 truncate">{d.desc}</p>
+                </div>
+                <div className={`size-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                  perms[d.key] ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 dark:border-slate-600'
+                }`}>
+                  {perms[d.key] && (
+                    <span className="material-symbols-outlined text-white text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+          {Object.values(perms).some(Boolean) && (
+            <button
+              onClick={() => { setPerms(DEFAULT_AI_PERMS); saveAIPerms(DEFAULT_AI_PERMS); }}
+              className="w-full py-1.5 rounded-lg text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              Revoke all access
+            </button>
+          )}
         </div>
       </div>
 

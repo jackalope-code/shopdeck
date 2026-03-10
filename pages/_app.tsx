@@ -1,5 +1,6 @@
 import type { AppProps } from 'next/app';
 import '../src/index.css';
+import AIAgent from '../src/components/AIAgent';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -10,6 +11,8 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       <Component {...pageProps} />
+      {/* AIAgent is globally mounted so it works from any page (Dashboard, MyElectronics, etc.) */}
+      <AIAgent />
       {isDev && DevPanel && <DevPanel />}
     </>
   );

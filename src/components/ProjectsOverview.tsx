@@ -23,7 +23,7 @@ export function Sidebar({ active }: { active: string }) {
         </div>
         <div>
           <h1 className="font-bold text-base leading-tight text-blue-500">ShopDeck</h1>
-          <p className="text-xs text-slate-500">Pro Account</p>
+          <p className="text-xs text-slate-500">Account</p>
         </div>
       </div>
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
@@ -64,7 +64,7 @@ export function TopHeader({ title }: { title?: string }) {
         <div className="relative w-full">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
           <input
-            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg pl-9 pr-4 py-2 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
             placeholder={title ? `Search ${title.toLowerCase()}...` : 'Search...'}
           />
         </div>
@@ -328,18 +328,18 @@ function ProjectCard({ project: p, onDelete, onStatusChange }: { project: Projec
               </div>
               <div className="text-right pl-2">
                 <p className="text-[10px] uppercase text-slate-500 font-bold mb-1">Target Price</p>
-                <p className="font-bold">${p.targetPrice?.toLocaleString()}</p>
+                <p className="font-bold">${(p.targetPrice ?? 0).toLocaleString()}</p>
               </div>
               <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
                 <p className="text-[10px] uppercase text-slate-500 font-bold">Est. Profit</p>
-                <p className="font-bold text-emerald-500 text-sm">+${p.estProfit?.toLocaleString()}</p>
+                <p className="font-bold text-emerald-500 text-sm">+${(p.estProfit ?? 0).toLocaleString()}</p>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 dark:bg-slate-800/80 rounded-lg">
               <div>
                 <p className="text-[10px] uppercase text-slate-500 font-bold mb-1">Budget</p>
-                <p className="font-bold">${p.budget?.toLocaleString()}</p>
+                <p className="font-bold">${(p.budget ?? 0).toLocaleString()}</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase text-slate-500 font-bold mb-1">Spent</p>

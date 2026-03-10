@@ -118,7 +118,7 @@ export default function MyElectronics() {
                 <span className="material-symbols-outlined text-xs">chevron_right</span>
                 <span className="text-blue-500 font-medium">Electronics Parts</span>
               </div>
-              <h2 className="text-3xl font-bold tracking-tight">My Electronics Parts</h2>
+              <h2 className="text-3xl font-bold tracking-tight uppercase">My Electronics Parts</h2>
             </div>
             <div className="flex items-center gap-3">
               <button className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-all">

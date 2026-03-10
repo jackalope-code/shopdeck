@@ -8,17 +8,12 @@
     "createdAt": "2026-03-09T23:03:45.424Z",
     "profile": {
       "activeWidgets": [
-        "active-deals",
+        "inventory-stats",
+        "active-projects",
         "recent-activity",
-        "vendor-performance",
         "keyboard-releases",
-        "gpu-availability",
         "ram-availability",
-        "keyboard-sales",
-        "keyboard-comparison",
-        "keycaps-tracker",
-        "electronics-watchlist",
-        "active-projects"
+        "active-deals"
       ],
       "widgetOrder": [
         "active-deals",
@@ -33,7 +28,7 @@
         "electronics-watchlist",
         "active-projects"
       ],
-      "gridCols": 4,
+      "gridCols": 3,
       "feedConfig": {
         "ram-availability": {
           "sources": [

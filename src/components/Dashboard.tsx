@@ -17,7 +17,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
-import AIAgent from './AIAgent';
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
 export interface WidgetDef {
@@ -733,7 +732,9 @@ export default function Dashboard() {
         {/* Left: logo + nav */}
         <div className="flex items-center gap-6 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2 text-blue-500 font-bold shrink-0">
-            <span className="material-symbols-outlined text-2xl">inventory_2</span>
+            <div className="size-8 bg-blue-500 rounded-lg flex items-center justify-center text-white shrink-0">
+              <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+            </div>
             <span className="text-base hidden sm:block">ShopDeck</span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
@@ -891,8 +892,7 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* AI Agent panel — always mounted, opens via sd:open-ai event */}
-      <AIAgent />
+      {/* AI Agent panel is mounted globally in _app.tsx */}
 
       {/* Widget picker panel */}
       {showWidgetPicker && (
