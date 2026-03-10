@@ -1,3 +1,8 @@
 .env
 ../.next/
 node_modules/
+users.json
+userWatchlists.json
+cache_*.json
+nul
+filter-patterns.txt
