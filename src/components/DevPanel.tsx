@@ -8,17 +8,20 @@ import { useRouter } from 'next/router';
 import { getUser, isLoggedIn } from '../lib/auth';
 
 const KEY_FORCE_ONBOARDING = 'sd-dev-force-onboarding';
+const KEY_ALWAYS_ONBOARDING = 'sd-dev-always-onboarding';
 const KEY_ONBOARDED = 'sd-onboarded';
 
 export default function DevPanel() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [forceOnboarding, setForceOnboarding] = useState(false);
+  const [alwaysOnboarding, setAlwaysOnboarding] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
   const user = getUser();
 
   function refresh() {
     setForceOnboarding(localStorage.getItem(KEY_FORCE_ONBOARDING) === 'true');
+    setAlwaysOnboarding(localStorage.getItem(KEY_ALWAYS_ONBOARDING) === 'true');
     setOnboarded(localStorage.getItem(KEY_ONBOARDED) === 'true');
   }
 
@@ -32,6 +35,16 @@ export default function DevPanel() {
       localStorage.removeItem(KEY_FORCE_ONBOARDING);
     }
     setForceOnboarding(next);
+  }
+
+  function toggleAlwaysOnboarding() {
+    const next = !alwaysOnboarding;
+    if (next) {
+      localStorage.setItem(KEY_ALWAYS_ONBOARDING, 'true');
+    } else {
+      localStorage.removeItem(KEY_ALWAYS_ONBOARDING);
+    }
+    setAlwaysOnboarding(next);
   }
 
   function goToOnboarding() {
@@ -93,6 +106,10 @@ export default function DevPanel() {
                     <span className="text-slate-500">force-onboarding</span>
                     <span className={forceOnboarding ? 'text-amber-400' : 'text-slate-500'}>{forceOnboarding ? 'true' : 'false'}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">always-onboarding</span>
+                    <span className={alwaysOnboarding ? 'text-rose-400' : 'text-slate-500'}>{alwaysOnboarding ? 'ON' : 'off'}</span>
+                  </div>
                 </div>
               </div>
 
@@ -117,6 +134,20 @@ export default function DevPanel() {
                     <span className="text-slate-300">Force on next visit to /</span>
                     <div className={`relative w-8 h-4.5 rounded-full transition-colors ${forceOnboarding ? 'bg-amber-500' : 'bg-slate-600'}`}>
                       <span className={`absolute top-0.5 size-3.5 rounded-full bg-white shadow transition-transform ${forceOnboarding ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                    </div>
+                  </button>
+
+                  {/* Toggle: always show onboarding (demo loop) */}
+                  <button
+                    onClick={toggleAlwaysOnboarding}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${alwaysOnboarding ? 'bg-rose-950/60 hover:bg-rose-950/80 ring-1 ring-rose-800' : 'bg-slate-800 hover:bg-slate-700'}`}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-slate-300">Always show onboarding</span>
+                      <span className="text-[10px] text-slate-500">demo mode — loops until disabled</span>
+                    </div>
+                    <div className={`relative w-8 h-4.5 rounded-full transition-colors shrink-0 ml-3 ${alwaysOnboarding ? 'bg-rose-500' : 'bg-slate-600'}`}>
+                      <span className={`absolute top-0.5 size-3.5 rounded-full bg-white shadow transition-transform ${alwaysOnboarding ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                     </div>
                   </button>
                 </div>

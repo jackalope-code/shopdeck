@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Sidebar } from './ProjectsOverview';
+import { TopNav } from './ProjectsOverview';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
@@ -101,9 +101,8 @@ export default function RamAvailabilityTracker() {
   const alertCount = items.filter(it => it.alertOn && it.status !== 'OUT OF STOCK').length;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
-      {/* Desktop sidebar */}
-      <Sidebar active="RAM Tracker" />
+    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+      <TopNav active="RAM" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}

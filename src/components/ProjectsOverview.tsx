@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { apiGet, apiPost, apiPatch, getToken } from '../lib/auth';
+import { useRouter } from 'next/router';
+import { apiGet, apiPost, apiPatch, getToken, getUser as getAuthUser } from '../lib/auth';
 
 // ─── Shared nav sidebar ───────────────────────────────────────────────────────
 export function Sidebar({ active }: { active: string }) {
@@ -75,6 +76,85 @@ export function TopHeader({ title }: { title?: string }) {
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-blue-500 rounded-full border-2 border-white dark:border-[#101922]" />
         </button>
         <div className="size-8 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">AR</div>
+      </div>
+    </header>
+  );
+}
+
+// ─── Unified top nav (all main pages) ────────────────────────────────────────
+const NAV_LINKS = [
+  { href: '/dashboard',               label: 'Dashboard',       icon: 'grid_view' },
+  { href: '/projects',                label: 'Projects',        icon: 'workspaces' },
+  { href: '/active-deals',            label: 'Deals',           icon: 'sell' },
+  { href: '/my-electronics',          label: 'Electronics',     icon: 'inventory_2' },
+  { href: '/ram-availability-tracker',label: 'RAM',             icon: 'memory' },
+  { href: '/gpu-availability-tracker',label: 'GPU',             icon: 'videogame_asset' },
+  { href: '/keyboard-comparison',     label: 'Keyboards',       icon: 'compare' },
+  { href: '/keycaps-tracker',         label: 'Keycaps',         icon: 'format_color_text' },
+];
+
+export function TopNav({ active }: { active?: string }) {
+  const router = useRouter();
+  const user = getAuthUser();
+  const initials = user?.username?.slice(0, 2).toUpperCase() ?? 'SD';
+  const currentPath = router.pathname;
+
+  return (
+    <header className="h-14 w-full shrink-0 flex items-center justify-between px-4 gap-4 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#101922]/80 backdrop-blur-md sticky top-0 z-30">
+      {/* Left: logo + nav links */}
+      <div className="flex items-center gap-5 shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-2 text-blue-500 font-bold shrink-0">
+          <div className="size-8 bg-blue-500 rounded-lg flex items-center justify-center text-white shrink-0">
+            <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+          </div>
+          <span className="text-sm hidden sm:block">ShopDeck</span>
+        </Link>
+
+        <nav className="hidden md:flex items-center gap-0.5">
+          {NAV_LINKS.map(l => {
+            const isActive = active ? l.label === active : currentPath === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  isActive
+                    ? 'bg-blue-500/10 text-blue-500'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-blue-500 hover:bg-blue-500/5'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[15px]">{l.icon}</span>
+                <span className="hidden lg:inline">{l.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Right: AI + settings + notifications + avatar */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => document.dispatchEvent(new CustomEvent('sd:open-ai'))}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-500 hover:text-blue-500 hover:border-blue-500/50 transition-colors"
+          title="AI Assistant"
+        >
+          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
+          <span className="hidden sm:inline">AI</span>
+        </button>
+        <Link
+          href="/settings"
+          className="p-2 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          title="Settings"
+        >
+          <span className="material-symbols-outlined text-[18px]">settings</span>
+        </Link>
+        <button className="relative p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Notifications">
+          <span className="material-symbols-outlined text-[18px]">notifications</span>
+          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-blue-500 rounded-full border border-white dark:border-[#101922]" />
+        </button>
+        <div className="size-8 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold ml-1 shrink-0">
+          {initials}
+        </div>
       </div>
     </header>
   );
@@ -159,11 +239,10 @@ export default function ProjectsOverview() {
   });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
-      <Sidebar active="Projects" />
+    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+      <TopNav active="Projects" />
 
       <main className="flex-1 flex flex-col overflow-y-auto">
-        <TopHeader title="Projects" />
 
         <div className="p-6 md:p-8">
           {/* Page title + controls */}

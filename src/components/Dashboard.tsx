@@ -636,6 +636,9 @@ export default function Dashboard() {
 
   const layoutRef = useRef<HTMLDivElement>(null);
   const dataRef = useRef<HTMLDivElement>(null);
+  // Guard: don't persist state until after the initial hydration completes,
+  // otherwise the DEFAULT_WIDGETS initializer overwrites what onboarding saved.
+  const hydratedRef = useRef(false);
 
   // Hydrate from API profile then localStorage fallback after mount
   useEffect(() => {
@@ -656,7 +659,8 @@ export default function Dashboard() {
             const c = localStorage.getItem(STORAGE_KEY_COLS);
             if (c) setCols(Number(c) as 2 | 3 | 4);
           } catch {}
-        });
+        })
+        .finally(() => { hydratedRef.current = true; });
     } else {
       try {
         const w = localStorage.getItem(STORAGE_KEY_WIDGETS);
@@ -664,19 +668,22 @@ export default function Dashboard() {
         const c = localStorage.getItem(STORAGE_KEY_COLS);
         if (c) setCols(Number(c) as 2 | 3 | 4);
       } catch {}
+      hydratedRef.current = true;
     }
   }, []);
 
-  // Persist widget selection
+  // Persist widget selection — skip until hydration is done
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(activeWidgetIds));
     if (getToken()) {
       apiPatch('/api/profile', { activeWidgets: activeWidgetIds }).catch(() => {});
     }
   }, [activeWidgetIds]);
 
-  // Persist column count
+  // Persist column count — skip until hydration is done
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem(STORAGE_KEY_COLS, String(cols));
     if (getToken()) {
       apiPatch('/api/profile', { gridCols: cols }).catch(() => {});

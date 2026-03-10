@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ALL_WIDGETS } from './Dashboard';
+import { getToken, apiPatch } from '../lib/auth';
 
 // ─── Category definitions ────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -267,6 +268,16 @@ export default function Onboarding() {
   const handleFinish = () => {
     localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(enabledWidgets));
     localStorage.setItem(STORAGE_KEY_ONBOARDED, 'true');
+    // Sync to server so the API profile doesn't override localStorage on Dashboard load
+    if (getToken()) {
+      apiPatch('/api/profile', { activeWidgets: enabledWidgets }).catch(() => {});
+    }
+    // Dev-only: loop back to / so the always-onboarding demo flag can retrigger
+    if (process.env.NODE_ENV !== 'production' &&
+        localStorage.getItem('sd-dev-always-onboarding') === 'true') {
+      router.push('/');
+      return;
+    }
     router.push('/dashboard');
   };
 

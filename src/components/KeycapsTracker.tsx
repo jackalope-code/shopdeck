@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sidebar } from './ProjectsOverview';
+import { TopNav } from './ProjectsOverview';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out';
@@ -121,8 +121,8 @@ export default function KeycapsTracker() {
   });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
-      <Sidebar active="Keycaps Tracker" />
+    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+      <TopNav active="Keycaps" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}

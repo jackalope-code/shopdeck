@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Sidebar } from './ProjectsOverview';
+import { TopNav } from './ProjectsOverview';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DealCategory = 'Keyboards' | 'Electronics' | 'Audio' | 'Components';
@@ -129,9 +129,8 @@ export default function ActiveDealsDashboard() {
     .sort((a, b) => sort === 'discount' ? b.discount - a.discount : a.price - b.price);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
-      {/* Desktop sidebar */}
-      <Sidebar active="Active Deals" />
+    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+      <TopNav active="Deals" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Sticky header */}

@@ -17,6 +17,12 @@ export default function Home() {
       router.replace('/onboarding');
       return;
     }
+    // Dev-only: always show onboarding (demo loop) — flag persists until disabled
+    if (process.env.NODE_ENV !== 'production' &&
+        localStorage.getItem('sd-dev-always-onboarding') === 'true') {
+      router.replace('/onboarding');
+      return;
+    }
     const onboarded = localStorage.getItem('sd-onboarded') === 'true';
     router.replace(onboarded ? '/dashboard' : '/onboarding');
   }, [router]);

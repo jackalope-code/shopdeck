@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sidebar } from './ProjectsOverview';
+import { TopNav } from './ProjectsOverview';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PartStatus = 'in-stock' | 'low-stock' | 'out-of-stock';
@@ -105,8 +105,8 @@ export default function MyElectronics() {
   const restockVal = outOfStock.reduce((acc, p) => acc + p.price * 50, 0).toFixed(2);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
-      <Sidebar active="My Electronics" />
+    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+      <TopNav active="Electronics" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <main className="flex-1 overflow-y-auto p-8">

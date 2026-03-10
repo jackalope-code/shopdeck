@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Sidebar } from './ProjectsOverview';
+import { TopNav } from './ProjectsOverview';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Keyboard {
@@ -132,8 +132,8 @@ export default function KeyboardComparison() {
   const [search, setSearch] = useState('');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
-      <Sidebar active="Keyboard Comparison" />
+    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+      <TopNav active="Keyboards" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
