@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Project Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen pb-24">
+<!-- Header -->
+<header class="flex items-center justify-between p-4 sticky top-0 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md z-50">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="User profile avatar illustration" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiSmSitpEszOY1Y2mxmprNoysvWV713CrAWm59O2pApKi0x4gAKYDwXvfbItVs4FnzjA7LxzJ0p3hU2lw6McdJnxrz_JFDBLENC4FuvHg9Kgjd71vxkOvY997uetdIeJeS3Hl_AGSGnp9D09ky-xilCflbw7nqwyZERfmSOQCQG_IdjHuYcnDgciBz0FEEmG9D4Nax705Ir1PyMc1YJBMfXhJIexQ7fUnFYMiuMM0QeCjfj1ZbNf1torDldy9X7TL6Nio6wiuZDMcJ"/>
+</div>
+<div>
+<p class="text-xs text-slate-500 dark:text-slate-400">Welcome back,</p>
+<h1 class="text-base font-bold leading-none">Alex Rivera</h1>
+</div>
+</div>
+<button class="size-10 rounded-full flex items-center justify-center bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+<span class="material-symbols-outlined text-[24px]">notifications</span>
+</button>
+</header>
+<main class="px-4">
+<!-- Search and Filter -->
+<div class="mt-4 mb-6">
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400 group-focus-within:text-primary transition-colors">search</span>
+</div>
+<input class="block w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm" placeholder="Search projects..." type="text"/>
+</div>
+</div>
+<!-- Section Header -->
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-xl font-bold">Active Projects</h2>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-bold uppercase tracking-wider transition-all hover:bg-primary/20">
+<span class="size-1.5 rounded-full bg-primary animate-pulse"></span>
+        For Sale
+    </button>
+<button class="text-primary text-sm font-medium flex items-center gap-1">
+        View All <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Project Carousel/List -->
+<div class="space-y-4">
+<!-- Project Card 1 -->
+<div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+<div class="h-40 w-full relative">
+<div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent z-10"></div>
+<div class="absolute top-3 left-3 z-20 flex gap-2">
+<div class="bg-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white">In Progress</div>
+<div class="bg-white/90 dark:bg-surface-dark/90 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider text-primary border border-primary/20 flex items-center gap-1 shadow-sm"><span class="size-1.5 rounded-full bg-primary animate-pulse"></span>For Sale</div>
+</div>
+<div class="w-full h-full bg-cover bg-center" data-alt="Custom mechanical keyboard build components" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBkRJdhg8y6Sv8jXCcrQvj15n9zBr5uPZBVpuDGrGuqss95X1eod087WUFSfxBEwdRPnZ4MGLFzYFd1qPx20Dy5IxUVp2rD4tp7CS7i6UNE24NO1ouE46xkfBgU1ESPkbihTkRZ29Q6i5P6WSYTTVBqu6EkFCySL1XgnIYAvmPK6-Q2tyPgUd9GkPhdIT3byhTKWhO5F4YHSJRpW5DSogSGqF7vLrMrBVmQUdVgdTU0mQ6NWrgFbhZTQUWDqrhh8wBQtEiiJf3H7lAZ');"></div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h3 class="text-lg font-bold">Custom Keyboard Build</h3>
+<div class="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-sm">inventory_2</span>
+<span>4/10 items sourced</span>
+</div>
+</div>
+<div class="text-right">
+<p class="text-[10px] uppercase font-bold text-slate-400">Target Price</p>
+<p class="text-lg font-bold text-primary">$450.00</p>
+</div>
+</div>
+<div class="flex justify-between items-end mb-4 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+<div class="space-y-2 flex-1 mr-4">
+<div class="flex justify-between text-xs font-medium">
+<span class="text-slate-500 dark:text-slate-400">Sourcing Progress</span>
+<span class="text-primary">40%</span>
+</div>
+<div class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 40%;"></div>
+</div>
+</div>
+<div class="text-right shrink-0">
+<p class="text-[9px] uppercase font-bold text-slate-400">Est. Profit</p>
+<p class="text-sm font-bold text-green-500">+$164.50</p>
+</div>
+</div>
+<button class="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg font-bold text-sm transition-colors">
+View Project Details
+</button>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+<div class="h-40 w-full relative">
+<div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent z-10"></div>
+<div class="absolute top-3 right-3 z-20 bg-amber-500 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-slate-900">Planning</div>
+<div class="w-full h-full bg-cover bg-center" data-alt="Home music studio desk setup with monitors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuASAHv6qd8xXuJ7gELtYDLZPO_4TuVrw79XmmIQ2h-CswRIHY8Jj0kbCn6wnyvnq8vN_-fDGQCfnTISMa31ohgmJBucF9K-zD67tWS3fw1daW7sWW6KjySAUD8FpUKDR9-262HuIezkykAUzwExyIE6PPleQ1VmjvJ6_VnJ3y01p2pWINYf-7TYi_TyUJOUQrhgBuuxxMCjNtT6-zimuKtku280967K-txenC75i9tP_oVaSV325JTSTrsuMqyAXB0jbBk6nZM4V9k_');"></div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-lg font-bold">Home Studio Setup</h3>
+<div class="text-right">
+<p class="text-[10px] uppercase font-bold text-slate-400">Target Price</p>
+<span class="text-primary font-bold text-lg">$1,200.00</span>
+</div>
+</div>
+<div class="flex items-center gap-2 mb-4 text-sm text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-sm">inventory_2</span>
+<span>2/15 items sourced</span>
+</div>
+<div class="space-y-2 mb-4">
+<div class="flex justify-between text-xs font-medium">
+<span class="text-slate-500 dark:text-slate-400">Sourcing Progress</span>
+<span class="text-primary">13%</span>
+</div>
+<div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 13%;"></div>
+</div>
+</div>
+<button class="w-full py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-lg font-bold text-sm transition-colors">
+View Project Details
+</button>
+</div>
+</div>
+</div>
+<!-- Quick Stats Widget -->
+<div class="mt-8 mb-4">
+<h2 class="text-xl font-bold mb-4">Budget Overview</h2>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-primary/10 border border-primary/20 p-4 rounded-xl">
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Total Allocated</p>
+<p class="text-xl font-bold text-primary">$1,650</p>
+</div>
+<div class="bg-slate-200 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 p-4 rounded-xl">
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Spent to Date</p>
+<p class="text-xl font-bold">$580</p>
+</div>
+</div>
+</div>
+<!-- Recent Activity -->
+<div class="mt-8 mb-4">
+<h2 class="text-xl font-bold mb-4">Recent Updates</h2>
+<div class="space-y-3">
+<div class="flex items-center gap-4 p-3 bg-white dark:bg-slate-800/30 rounded-lg border border-slate-200 dark:border-slate-800">
+<div class="size-10 rounded-lg bg-green-500/20 flex items-center justify-center text-green-500">
+<span class="material-symbols-outlined">shopping_cart</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-medium">Switches purchased</p>
+<p class="text-xs text-slate-500">2 hours ago • Keyboard Project</p>
+</div>
+<p class="text-sm font-bold text-slate-400">-$65</p>
+</div>
+<div class="flex items-center gap-4 p-3 bg-white dark:bg-slate-800/30 rounded-lg border border-slate-200 dark:border-slate-800">
+<div class="size-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">add_task</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-medium">New item added</p>
+<p class="text-xs text-slate-500">Yesterday • Studio Setup</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-background-dark/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 px-6 py-3 flex items-center justify-between z-50">
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Dash</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">folder</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Projects</span>
+</a>
+<div class="relative -top-8">
+<button class="size-14 bg-primary text-white rounded-full shadow-lg shadow-primary/40 flex items-center justify-center">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Budget</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Profile</span>
+</a>
+</nav>
+</body></html>

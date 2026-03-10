@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .sparkline {
+            stroke: #0d7ff2;
+            stroke-width: 2;
+            fill: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen font-display">
+<div class="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-background-light dark:bg-background-dark pb-24">
+<header class="sticky top-0 z-10 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md p-4 justify-between border-b border-slate-200 dark:border-slate-800">
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100">arrow_back</span>
+</button>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">Audio Monitoring</h2>
+</header>
+<section class="flex gap-4 p-4">
+<div class="flex min-w-[140px] flex-1 flex-col gap-1 rounded-xl p-5 bg-primary/10 border border-primary/20">
+<p class="text-slate-600 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Tracked</p>
+<p class="text-primary tracking-tight text-3xl font-bold leading-tight">128</p>
+<div class="flex items-center gap-1 text-[10px] text-green-500 font-bold">
+<span class="material-symbols-outlined text-xs">trending_up</span>
+<span>+12%</span>
+</div>
+</div>
+<div class="flex min-w-[140px] flex-1 flex-col gap-1 rounded-xl p-5 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+<p class="text-slate-600 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Active Deals</p>
+<p class="text-slate-900 dark:text-slate-100 tracking-tight text-3xl font-bold leading-tight">14</p>
+<div class="flex items-center gap-1 text-[10px] text-primary font-bold">
+<span class="material-symbols-outlined text-xs">local_fire_department</span>
+<span>Hot Picks</span>
+</div>
+</div>
+</section>
+<nav class="flex gap-2 px-4 py-2 overflow-x-auto no-scrollbar">
+<div class="flex h-9 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-white shadow-lg shadow-primary/20">
+<p class="text-sm font-bold">All</p>
+</div>
+<div class="flex h-9 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 px-5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+<p class="text-sm font-medium">Headphones</p>
+</div>
+<div class="flex h-9 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 px-5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+<p class="text-sm font-medium">Earbuds</p>
+</div>
+<div class="flex h-9 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 px-5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+<p class="text-sm font-medium">Amps/DACs</p>
+</div>
+</nav>
+<section class="p-4 space-y-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-xl font-bold px-1">Monitored Products</h3>
+<div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+<div class="relative h-48 bg-slate-100 dark:bg-slate-800">
+<img alt="Sennheiser HD600" class="w-full h-full object-cover" data-alt="Professional open-back studio headphones on a stand" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAs7QQ9mVCP9zeovUhWJ_RIS613uIpwZ65EVtkQMkw2E-KlJNzD1NYLhz6EkihTlNIoz6-Ntc0ioNeaYFbf1lSw93cUK5znFo0Sw7Imqn-CRvZGQmyeSVdhSw_8uG7SNlI_jxutyJUzKTLswfI_Z7R4Sn6dNZ4Aoco0CWXDFTr-btjsQvm3sZhp30XUSBef4aen18OH9RN9YS4vs6zZoD5OfetIsPf97j2u7z_qp53Ix36C6WUolIlnyyr2Kha3tyP7WzrD1jFN0I94"/>
+<div class="absolute top-3 right-3 bg-green-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter">
+                        In Stock
+                    </div>
+<div class="absolute bottom-3 left-3 flex gap-2">
+<span class="bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md">Open-Back</span>
+<span class="bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md">Reference</span>
+</div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-slate-100">Sennheiser HD600</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400">Legendary audiophile clarity</p>
+</div>
+<div class="flex flex-col items-end">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+<span class="text-[9px] uppercase font-bold text-primary mt-1">Alerts On</span>
+</div>
+</div>
+<div class="flex items-end justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="text-2xl font-bold text-primary">$299.00</span>
+<span class="bg-primary/20 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded">-25%</span>
+</div>
+<span class="text-xs text-slate-400 line-through">$399.00 MSRP</span>
+</div>
+<div class="w-24 h-10">
+<svg class="w-full h-full" viewbox="0 0 100 40">
+<path class="sparkline" d="M0,35 L10,32 L20,38 L30,25 L40,28 L50,15 L60,18 L70,10 L80,12 L90,5 L100,8"></path>
+</svg>
+</div>
+</div>
+</div>
+</div>
+<div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+<div class="relative h-48 bg-slate-100 dark:bg-slate-800">
+<img alt="Sony WF-1000XM5" class="w-full h-full object-cover" data-alt="Premium wireless noise cancelling earbuds in black" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEddLh2x7wcwSYNu1fcBbMLzm0SnpbsdtwoYspVPvNDX6LW9GZzqO1816pJen5TQrzWg4UBiYL_LFxaaevqrkU0jhsJLQhgUW5P4gZucHkQKewyOp_DFiE4QoL2M3U_LGuLqVfGqs-y9SZfifwCccLih40JLlhpFU_dHtbR3TCzp5RDPskxYB4Cx247Wm6z_Up3mLIzsU9cJaTmDLPcrUpe7asz0szCrJNQqi8HxH4m7pWFt2w9l1wIUwZTBYjhmqgFypqb8EpYssU"/>
+<div class="absolute top-3 right-3 bg-amber-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter">
+                        Limited
+                    </div>
+<div class="absolute bottom-3 left-3 flex gap-2">
+<span class="bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md">Wireless</span>
+<span class="bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md">ANC</span>
+</div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-slate-100">Sony WF-1000XM5</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400">Best-in-class noise cancellation</p>
+</div>
+<div class="flex flex-col items-end">
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+<span class="text-[9px] uppercase font-bold text-slate-400 mt-1">Alerts Off</span>
+</div>
+</div>
+<div class="flex items-end justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="text-2xl font-bold text-slate-900 dark:text-slate-100">$248.00</span>
+<span class="bg-slate-200 dark:bg-slate-800 text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded">-17%</span>
+</div>
+<span class="text-xs text-slate-400 line-through">$299.99 MSRP</span>
+</div>
+<div class="w-24 h-10">
+<svg class="w-full h-full" viewbox="0 0 100 40">
+<path class="sparkline stroke-slate-400" d="M0,20 L20,22 L40,18 L60,25 L80,22 L100,20"></path>
+</svg>
+</div>
+</div>
+</div>
+</div>
+<div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+<div class="relative h-48 bg-slate-100 dark:bg-slate-800">
+<img alt="Schiit Magni" class="w-full h-full object-cover" data-alt="Sleek silver aluminum desktop headphone amplifier" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClTjrH45_77wGBs5pKsnuVtSsAdogbXptkRbfj6vzqskPFFEeVUnF7zDfwm4E3V5kctiAgct1Z8_uBrEGJ5mZzhIDiMezyOAM8wXtMO6gl6b38w8Dai-cyht_pwLiBfNP0uIfd2JoizmM2O-zbno1IaP5lV0oZSridS8CGfUzK30F-Hn7ZKemAcy1byf260wG3zKzM0GfqhV9w-jkrMtcGDZyMHflXQOkhtMgg-PD7831uERlsvVxpPhU-N-oDSOlHn3tgSGErSrZk"/>
+<div class="absolute top-3 right-3 bg-red-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter">
+                        Out of Stock
+                    </div>
+<div class="absolute bottom-3 left-3 flex gap-2">
+<span class="bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md">Solid State</span>
+<span class="bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md">AMP</span>
+</div>
+</div>
+<div class="p-4 opacity-75">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-slate-100">Schiit Magni Unity</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400">Discrete High-Power Amp/DAC</p>
+</div>
+<div class="flex flex-col items-end">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+<span class="text-[9px] uppercase font-bold text-primary mt-1">Alerts On</span>
+</div>
+</div>
+<div class="flex items-end justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="text-2xl font-bold text-slate-900 dark:text-slate-100">$189.00</span>
+</div>
+<span class="text-xs text-slate-400">Regular MSRP</span>
+</div>
+<div class="w-24 h-10">
+<svg class="w-full h-full" viewbox="0 0 100 40">
+<path class="sparkline stroke-slate-300 dark:stroke-slate-600" d="M0,10 L100,10"></path>
+</svg>
+</div>
+</div>
+</div>
+</div>
+</section>
+<nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-20 flex gap-2 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg px-4 pb-6 pt-3">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">grid_view</span>
+<p class="text-[10px] font-bold leading-normal tracking-wide">Dashboard</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<p class="text-[10px] font-medium leading-normal tracking-wide">Tracker</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">sell</span>
+<p class="text-[10px] font-medium leading-normal tracking-wide">Deals</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-[10px] font-medium leading-normal tracking-wide">Settings</p>
+</a>
+</nav>
+</div>
+</body></html>

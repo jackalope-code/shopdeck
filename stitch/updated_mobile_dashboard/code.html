@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-24">
+<header class="flex items-center justify-between p-4 sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-3xl">dashboard</span>
+<h1 class="text-xl font-bold tracking-tight">Nexus Hub</h1>
+</div>
+<button class="size-10 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<div class="px-4 py-4">
+<label class="relative flex w-full items-center">
+<span class="material-symbols-outlined absolute left-4 text-slate-400">search</span>
+<input class="w-full h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border-none pl-12 pr-4 text-base focus:ring-2 focus:ring-primary placeholder:text-slate-500" placeholder="Search projects, items or RAM chips" type="text"/>
+</label>
+</div>
+<div class="flex gap-3 px-4 pb-6 overflow-x-auto no-scrollbar">
+<button class="flex items-center gap-2 h-9 shrink-0 px-4 rounded-full bg-primary text-white text-sm font-semibold">
+<span class="material-symbols-outlined text-sm">sell</span>
+                For Sale
+            </button>
+<button class="flex items-center gap-2 h-9 shrink-0 px-4 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium">
+                Pending
+                <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex items-center gap-2 h-9 shrink-0 px-4 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium">
+                Electronics
+                <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+<button class="flex items-center gap-2 h-9 shrink-0 px-4 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium">
+                Keyboards
+                <span class="material-symbols-outlined text-sm">expand_more</span>
+</button>
+</div>
+<section class="px-4 mb-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-xl font-bold">Active Projects</h2>
+<button class="text-primary text-sm font-bold">View all</button>
+</div>
+<div class="grid grid-cols-1 gap-4">
+<!-- Project Card 1 -->
+<div class="bg-slate-100 dark:bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700/50">
+<div class="h-32 bg-slate-200 dark:bg-slate-700 relative">
+<img class="w-full h-full object-cover" data-alt="Mechanical keyboard with custom keycaps and RGB lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAz7Feks6VRaCs2jNsxjoGhzRYRjiluLxcelxMTL6Pnc8xROAOhpWDV6wgx7dKcXObf0QkazJWByqPgV0rXy8IHBFVynkX52kf6fOAoNkYDO_5v6KIvhMyQF6ZYcViUXTML2a05an91dh54iKi03cvNL1Brk4Q2cIKJ2squrKqB2ldRniv-cRfkzi0Z0eLvD6Sk5X6aFsUOf3s1cyFngmD1fibs5T2s2ZhLx6DbP8hb1K3LH9n2j31MyegsRzMMcoxE9knyH3zlyoE"/>
+<div class="absolute top-3 left-3 bg-primary px-3 py-1 rounded-full text-[10px] font-bold text-white tracking-wider uppercase">For Sale</div>
+</div>
+<div class="p-4">
+<h3 class="font-bold text-lg mb-1">Cyber-Type K80 Custom</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Modified mechanical keyboard with linear switches</p>
+<div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
+<div>
+<p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Target Price</p>
+<p class="text-lg font-bold text-primary">$450.00</p>
+</div>
+<div class="text-right">
+<p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Est. Profit</p>
+<p class="text-lg font-bold text-emerald-500">+$125.00</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="bg-slate-100 dark:bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700/50">
+<div class="h-32 bg-slate-200 dark:bg-slate-700 relative">
+<img class="w-full h-full object-cover" data-alt="High end studio monitors and audio equipment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnUaX75PDXCvebMDE6IjkYIz6lHtNBmyUJkSCmg_bHdC2B4zJMpVSm0JlfUDI7WnliqQYLyechITOe8_UdfyjlVgL7JoJGviKa4DgxC5lwbhNC03qxoV3iK2eRk9gOKqFbrmkmTiHeAYzVQnr0nrtPl6dFTwI0VHx_uAx_aaFaV-pV8zAxtfpbo6UWQ_XOaXe5-KkIqjVvM3Y6CmNhzUgPLWzZp1SotakrcnrUMsCxu_kVEMyT9vP_guqqEwNKxPYdiqGrlbewIgNH"/>
+<div class="absolute top-3 left-3 bg-primary px-3 py-1 rounded-full text-[10px] font-bold text-white tracking-wider uppercase">For Sale</div>
+</div>
+<div class="p-4">
+<h3 class="font-bold text-lg mb-1">Sonic-Wave Pro Monitors</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Restored studio grade audio monitors</p>
+<div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
+<div>
+<p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Target Price</p>
+<p class="text-lg font-bold text-primary">$890.00</p>
+</div>
+<div class="text-right">
+<p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Est. Profit</p>
+<p class="text-lg font-bold text-emerald-500">+$240.00</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="px-4 mb-8">
+<h2 class="text-xl font-bold mb-4">Inventory Widgets</h2>
+<div class="grid grid-cols-2 gap-4">
+<!-- Electronics Widget -->
+<div class="p-4 rounded-2xl bg-primary/10 border border-primary/20">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary">memory</span>
+<span class="text-sm font-bold">Electronics</span>
+</div>
+<p class="text-xs text-slate-400 mb-1">RAM Volatility</p>
+<div class="flex items-end gap-1 mb-2">
+<div class="w-1.5 h-6 bg-primary rounded-full"></div>
+<div class="w-1.5 h-10 bg-primary rounded-full"></div>
+<div class="w-1.5 h-8 bg-primary rounded-full"></div>
+<div class="w-1.5 h-12 bg-primary rounded-full"></div>
+<div class="w-1.5 h-7 bg-primary rounded-full"></div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs font-bold text-primary">High Yield</span>
+<span class="material-symbols-outlined text-primary text-sm">trending_up</span>
+</div>
+</div>
+<!-- Keyboard Parts Widget -->
+<div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-emerald-500">keyboard</span>
+<span class="text-sm font-bold">Keyboards</span>
+</div>
+<p class="text-2xl font-bold text-emerald-500">14</p>
+<p class="text-[10px] text-slate-400 uppercase font-bold">Stock Count</p>
+</div>
+<!-- Audio Widget -->
+<div class="col-span-2 p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-xl bg-orange-500 flex items-center justify-center">
+<span class="material-symbols-outlined text-white">speaker</span>
+</div>
+<div>
+<p class="text-sm font-bold">Audio Components</p>
+<p class="text-xs text-slate-500">3 units requiring attention</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-orange-500">error</span>
+</div>
+</div>
+</section>
+<section class="px-4 mb-8">
+<h2 class="text-xl font-bold mb-4">Recent Activity</h2>
+<div class="space-y-4">
+<div class="flex gap-4 items-start">
+<div class="size-2 mt-2 rounded-full bg-primary ring-4 ring-primary/20 shrink-0"></div>
+<div>
+<p class="text-sm font-medium">New bid on <span class="text-primary font-bold">K80 Custom</span></p>
+<p class="text-xs text-slate-500">2 minutes ago</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<div class="size-2 mt-2 rounded-full bg-slate-400 shrink-0"></div>
+<div>
+<p class="text-sm font-medium">Inventory updated: <span class="font-bold text-slate-700 dark:text-slate-300">DDR4 RAM Chips</span></p>
+<p class="text-xs text-slate-500">1 hour ago</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<div class="size-2 mt-2 rounded-full bg-emerald-500 shrink-0"></div>
+<div>
+<p class="text-sm font-medium">Project <span class="text-emerald-500 font-bold">Vintage Preamp</span> marked as Sold</p>
+<p class="text-xs text-slate-500">Yesterday</p>
+</div>
+</div>
+</div>
+</section>
+<nav class="fixed bottom-0 left-0 right-0 z-50 bg-white/80 dark:bg-background-dark/80 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-6 pb-6 pt-3 flex justify-between items-center">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined active-icon">home</span>
+<span class="text-[10px] font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-[10px] font-bold">Projects</span>
+</a>
+<a class="flex flex-col items-center gap-1 -mt-8 size-14 rounded-full bg-primary text-white shadow-lg shadow-primary/30" href="#">
+<span class="material-symbols-outlined mt-4">add</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="text-[10px] font-bold">Inventory</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold">Profile</span>
+</a>
+</nav>
+</div>
+</body></html>

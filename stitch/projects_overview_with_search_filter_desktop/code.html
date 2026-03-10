@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ShopMonitor - Projects Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Side Navigation -->
+<aside class="w-64 flex-shrink-0 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark/50">
+<div class="p-6 flex items-center gap-3">
+<div class="size-10 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined">shopping_bag</span>
+</div>
+<div>
+<h1 class="font-bold text-lg leading-tight">ShopMonitor</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400">Pro Account</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white transition-colors" href="#">
+<span class="material-symbols-outlined">workspaces</span>
+<span class="text-sm font-medium">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="text-sm font-medium">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="text-sm font-medium">Price Alerts</span>
+</a>
+<div class="pt-4 pb-2 px-3">
+<p class="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">Preferences</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<button class="w-full flex items-center justify-center gap-2 bg-primary text-white py-2.5 rounded-lg font-bold text-sm hover:brightness-110 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>New Project</span>
+</button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col overflow-y-auto">
+<!-- Header -->
+<header class="h-16 flex items-center justify-between px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+<div class="flex items-center gap-4 flex-1 max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+<input class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary outline-none text-slate-700 dark:text-slate-200" placeholder="Search projects, items or tags..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2.5 w-2 h-2 bg-primary rounded-full border-2 border-white dark:border-background-dark"></span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+<span class="material-symbols-outlined">chat_bubble</span>
+</button>
+</div>
+<div class="h-8 w-[1px] bg-slate-200 dark:border-slate-800 mx-2"></div>
+<div class="flex items-center gap-3 cursor-pointer group">
+<div class="size-9 rounded-full bg-slate-300 dark:bg-slate-700 overflow-hidden border-2 border-transparent group-hover:border-primary transition-all">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="User profile avatar portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBipBLghpkk6oSGpcI3aDWPq3ympuTeIsnSmBK5mzeqku5KzYsyKNhnzfZOo8Jy-UwYkHKmEoDrbHIKGwPVD54BhsWQCiu-rz_tnrnSoIrWrgJGIcHPtycnSlyK-1ooUBeUrcasBlwW2NA6nMa3TGSdZVkuxTZ3KF0OQ5ipYDe-cITPIDw_kHpYf0NWj0A3joEeYQDbFW83bw4hfBsaK1OWgrxC4pT9HM7gBEkLfqIwqfZCyOpLqQXPMgI6zfrPuGmTnHPU6tEvoBqY"/>
+</div>
+<span class="text-sm font-medium hidden lg:block">Alex Rivera</span>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<div class="p-8">
+<div class="flex items-end justify-between mb-8">
+<div>
+<h2 class="text-4xl font-black tracking-tight mb-2">Active Projects</h2>
+<p class="text-slate-500 dark:text-slate-400">Manage your ongoing builds and source components at the best prices.</p>
+</div>
+<div class="flex items-center gap-3 flex-wrap justify-end gap-4"><div class="relative w-64 hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="w-full bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-primary/50 rounded-lg pl-9 pr-4 py-1.5 text-sm outline-none text-slate-700 dark:text-slate-200 transition-all" placeholder="Search projects..." type="text"/>
+</div>
+<div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex">
+<button class="px-4 py-1.5 rounded-md bg-white dark:bg-slate-700 shadow-sm text-sm font-bold">Active</button>
+<button class="px-4 py-1.5 rounded-md text-slate-500 text-sm font-bold">Archived</button>
+<button class="px-4 py-1.5 rounded-md text-slate-500 text-sm font-bold">For Sale</button></div>
+</div>
+</div>
+<!-- 12-Column Project Grid -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Project Card 1 -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-primary transition-all group">
+<div class="aspect-video relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" data-alt="Custom mechanical keyboard with various keycaps" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAQkeuwFuoOvqc3HQUse3ba5DigQ9zmlLjII5f9CEF1huA6sIiObLm0V2ZQ_cqApEyR9MTDHhUv4nU8UN_SSEPmVDISnwmnW6GZr6wNwt4IjzkSuTqwbDTMw8Eu7E1EPDtI8NalZivjeJ3N7yG7CWAy5y6T7vEnagW658kXnkD-JJqvQcb4UMRy-l90mVK9cVbZ7Ofd9kuIcNB5Wls2MyW7VMYacjGUxjv0-YCmCaPOoaaJ5PD9cNOer_FktJPoSdMwG7Hu6wUbgy0C')"></div>
+<div class="absolute top-4 left-4">
+<span class="px-3 py-1 rounded-full bg-primary text-white text-[10px] font-bold uppercase tracking-wider">In Progress</span><span class="ml-2 px-3 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider">For Sale</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg mb-1">Custom Keyboard Build</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">calendar_today</span>
+                                        Modified 2 days ago
+                                    </p>
+</div>
+<button class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors text-slate-400">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-sm mb-1.5">
+<span class="text-slate-500 dark:text-slate-400">Sourcing Progress</span>
+<span class="font-bold">6 / 12 items</span>
+</div>
+<div class="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-1/2 rounded-full"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-y-3 gap-x-4 p-3 bg-slate-50 dark:bg-slate-800/80 rounded-lg"><div class="border-r border-slate-200 dark:border-slate-700 pr-2"><p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Spent</p><p class="font-bold text-primary">$800.00</p></div><div class="text-right pl-2"><p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Target Price</p><p class="font-bold text-slate-900 dark:text-white">$1,500.00</p></div><div class="col-span-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center"><p class="text-[10px] uppercase text-slate-500 font-bold">Est. Profit</p><p class="font-bold text-emerald-500 text-sm">+$300.00</p></div></div>
+</div>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-primary transition-all group">
+<div class="aspect-video relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" data-alt="Home recording studio with monitors and microphone" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAYNmgso9VJDMjO5OGpzAHY8InmPo1j4OYViHPRKGgnyyRasgHdRZ_ylGlaWH63J68ULP0cENTvyv6_x0poeVwFsdmBIwcTZpXnoiaG0s5eMmljQK7IaofhBK9OOjtzxyNmoZQs9EEQFVJl53mbtAisVNl9xSOiRwluSHvVUQfJxzz38ernrWDtbZG2h8V0ntDQmMs7Na2PceNEx3-Ku_DhlXfhC1wkV-rQJOXuYd2vkCmMb3ZUujiwwIricpBcexm1cyGus9ieIqV_')"></div>
+<div class="absolute top-4 left-4">
+<span class="px-3 py-1 rounded-full bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider">Planning</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg mb-1">Home Studio Setup</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">calendar_today</span>
+                                        Created 1 week ago
+                                    </p>
+</div>
+<button class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors text-slate-400">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-sm mb-1.5">
+<span class="text-slate-500 dark:text-slate-400">Sourcing Progress</span>
+<span class="font-bold">4 / 10 items</span>
+</div>
+<div class="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[40%] rounded-full"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 p-3 bg-slate-50 dark:bg-slate-800/80 rounded-lg">
+<div>
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Budget</p>
+<p class="font-bold">$5,000.00</p>
+</div>
+<div class="text-right">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Spent</p>
+<p class="font-bold text-primary">$2,500.00</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Project Card 3 -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-primary transition-all group">
+<div class="aspect-video relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" data-alt="High-end gaming PC interior with RGB lighting" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAr6DAt3GOxMcT2ChsKZ8RiSADx9zb2CPF8nFjfz8q4f_QVG8UrGEWeyh5wIbZRjymLAB1chhWH0lOO5CSF7J66zi6mL2u6NbpD5Y5UvuXwDxF6dU51UGEy8_EmULYulSOwvNmJE36WcGeo_55x2e5Izq7oCHNeDUe_go_DuJipzBPNFAOWDC-0o30RxaUJ6wh6yBmUKeg52KCggQerco7Y9vo_HwLUo0xiERSveY8csVKQGE-Rr9g4dqjNMX1G4Mjpw5ciY7JIWBu6')"></div>
+<div class="absolute top-4 left-4">
+<span class="px-3 py-1 rounded-full bg-primary text-white text-[10px] font-bold uppercase tracking-wider">In Progress</span><span class="ml-2 px-3 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider">For Sale</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg mb-1">Gaming PC 2024</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">calendar_today</span>
+                                        Modified 5 hours ago
+                                    </p>
+</div>
+<button class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors text-slate-400">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-sm mb-1.5">
+<span class="text-slate-500 dark:text-slate-400">Sourcing Progress</span>
+<span class="font-bold">8 / 15 items</span>
+</div>
+<div class="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[53%] rounded-full"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-y-3 gap-x-4 p-3 bg-slate-50 dark:bg-slate-800/80 rounded-lg"><div class="border-r border-slate-200 dark:border-slate-700 pr-2"><p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Spent</p><p class="font-bold text-primary">$1,500.00</p></div><div class="text-right pl-2"><p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Target Price</p><p class="font-bold text-slate-900 dark:text-white">$2,800.00</p></div><div class="col-span-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center"><p class="text-[10px] uppercase text-slate-500 font-bold">Est. Profit</p><p class="font-bold text-emerald-500 text-sm">+$600.00</p></div></div>
+</div>
+</div>
+</div>
+<!-- Project Card 4 -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-primary transition-all group">
+<div class="aspect-video relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" data-alt="Modern living room with minimalist furniture" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCXYCVixs5p5inzwsrXTNODQWbiZgoav3wRqpk0tw7hLLE5O6q6mKhvITGSgkXkOLXdf1UyI_Y2EZbs9yauskwfqkymvr0wpxdrj9ZkxGMct7WdpCP1mgv40Gohb3bc4Y0MhPQaec7hfUIWeUmFr4V6ydbreaSGdbbWP3qoG0fCZ3WU_FVxLGCikwIc3VdzDdVlDJIAtsUpgutmk8yxl6vxQZZyqi6T-_KtVYlHhi4dLqZUnO7nuc--tjdp1OpWqg7R3eJXDPHadpDi')"></div>
+<div class="absolute top-4 left-4">
+<span class="px-3 py-1 rounded-full bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider">Planning</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg mb-1">Living Room Refresh</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">calendar_today</span>
+                                        Created 3 days ago
+                                    </p>
+</div>
+<button class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors text-slate-400">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-sm mb-1.5">
+<span class="text-slate-500 dark:text-slate-400">Sourcing Progress</span>
+<span class="font-bold">2 / 8 items</span>
+</div>
+<div class="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-1/4 rounded-full"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 p-3 bg-slate-50 dark:bg-slate-800/80 rounded-lg">
+<div>
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Budget</p>
+<p class="font-bold">$1,000.00</p>
+</div>
+<div class="text-right">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Spent</p>
+<p class="font-bold text-primary">$400.00</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- New Project Placeholder -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-slate-100/50 dark:bg-slate-800/20 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-xl overflow-hidden hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all cursor-pointer flex flex-col items-center justify-center p-8 group">
+<div class="size-14 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-3xl">add</span>
+</div>
+<p class="font-bold">Create New Project</p>
+<p class="text-sm text-slate-500 dark:text-slate-400 text-center mt-2 max-w-[200px]">Start tracking a new build and find the best component prices.</p>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

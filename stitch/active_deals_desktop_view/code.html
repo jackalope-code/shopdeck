@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #314d68; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="w-64 flex-shrink-0 bg-slate-100 dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between p-4">
+<div class="space-y-8">
+<div class="flex items-center gap-3 px-2">
+<div class="size-10 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined">monitoring</span>
+</div>
+<div>
+<h1 class="font-bold text-lg leading-tight">ShopMonitor</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400">Pro Dashboard</p>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">sell</span>
+<span class="text-sm font-medium">Active Deals</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">trending_down</span>
+<span class="text-sm font-medium">Price Tracker</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="text-sm font-medium">History</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+</div>
+<div class="bg-primary/5 rounded-xl p-4 border border-primary/20">
+<p class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Pro Plan</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Unlock advanced filtering and 1-min tracking.</p>
+<button class="w-full bg-primary hover:bg-primary/90 text-white text-xs font-bold py-2 rounded-lg transition-colors">
+                    Upgrade to Pro
+                </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<!-- Header Section -->
+<header class="p-8 pb-4 space-y-6 flex-shrink-0">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h2 class="text-3xl font-bold tracking-tight">Active Deals</h2>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Real-time shopping monitor across 50+ stores</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative w-full md:w-80">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-xl focus:ring-primary focus:border-primary text-sm" placeholder="Search products, brands..." type="text"/>
+</div>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex gap-2">
+<button class="px-4 py-1.5 rounded-full bg-primary text-white text-sm font-medium">All</button>
+<button class="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">Keyboards</button>
+<button class="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">Electronics</button>
+<button class="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">Audio</button>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-sm text-slate-500 font-medium">Sort By:</span>
+<select class="bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm font-medium focus:ring-primary py-1.5 pl-3 pr-10">
+<option>Highest Discount</option>
+<option>Price: Low to High</option>
+<option>Ending Soon</option>
+</select>
+</div>
+</div>
+</header>
+<!-- Grid Content -->
+<div class="flex-1 overflow-y-auto p-8 pt-2 custom-scrollbar">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+<!-- Deal Card 1 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Mechanical keyboard with RGB lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDk07f5NPSR7jyAvW_GAT2lwJMAXMiLOMP8Wb0Xg8ZcFym4_ZVDCbADliSAEnwsoXFW45orckDNz7au2f6SthjEPX28__pUho7aXpb-hpYLZSog3sRe7tMnhcSyCzZdX3OOAo4NHIq0x1NSjICihZVBHMWKTg3yuATHhLhIKu-juzKdyMuZXa0LAQ2qatZqDB2I3yjJSzT3uWeISIiaKlDj28-1n8yxpvFGvpYFMeGdjZAw1HCW8goXiROiEgXxS3dumXGQXKgD5YaH"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-45% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                2h 15m left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Keyboards</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">Keychron Q1 Max Wireless</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$109.99</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$199.99</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+<!-- Deal Card 2 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Premium wireless headphones on stand" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdtw7vDWFthevr-6y0aGchOch6bbb3XuOZbgz53n9EUBRUbmyudEEt_TbH2Pm44dpdLrmaPOgnMAbN6a6QITIuGJ1Isp7Dc4MOcJRnl5IzvKEczJwFlhcLt6HbGtY_hdM4J6uglOswqvhyW2VsoDQpslUpPlEqR1DFlSP2vI3MTCI__LTMrW1I9VnjSeWpsKftXSr-0nYIfNHjeNeZ_y0nGbkMZgwdYZhQShCFcTMuGybEaNIc0VZAGY8FYjUBcuGjt3WsVoVR2NC-"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-30% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                45m left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Audio</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">Sony WH-1000XM5 ANC</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$279.00</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$399.00</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+<!-- Deal Card 3 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Gaming PC components graphics card" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA479j4CSJAJ2IvpKRUrs8M1DcjSpbwgjgU66BhD8bfrYcePiE5-PgkEcoQtNz6Wl-kNslTUcfQ97StT1p1CAe3LxeYjt4hhpI8sccxG3Bp6oigvaFDMqYCfPtZBtOeNxlJ-qzUCmH7Hl9Ub3aJFxOn6FcJw2Zda20Yg8OizI5RUsqYXBknCb9bNGx5MXw7XI1ACPJR8VY7f-sEHJuCMe4dMptzflK4O5hc9DvHgNXFvGROcEOAQz9B46HXM0VJr4EmGn0Iot4WG7fZ"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-15% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                5h left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Electronics</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">RTX 4070 Super OC Edition</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$549.99</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$649.00</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+<!-- Deal Card 4 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Minimalist desk setup with monitor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2eqqBRx2tTG3oePcg0yLiKdZzR1Fi7IYxrlmMGkLp5RIiIVCxODK_KIS_RZNlmtQ1H4uEm7nyATwVMEj9MrUKxGyMicpYh6EqwO5FohJqkdJeu8Y_6tgZtZCTGWXoxsTu4Z6f_qUio_pPJMLdqplZQI3tzbwZKjTqMqnv6LZtQNCXpEekx8XXAzoX4-b6BOxMWQsjWT3YscgjA43qBgZ37NzUc92r2hCuV6eu6ykz9dTVyjbbMRuERerkHDwcLC7eRAYUDvSRaQCw"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-25% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                12h left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Electronics</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">Dell UltraSharp 27" 4K</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$420.00</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$559.00</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+<!-- Deal Card 5 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Ergonomic vertical mouse" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiMwLrYTGzTTr_ha7dPKBDygs3DRtNI0m73I3qS3-L9krRtMTxWqkXWfmnbmuWHTrRFwwM5DnDQUl_uJW3x-vFAWk_vBq-lfrYNtrOhJOm5AJZsAyYM6I9032EY3_oO2TKthqocHRLziKPYSsyyaLEO3KARjogkOrkvb0nB2LzC69VMa_ovjIiLg1ZuE-GuKlmy-4osJiTnrNuoMNQMb4qgcVjWoJbcLNNApmsRQvjmQkEIU0ppsd-7sZ6ifk96LGvF1ozdQrxUveq"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-40% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                3h left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Electronics</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">Logitech MX Master 3S</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$59.40</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$99.00</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+<!-- Deal Card 6 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Studio monitor speakers" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqMG_vGOv0devMYYCGov7CgQIKc_Xc009JALhOQ8BLw2hmdp-J0jx9Vlp_KYiNiHhZbECnEdLS0JbSe4rTstA5HAoB9gnF8W8ITkeny1TqrszQ9eAaw0nPPlwKXnv9RJ4cAfgzhSQzFRgYhR-_t8CHPdEJ-A4OLApOhBl-DPGyA8iFQ_4lOv02RVHDJTzjeDYHO-fUq8OKRBzBYdvQWB-XY2aMRf1GmwwgAhghu98V7ymGu3gy1Mx_gVkIM7iD0q42etRDiVidn1su"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-20% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                1h left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Audio</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">Sennheiser HD 600 Open Back</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$239.00</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$299.00</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+<!-- Deal Card 7 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Mechanical keyboard switches" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBS58eB0WDIbUPHCoJWAgnSTerSAZMqJrGh-pPTD3fIZ1USZUJUbDh5_Qb8GCkGqw2P5VRm3rVc9_8KLj4sSSG_NyZID_QwUgE764YX_6qmjKhiJ4nDtAz7o-aL9AUQNifzxPW9cKj5UKkEl4X6l63yvHj_zSWH-IsmybA7Fsagitw_ZjFZmVmib8OSxRqWRz36OOa3TTzAqsXMoVQodLPrr8VVdd0DsRN1sIu7VfpNlV_LYTbzbNkLtyxmhC3StnkZutfl4bJbN7Xs"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-50% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                15m left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Keyboards</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">Drop CTRL Mechanical Keyboard</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$99.00</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$198.00</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+<!-- Deal Card 8 -->
+<div class="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/50 transition-all flex flex-col">
+<div class="relative aspect-video overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Tablet with digital pen" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDdS0tZfNX-dQ0zKSpkkcvPMMtHjoxg85Twrovf10aEppuNzBUupjVMak9DLh0W1hhcYfyoKcR2WmlIRtzG-kQEWajB_ZcBOUURV9ZJbAGTM6K3MnpwxI-sRyOiI2_x1vtt6_b2w86yfeTXKFrbRPydQEbT0Qj-2uNq-usx-jsbKTSwmOunx8OyG5r5T3cu1DV8bViZUXUAAI3-M3r0pyP4ihgEusZvJEZyihgxSao_KLBIYiL-iEUmwn3ckXqnXR2FNQzIJLWBh--"/>
+<div class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-10% OFF</div>
+<div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                8h left
+                            </div>
+</div>
+<div class="p-5 flex-1 flex flex-col">
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Electronics</span>
+<h3 class="font-bold text-slate-900 dark:text-white line-clamp-1 mb-3">iPad Pro M2 12.9" 256GB</h3>
+<div class="flex items-end gap-2 mb-6">
+<span class="text-xl font-bold text-slate-900 dark:text-white">$989.00</span>
+<span class="text-sm text-slate-400 line-through mb-0.5">$1099.00</span>
+</div>
+<button class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-900 dark:text-white font-bold rounded-xl transition-all text-sm">
+                                View Deal
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

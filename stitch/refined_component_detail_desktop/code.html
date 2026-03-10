@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ESP32-S3-WROOM-1 | Component Tracker Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Space Grotesk', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased">
+<div class="flex min-h-screen">
+<!-- Side Navigation -->
+<aside class="w-64 border-r border-primary/10 bg-background-light dark:bg-background-dark flex flex-col fixed h-full z-50">
+<div class="p-6 flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white">memory</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-primary">PartTracker</h1>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-medium text-sm">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="font-medium text-sm">Parts Search</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="font-medium text-sm">Price Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-medium text-sm">Market Analytics</span>
+</a>
+<div class="pt-4 mt-4 border-t border-primary/10">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium text-sm">Settings</span>
+</a>
+</div>
+</nav>
+<div class="p-4 border-t border-primary/10">
+<div class="flex items-center gap-3 p-2 bg-primary/5 rounded-xl">
+<div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex-shrink-0" data-alt="User profile avatar circle" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAQHZYMf7xrFEJ-Ytq0JCzbqBAdhTkHOedE289zqKCJrrylhD9jfmN1bn1qraSEKUnTfqC43IPVPUDrqebYvUcWPaOt0uCHCGilFjm94uz76y9c8454mhF6Rgm8INN2_VV_VA3PbdELVslDBuQcT59DBQFwi1z1n4q1EnAHu67JozVy9CKHDlgVXoneEyygRFw0ArF6OJUPDZibp-rL5FhVbb4DwMAXFwpNjpfx0BFdacCx64q-aYnA2Q68Ifcv8-UsbSBgWrp93idS')"></div>
+<div class="min-w-0">
+<p class="text-sm font-semibold truncate">Alex Rivera</p>
+<p class="text-xs text-slate-500">Enterprise Admin</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 p-8">
+<!-- Header with Search & Quick Actions -->
+<header class="flex justify-between items-center mb-8">
+<div class="flex items-center gap-2 text-slate-500 text-sm">
+<a class="hover:text-primary transition-colors" href="#">Components</a>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<a class="hover:text-primary transition-colors" href="#">Microcontrollers</a>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-slate-900 dark:text-slate-100 font-medium">ESP32 Series</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative w-96">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+<input class="w-full bg-slate-100 dark:bg-slate-800/50 border-none rounded-xl pl-10 pr-4 py-2 focus:ring-2 focus:ring-primary text-sm transition-all" placeholder="Search components, datasheets, or orders..." type="text"/>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-lg">sync</span>
+                        Inventory Sync
+                    </button>
+<button class="bg-slate-100 dark:bg-slate-800 p-2 rounded-xl text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<!-- Hero Component Info -->
+<section class="grid grid-cols-12 gap-8 mb-8">
+<div class="col-span-12 lg:col-span-8 flex gap-8 items-start">
+<div class="w-48 h-48 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center p-4 border border-primary/10 overflow-hidden shrink-0 shadow-sm">
+<div class="w-full h-full bg-cover bg-center rounded-lg" data-alt="ESP32-S3 microcontroller module top view" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC0SVqsQXP-GliyiHmwlP2kEmzzHJLQqxikc-jAz0bl2MLxKENu1TxcNk35Ki9SqKQcEo1JweKZk2mduynRnx1w3BKeelNu1PEtoB4P2CEj9yZuq3Y5YYkMMgkdacdMhTgOSTvjjyfC2i7IfPjIinzkhQAnnIWOw3QL_gc0oNGRNlphM_2AzJPirrC3i5LiC0k9xWVUzO4wZtva6NkS9lKFFET_yLbO4xd5sEek165K8XbFZOJv8gHXLPuktAI13MnREdUFn5yMYfVG')"></div>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-2">
+<span class="bg-emerald-500/10 text-emerald-500 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider">Active</span>
+<span class="text-slate-500 text-sm font-medium">MPN: ESP32-S3-WROOM-1-N16R8</span>
+</div>
+<h2 class="text-4xl font-bold mb-2">ESP32-S3-WROOM-1</h2>
+<p class="text-lg text-slate-500 mb-6">High-performance Wi-Fi + Bluetooth LE MCU module with Xtensa® dual-core 32-bit LX7 microprocessor, 16 MB Flash, 8 MB PSRAM.</p>
+<div class="flex flex-wrap gap-3">
+<button class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-700">
+<span class="material-symbols-outlined text-xl">description</span>
+                                Datasheet (PDF)
+                            </button>
+<button class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-700">
+<span class="material-symbols-outlined text-xl">architecture</span>
+                                Footprint &amp; 3D
+                            </button>
+<button class="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all">
+<span class="material-symbols-outlined text-xl">notifications_active</span>
+                                Set Price Alert
+                            </button>
+</div>
+</div>
+</div>
+<!-- Snapshot Stats Card -->
+<div class="col-span-12 lg:col-span-4 bg-primary/5 border border-primary/20 rounded-3xl p-6 flex flex-col justify-between">
+<div>
+<p class="text-slate-500 text-sm font-medium mb-1">Global Stock Summary</p>
+<h3 class="text-3xl font-bold mb-4">42,500 <span class="text-lg font-normal text-slate-400 uppercase tracking-wide">pcs</span></h3>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-sm">
+<span class="text-slate-500">Lead Time</span>
+<span class="font-semibold">8 Weeks</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-slate-500">Lowest Price (1k)</span>
+<span class="font-semibold text-emerald-500">$1.85</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-slate-500">Inventory Status</span>
+<span class="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full text-xs font-bold uppercase">Healthy</span>
+</div>
+</div>
+</div>
+<button class="mt-6 w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-3 rounded-xl font-bold text-sm">Buy Now</button>
+</div>
+</section>
+<!-- 12-Column Grid for Charts and Specs -->
+<div class="grid grid-cols-12 gap-8">
+<!-- Price and Stock History Chart Area -->
+<div class="col-span-12 lg:col-span-8 bg-white dark:bg-slate-800/40 border border-primary/5 rounded-3xl p-6 shadow-sm">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h3 class="text-xl font-bold">Market Intelligence</h3>
+<p class="text-sm text-slate-500">Price and inventory fluctuation over the last 12 months</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 rounded-lg bg-primary text-white text-xs font-bold">Price</button>
+<button class="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold">Inventory</button>
+</div>
+</div>
+<div class="w-full h-[320px] bg-slate-100 dark:bg-slate-900/50 rounded-2xl relative overflow-hidden group">
+<!-- Abstract Gradient for Chart Simulation -->
+<div class="absolute inset-0 flex items-end justify-between px-8 py-12 gap-2">
+<div class="w-full bg-primary/20 h-1/4 rounded-t"></div>
+<div class="w-full bg-primary/20 h-1/3 rounded-t"></div>
+<div class="w-full bg-primary/20 h-2/5 rounded-t"></div>
+<div class="w-full bg-primary h-1/2 rounded-t"></div>
+<div class="w-full bg-primary/20 h-3/5 rounded-t"></div>
+<div class="w-full bg-primary/20 h-3/4 rounded-t"></div>
+<div class="w-full bg-primary h-4/5 rounded-t"></div>
+<div class="w-full bg-primary/20 h-1/2 rounded-t"></div>
+<div class="w-full bg-primary/20 h-3/5 rounded-t"></div>
+<div class="w-full bg-primary/20 h-2/3 rounded-t"></div>
+<div class="w-full bg-primary h-3/4 rounded-t"></div>
+<div class="w-full bg-primary h-5/6 rounded-t shadow-[0_-10px_20px_rgba(13,127,242,0.2)]"></div>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-slate-100 dark:from-slate-900/50 via-transparent to-transparent pointer-events-none"></div>
+<div class="absolute top-4 left-4 flex gap-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+<span>$2.50</span>
+<div class="flex-1 border-t border-dashed border-slate-300 dark:border-slate-700 mt-1.5 w-64"></div>
+</div>
+</div>
+</div>
+<!-- Collapsible Specifications -->
+<div class="col-span-12 lg:col-span-4 space-y-4">
+<h3 class="text-xl font-bold mb-4 px-2">Refined Specs</h3>
+<div class="bg-white dark:bg-slate-800/40 border border-primary/5 rounded-2xl overflow-hidden">
+<button class="w-full px-5 py-4 flex items-center justify-between text-left group">
+<span class="font-bold">RF Capabilities</span>
+<span class="material-symbols-outlined text-primary group-hover:rotate-180 transition-transform">expand_more</span>
+</button>
+<div class="px-5 pb-5 space-y-3 text-sm">
+<div class="flex justify-between border-b border-primary/5 pb-2">
+<span class="text-slate-500">Wi-Fi Protocol</span>
+<span class="font-medium">802.11 b/g/n</span>
+</div>
+<div class="flex justify-between border-b border-primary/5 pb-2">
+<span class="text-slate-500">Bluetooth</span>
+<span class="font-medium">LE 5.0, Mesh</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Frequency Range</span>
+<span class="font-medium">2.4 GHz ~ 2.5 GHz</span>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800/40 border border-primary/5 rounded-2xl overflow-hidden">
+<button class="w-full px-5 py-4 flex items-center justify-between text-left group">
+<span class="font-bold">Internal Processing</span>
+<span class="material-symbols-outlined text-primary group-hover:rotate-180 transition-transform">expand_more</span>
+</button>
+<div class="px-5 pb-5 space-y-3 text-sm">
+<div class="flex justify-between border-b border-primary/5 pb-2">
+<span class="text-slate-500">Flash Memory</span>
+<span class="font-medium">16 MB Quad SPI</span>
+</div>
+<div class="flex justify-between border-b border-primary/5 pb-2">
+<span class="text-slate-500">SRAM</span>
+<span class="font-medium">512 KB</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">PSRAM</span>
+<span class="font-medium">8 MB Octal SPI</span>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800/40 border border-primary/5 rounded-2xl overflow-hidden">
+<button class="w-full px-5 py-4 flex items-center justify-between text-left group">
+<span class="font-bold">Electrical Parameters</span>
+<span class="material-symbols-outlined text-primary group-hover:rotate-180 transition-transform">expand_more</span>
+</button>
+<div class="px-5 pb-5 space-y-3 text-sm">
+<div class="flex justify-between border-b border-primary/5 pb-2">
+<span class="text-slate-500">Supply Voltage</span>
+<span class="font-medium">3.0V ~ 3.6V</span>
+</div>
+<div class="flex justify-between border-b border-primary/5 pb-2">
+<span class="text-slate-500">Operating Temp</span>
+<span class="font-medium">-40°C ~ 85°C</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Live Vendor Pricing Table -->
+<div class="col-span-12 bg-white dark:bg-slate-800/40 border border-primary/5 rounded-3xl p-8 shadow-sm">
+<div class="flex items-center justify-between mb-8">
+<h3 class="text-2xl font-bold">Real-time Vendor Availability</h3>
+<div class="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-bold animate-pulse">LIVE UPDATES</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="text-slate-500 text-sm border-b border-primary/10 uppercase tracking-widest font-semibold">
+<th class="pb-4 pr-4 font-semibold">Distributor</th>
+<th class="pb-4 pr-4 font-semibold">Stock</th>
+<th class="pb-4 pr-4 font-semibold">MOQ</th>
+<th class="pb-4 pr-4 font-semibold">Unit Price (1+)</th>
+<th class="pb-4 pr-4 font-semibold">Unit Price (1k+)</th>
+<th class="pb-4 font-semibold"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-primary/5">
+<tr class="group hover:bg-primary/5 transition-colors">
+<td class="py-5 pr-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center font-bold text-orange-600">DK</div>
+<span class="font-bold">DigiKey</span>
+</div>
+</td>
+<td class="py-5 pr-4">
+<span class="text-emerald-500 font-bold">12,450</span>
+</td>
+<td class="py-5 pr-4 text-slate-500">1</td>
+<td class="py-5 pr-4 font-medium">$3.12</td>
+<td class="py-5 pr-4 font-bold text-primary">$1.92</td>
+<td class="py-5 text-right">
+<button class="bg-primary/10 hover:bg-primary text-primary hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">Buy From DK</button>
+</td>
+</tr>
+<tr class="group hover:bg-primary/5 transition-colors">
+<td class="py-5 pr-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center font-bold text-blue-600">M</div>
+<span class="font-bold">Mouser</span>
+</div>
+</td>
+<td class="py-5 pr-4">
+<span class="text-emerald-500 font-bold">8,920</span>
+</td>
+<td class="py-5 pr-4 text-slate-500">1</td>
+<td class="py-5 pr-4 font-medium">$3.05</td>
+<td class="py-5 pr-4 font-bold text-primary">$1.85</td>
+<td class="py-5 text-right">
+<button class="bg-primary/10 hover:bg-primary text-primary hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">Buy From Mouser</button>
+</td>
+</tr>
+<tr class="group hover:bg-primary/5 transition-colors">
+<td class="py-5 pr-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-500/20 flex items-center justify-center font-bold text-red-600">A</div>
+<span class="font-bold">Arrow Electronics</span>
+</div>
+</td>
+<td class="py-5 pr-4">
+<span class="text-amber-500 font-bold">450</span>
+</td>
+<td class="py-5 pr-4 text-slate-500">25</td>
+<td class="py-5 pr-4 font-medium">$2.98</td>
+<td class="py-5 pr-4 font-bold text-primary">$1.95</td>
+<td class="py-5 text-right">
+<button class="bg-primary/10 hover:bg-primary text-primary hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">Buy From Arrow</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

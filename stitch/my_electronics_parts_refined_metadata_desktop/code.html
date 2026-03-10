@@ -1,0 +1,303 @@
+<html class="dark"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex min-h-screen">
+<!-- Sidebar Navigation -->
+<aside class="w-64 border-r border-slate-200 dark:border-primary/20 bg-white dark:bg-background-dark flex flex-col fixed h-full">
+<div class="p-6 flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined">memory</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight">PartTracker</h1>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-medium text-sm">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="font-medium text-sm">Orders</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">store</span>
+<span class="font-medium text-sm">Vendors</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-medium text-sm">Reports</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-primary/20 space-y-2">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium text-sm">Settings</span>
+</a>
+<div class="flex items-center gap-3 px-3 py-4">
+<div class="w-8 h-8 rounded-full bg-primary/20 border border-primary/30" data-alt="User profile avatar illustration"></div>
+<div class="flex flex-col">
+<span class="text-xs font-bold uppercase tracking-wider opacity-60">Admin User</span>
+<span class="text-[10px] opacity-40">Pro Account</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 p-8">
+<!-- Header -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+<div>
+<div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-1">
+<span>Inventory</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-primary font-medium">Electronics Parts</span>
+</div>
+<h2 class="text-3xl font-bold">My Electronics Parts</h2>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg font-medium transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+                        Add New Part
+                    </button>
+<button class="p-2 border border-slate-200 dark:border-primary/20 rounded-lg hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined">cloud_download</span>
+</button>
+</div>
+</header>
+<!-- Summary Stats -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="bg-white dark:bg-background-dark/50 border border-slate-200 dark:border-primary/20 p-6 rounded-xl flex items-center justify-between">
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Total Parts</p>
+<h3 class="text-3xl font-bold">1,248</h3>
+<p class="text-emerald-500 text-xs font-semibold mt-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_up</span> +12% from last month
+                        </p>
+</div>
+<div class="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">inventory</span>
+</div>
+</div>
+<div class="bg-white dark:bg-background-dark/50 border border-slate-200 dark:border-primary/20 p-6 rounded-xl flex items-center justify-between">
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Low Stock</p>
+<h3 class="text-3xl font-bold text-amber-500">14</h3>
+<p class="text-amber-500 text-xs font-semibold mt-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">priority_high</span> Critical attention needed
+                        </p>
+</div>
+<div class="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">warning</span>
+</div>
+</div>
+<div class="bg-white dark:bg-background-dark/50 border border-slate-200 dark:border-primary/20 p-6 rounded-xl flex items-center justify-between">
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Restock Value</p>
+<h3 class="text-3xl font-bold">$452.10</h3>
+<p class="text-primary text-xs font-semibold mt-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">schedule</span> 3 Pending Orders
+                        </p>
+</div>
+<div class="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">payments</span>
+</div>
+</div>
+</section>
+<!-- Table Controls -->
+<section class="bg-white dark:bg-background-dark/50 border border-slate-200 dark:border-primary/20 rounded-xl overflow-hidden">
+<div class="p-4 border-b border-slate-200 dark:border-primary/20 flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-4 flex-1 min-w-[300px]">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-primary/5 border border-slate-200 dark:border-primary/20 rounded-lg text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search components, categories, or vendors..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<select class="bg-slate-50 dark:bg-primary/5 border border-slate-200 dark:border-primary/20 rounded-lg text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary">
+<option>All Categories</option>
+<option>Microcontrollers</option>
+<option>Passives</option>
+<option>Connectors</option>
+</select>
+<select class="bg-slate-50 dark:bg-primary/5 border border-slate-200 dark:border-primary/20 rounded-lg text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary">
+<option>All Vendors</option>
+<option>DigiKey</option>
+<option>Mouser</option>
+<option>Adafruit</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-primary/20 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+                            More Filters
+                        </button>
+</div>
+</div>
+<!-- Parts Table -->
+<div class="grid grid-cols-12 gap-6 p-6">
+<!-- Card 1: ESP32 -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+<div class="absolute top-2 left-2 z-10 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">In Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700">memory</span>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">DigiKey</span>
+<span class="text-[10px] font-medium text-emerald-500">Available Now</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">ESP32-S3-WROOM-1</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$3.45</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">MPN: ESP32-S3-WROOM-1-N16R8 • MCU</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+<!-- Card 2: Resistor -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+<div class="absolute top-2 left-2 z-10 bg-amber-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">Low Stock: 12 left</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700">data_object</span>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Mouser</span>
+<span class="text-[10px] font-medium text-amber-500">Running Low</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">10k Ohm Resistor</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$0.012</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">MPN: RC0603FR-0710KL • Passive 0603</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+<!-- Card 3: NeoPixel -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+<div class="absolute top-2 left-2 z-10 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">In Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700">lightbulb</span>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Adafruit</span>
+<span class="text-[10px] font-medium text-emerald-500">15 Units</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">NeoPixel Stick 8x</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$5.95</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">MPN: 1426 • LED Module</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+<!-- Card 4: ATmega -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+<div class="absolute top-2 left-2 z-10 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">Out of Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<span class="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700">developer_board</span>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Mouser</span>
+<span class="text-[10px] font-medium text-rose-500">Expected: 2 Days</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">ATmega328P-AU</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$2.15</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">MPN: ATMEGA328P-AU • Microcontroller</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs font-bold cursor-not-allowed opacity-50">Notify Me</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 border-t border-slate-200 dark:border-primary/10 flex items-center justify-between">
+<span class="text-xs text-slate-500">Showing 1 to 5 of 1,248 entries</span>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded hover:bg-slate-100 dark:hover:bg-primary/10 disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-base">chevron_left</span>
+</button>
+<button class="px-2 py-1 text-xs font-bold rounded bg-primary text-white">1</button>
+<button class="px-2 py-1 text-xs font-bold rounded hover:bg-slate-100 dark:hover:bg-primary/10">2</button>
+<button class="px-2 py-1 text-xs font-bold rounded hover:bg-slate-100 dark:hover:bg-primary/10">3</button>
+<span class="text-xs mx-1">...</span>
+<button class="px-2 py-1 text-xs font-bold rounded hover:bg-slate-100 dark:hover:bg-primary/10">250</button>
+<button class="p-1 rounded hover:bg-slate-100 dark:hover:bg-primary/10">
+<span class="material-symbols-outlined text-base">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>

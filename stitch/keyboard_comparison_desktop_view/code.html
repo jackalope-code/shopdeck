@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="w-64 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-background-dark">
+<div class="p-6 flex items-center gap-3">
+<div class="bg-primary p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-white">keyboard</span>
+</div>
+<h2 class="text-xl font-bold tracking-tight">KeyCompare</h2>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary font-medium" href="#">
+<span class="material-symbols-outlined">compare_arrows</span>
+<span>Comparisons</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span>Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">favorite</span>
+<span>Wishlist</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3 p-2">
+<div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Alex Rivera</p>
+<p class="text-xs text-slate-500">Pro Member</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto bg-slate-50 dark:bg-background-dark/50">
+<!-- Top Header -->
+<header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-10 px-8 flex items-center justify-between">
+<div class="flex items-center gap-4 text-sm text-slate-500">
+<span>Library</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span>65% Keyboards</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-slate-900 dark:text-slate-100 font-medium">Envoy vs QK65v2</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="pl-10 pr-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-primary outline-none text-sm w-64" placeholder="Search kits..." type="text"/>
+</div>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-sm">share</span>
+                        Share View
+                    </button>
+</div>
+</header>
+<!-- Comparison Grid -->
+<div class="p-8 max-w-7xl mx-auto">
+<div class="grid grid-cols-12 gap-8">
+<!-- Title Section -->
+<div class="col-span-12 mb-4">
+<h1 class="text-4xl font-bold tracking-tight">Side-by-Side Analysis</h1>
+<p class="text-slate-500 mt-2">Technical performance and aesthetic comparison of premium 65% custom kits.</p>
+</div>
+<!-- Product Images Row -->
+<div class="col-span-12 grid grid-cols-12 gap-8">
+<!-- Spacer for specs labels if needed, or labels integrated into columns -->
+<div class="col-span-6 bg-white dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800 overflow-hidden group">
+<div class="relative h-64 w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 mb-6">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" data-alt="Mode Envoy mechanical keyboard in a minimalist office setting" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA-r5avJAnyFoX2aU78KgZIacvYhxnDU_LKGYFyr5eulMR6xNzFDjiYhaSODLBGrs-zo5qcXtUZZCQn2_ae61sw7ZkcxHs9rlbj5R66QSMko6vC361HAVx29qqPr5dpT1Cts8iRTn-CA6L2OSCoouZWheqybMmf6tDIXo9viW9SD98hzdd5nWsex4kFrYw_lclW428uLumHi96-vueSHhlZFzItF7fIlrUij0z5xLkdFGjqXmCQdFCGwMW4r4a8AHCNYt0bt6YX4lTB');"></div>
+<div class="absolute top-4 left-4">
+<span class="bg-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-white">Premium</span>
+</div>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-2xl font-bold">Mode Envoy</h3>
+<p class="text-slate-500">By Mode Designs</p>
+</div>
+<div class="text-right">
+<p class="text-2xl font-bold text-primary">$189.00</p>
+<p class="text-xs text-green-500 font-medium">In Stock</p>
+</div>
+</div>
+</div>
+<div class="col-span-6 bg-white dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800 overflow-hidden group">
+<div class="relative h-64 w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 mb-6">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" data-alt="QK65v2 mechanical keyboard with custom keycaps and brass weight" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCGeMTfKLjjl94f5y3-upvrkDzr35SJtJd6oesySeXlAaaQizAT53y_zmPjTjhNuUSC0fkMoZNZvLBhwZ5QsT0rKmdQXl-wGfBCLY_fC2-v2YRMVT7CJV1KINWEXYQXSr3yHDCP99RJ4MhL5xxUHnIrkgZ7lXMO7B9vYepfyIOLn5Bnp8tuvnqud4-DAtMpAT6h15UJbqbDZHWF46FcYNrNA4xQFuZXxYkMiHXPs0nXtCI5a8ZTQILZyNy3tL1ebAQi6GmOkRH3V_6E');"></div>
+<div class="absolute top-4 left-4">
+<span class="bg-amber-500 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-white">Value King</span>
+</div>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-2xl font-bold">QK65v2</h3>
+<p class="text-slate-500">By QwertyKeys</p>
+</div>
+<div class="text-right">
+<p class="text-2xl font-bold text-primary">$145.00</p>
+<p class="text-xs text-amber-500 font-medium">Restocking Soon</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Actions Row -->
+<div class="col-span-12 grid grid-cols-12 gap-8 -mt-4">
+<div class="col-span-6 flex gap-3">
+<button class="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+<span class="material-symbols-outlined">shopping_cart</span>
+                                Add to Cart
+                            </button>
+<button class="px-4 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+<div class="col-span-6 flex gap-3">
+<button class="flex-1 border-2 border-primary text-primary hover:bg-primary/5 font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+                                Notify Me
+                            </button>
+<button class="px-4 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</div>
+<!-- Detailed Specs Table -->
+<div class="col-span-12 mt-4 bg-white dark:bg-slate-900/30 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-100 dark:bg-slate-800/50">
+<th class="p-4 w-1/4 font-semibold text-slate-500 uppercase text-xs tracking-wider border-b border-slate-200 dark:border-slate-800">Technical Specs</th>
+<th class="p-4 w-[37.5%] font-bold text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800">Mode Envoy</th>
+<th class="p-4 w-[37.5%] font-bold text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800">QK65v2</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+<tr>
+<td class="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">Mounting Style</td>
+<td class="p-4 text-sm">Lattice Block / Top Mount</td>
+<td class="p-4 text-sm">Gasket Mount (Non-flex cut)</td>
+</tr>
+<tr>
+<td class="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">Typing Angle</td>
+<td class="p-4 text-sm">5.8 Degrees</td>
+<td class="p-4 text-sm">6.5 Degrees</td>
+</tr>
+<tr>
+<td class="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">Materials</td>
+<td class="p-4 text-sm">Aluminum / Polycarbonate</td>
+<td class="p-4 text-sm">6063 Aluminum / CNC Case</td>
+</tr>
+<tr>
+<td class="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">Weight</td>
+<td class="p-4 text-sm">~1.5kg (Built)</td>
+<td class="p-4 text-sm">~1.8kg (Built)</td>
+</tr>
+<tr>
+<td class="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">PCB Type</td>
+<td class="p-4 text-sm text-primary font-medium">Hotswap / Solder (Non-flex)</td>
+<td class="p-4 text-sm text-primary font-medium">Tri-mode Hotswap (Flex-cut)</td>
+</tr>
+<tr>
+<td class="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">Best For</td>
+<td class="p-4">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-sm mt-0.5">verified</span>
+<span class="text-sm">Enthusiasts looking for a clean, consistent sound profile and premium aesthetics.</span>
+</div>
+</td>
+<td class="p-4">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-amber-500 text-sm mt-0.5">verified</span>
+<span class="text-sm">Value-driven builders wanting a flexy typing feel and wireless connectivity.</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Comparison Summary/Verdict -->
+<div class="col-span-12 grid grid-cols-12 gap-8 mt-8">
+<div class="col-span-4 bg-primary/5 rounded-xl p-6 border border-primary/20">
+<h4 class="font-bold flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary">analytics</span>
+                                Core Difference
+                            </h4>
+<p class="text-sm text-slate-600 dark:text-slate-400">The <strong>Envoy</strong> focuses on refinement and build experience, while the <strong>QK65v2</strong> prioritizes features and affordability.</p>
+</div>
+<div class="col-span-8 bg-slate-900 dark:bg-slate-800 p-6 rounded-xl relative overflow-hidden">
+<div class="relative z-10 flex items-center justify-between">
+<div>
+<h4 class="text-white font-bold text-lg">Still undecided?</h4>
+<p class="text-slate-400 text-sm mt-1">Watch our deep-dive sound comparison video for these two boards.</p>
+</div>
+<button class="bg-white text-slate-900 font-bold px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-100 transition-colors">
+<span class="material-symbols-outlined">play_circle</span>
+                                    Watch Review
+                                </button>
+</div>
+<div class="absolute right-0 top-0 h-full w-1/3 opacity-10 bg-gradient-to-l from-primary to-transparent"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-12 border-t border-slate-200 dark:border-slate-800 py-8 px-8 flex justify-between items-center text-slate-500 text-xs">
+<p>© 2024 KeyCompare. All hardware data verified by community experts.</p>
+<div class="flex gap-6">
+<a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-primary transition-colors" href="#">Cookie Policy</a>
+<a class="hover:text-primary transition-colors" href="#">API Docs</a>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

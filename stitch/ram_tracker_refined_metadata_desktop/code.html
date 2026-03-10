@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>RAMTracker | Inventory Dashboard</title>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+<div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
+<!-- Navigation -->
+<header class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 lg:px-20">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 text-primary">
+<span aria-hidden="true" class="material-symbols-outlined text-3xl">memory</span>
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-bold leading-tight tracking-tight">RAMTracker</h2>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-primary text-sm font-semibold border-b-2 border-primary pb-1" href="#">Dashboard</a>
+<a class="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="#">SKUs</a>
+<a class="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="#">Vendors</a>
+<a class="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="#">Alerts</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden lg:flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-200 dark:border-slate-700">
+<span class="material-symbols-outlined text-slate-400 text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-48 placeholder:text-slate-500" placeholder="Search components..." type="text"/>
+</div>
+<button class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-10 w-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="User profile avatar circle" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvwn_ypZUUWVmOSutM4oGwkXTv_MHw6M9ZZNnlFJTUWtcWbCw2ArVMz0kzLd7LD6MXENP4MoQ3a4YmUz2l-XO3_5npC8Uh4ci4odY4oXCZdpBCkoaBT97FHZVuUMOwIAPDderBt3d0OORCVaZJ8WqYVRrjcsC3EcanWOYF_zWJY65PdEUOnr8jwQ7CntX8VDmtgMp_hCO9vittp2o21IQnJrCwHI5MejF6Al7EEhqUT_eNthLtqLztqBYP9zyZ6irFrbqX9QuLc9rp"/>
+</div>
+</div>
+</header>
+<main class="flex-1 px-6 py-8 lg:px-20 max-w-[1440px] mx-auto w-full">
+<!-- Hero & Stats -->
+<div class="grid grid-cols-12 gap-6 mb-8">
+<div class="col-span-12 lg:col-span-8">
+<h1 class="text-4xl font-bold tracking-tight mb-2">Inventory Intelligence</h1>
+<p class="text-slate-600 dark:text-slate-400 text-lg">Real-time market analytics for enterprise DDR4/DDR5 modules.</p>
+</div>
+<div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-center mb-1">
+<span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Tracked SKUs</span>
+<span class="material-symbols-outlined text-primary text-xl">inventory_2</span>
+</div>
+<p class="text-3xl font-bold">1,240</p>
+<p class="text-emerald-500 text-sm font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_up</span> +12.5%
+                    </p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-center mb-1">
+<span class="text-slate-500 dark:text-slate-400 text-sm font-medium">In-Stock Alerts</span>
+<span class="material-symbols-outlined text-amber-500 text-xl">notification_important</span>
+</div>
+<p class="text-3xl font-bold">85</p>
+<p class="text-emerald-500 text-sm font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_up</span> +5.2%
+                    </p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-center mb-1">
+<span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Avg. Price Delta</span>
+<span class="material-symbols-outlined text-blue-500 text-xl">payments</span>
+</div>
+<p class="text-3xl font-bold">-$14.20</p>
+<p class="text-rose-500 text-sm font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_down</span> -2.4%
+                    </p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-center mb-1">
+<span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Global Nodes</span>
+<span class="material-symbols-outlined text-purple-500 text-xl">hub</span>
+</div>
+<p class="text-3xl font-bold">12</p>
+<p class="text-slate-400 text-sm font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">remove</span> Stable
+                    </p>
+</div>
+</div>
+</div>
+<!-- Filter Tabs -->
+<div class="flex items-center gap-3 mb-6 overflow-x-auto pb-2">
+<button class="px-5 py-2 bg-primary text-white rounded-full text-sm font-bold shadow-lg shadow-primary/20">All Products</button>
+<button class="px-5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium hover:border-primary transition-colors">Samsung</button>
+<button class="px-5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium hover:border-primary transition-colors">Crucial</button>
+<button class="px-5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium hover:border-primary transition-colors">Corsair</button>
+<button class="px-5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-sm font-medium hover:border-primary transition-colors">G.Skill</button>
+<button class="ml-auto flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">filter_list</span> Filter
+</button>
+</div>
+<!-- Table Container -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Card 1 -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">In Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDtqCagwWtNRRipo9bMgftLUF6B-zoExbf3BuzqMii6_CzENAarbIZ_QwArw2mwySsbhLXh0JPHCqGBTQ3Nf0i_jJ0oMRQrCi4KirwHySccKA16nGNBo6XVrizWtP3gD-KB-GagI7blumom1BGdnJmrFCbERyTTq2pQ-490Nqh4hgYuenXT3m465tHfjn1rFwnBmYi4PnJaQPsaoE_PcwtLrkLMoxvRZqB7TdoMi23T3_GKyyxVRT75NIb9FYE-RB9hEC3xlLa7Scai');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Amazon Business</span>
+<span class="text-[10px] font-medium text-emerald-500">Available Now</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">Samsung 32GB DDR5 5600MHz</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$124.99</p>
+<p class="text-[10px] text-slate-500 line-through">$139.99</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">M323R4GA3BB0-CQK • ECC Unbuffered</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">Out of Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCshUlFSRHySX3rqRioHuJr8E9mDOqtqOad-DgqMHRD7PH3mbbXNz4mfsrm_YDINfrLydP7fpmRW-3L-ItdGD1L655BZMEpW-k9ppEzibktyHy5kCSqSd6XilypIJGHcDPwXDq_NJpw0PYCEaZb0chZyW8UuH5XhB9zhiQDaEzgxuu_FTwS5ocqPEx_zpIHgnrXgh48HQS7nvR3bOhnmghtKJ2EwZBVcO0AsqA6qVry6mFAq9hPIq_uRk4KVYemYF_rZhw85yJsZq0M');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Newegg</span>
+<span class="text-[10px] font-medium text-rose-500">Expected: 3 Days</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">Crucial Pro 64GB Kit (2x32GB)</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$189.00</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">CP2K32G56C46U5 • DDR5 5600MT/s</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs font-bold cursor-not-allowed opacity-50">Notify Me</button>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-amber-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">Limited: 2 Left</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC-5kb_iIf2XPhO6cZdKuXgikSi0MPFg3k-mYwIdi5Ul0s56NZeA_8ebeTcAtnmiafwkWn_zgpuHtOYWn-BynOJjJux7tZ10Lk3lHef2UDzm2OWM0JUiHUkPAifQVhctWZUkZqtdm-buLmB_IY8T9K0qvGfROljMIYywHl_AnjOzWnZVWFzS7eDeQSYFUxJXL_LmDouP-y9DHCYyc2xp2AQIscHq2DWBMF7coA3rdxct-y13WWkdDVzCJKPD4hbKsDMhHJsSJduonZi');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Best Buy</span>
+<span class="text-[10px] font-medium text-amber-500">Low Stock</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">Corsair Vengeance RGB 16GB</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$65.50</p>
+<p class="text-[10px] text-slate-500 line-through">$84.99</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">CMH16GX4M2E3200C16W • DDR4 RGB</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">In Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCqoCR685cpyH00zFCt3_Bu1Dfa1J-MXJuxadqxZx8bYiO3q5mVq-HwBK-pQxGYgGNkhTaUFOD1w6ab2fOarCwLGqTfZIWN7BvzylU4UUYMJZlYvELO3ihzDMAjxVvMlLFieIsdyuZWvGw7G-IXZvF5d8lyENWJKn-VqpJDtPnDQhQPlXF4-Jy4oWGlEkN_TmxEWHwwPecVq5U6Wh1ZWnmlxB75KLm6J1AdyORPzRU-y-J4ca6JtD_09jeb71KD_RccsmNouXwH-tkG');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Micro Center</span>
+<span class="text-[10px] font-medium text-emerald-500">In Stock</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">G.Skill Trident Z5 Neo 32GB</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$119.99</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">F5-6000J3038F16GX2-TZ5N • AMD EXPO</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between py-8 mt-4">
+<p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Showing 4 of 1,240 results</p>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Previous</button>
+<button class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20">Next</button>
+</div>
+</div>
+<!-- Footer Section -->
+<footer class="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 pb-12">
+<div class="flex items-center gap-2 text-slate-400">
+<span class="material-symbols-outlined text-lg">database</span>
+<span class="text-sm font-medium">Last synced: 2 minutes ago</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="text-sm text-slate-500 hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="text-sm text-slate-500 hover:text-primary transition-colors" href="#">API Access</a>
+<a class="text-sm text-slate-500 hover:text-primary transition-colors" href="#">Support</a>
+<div class="flex gap-4 ml-4">
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer">rss_feed</span>
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer">alternate_email</span>
+</div>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

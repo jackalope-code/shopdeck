@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>Keycaps Tracker</title>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-primary/20 p-4">
+<div class="flex items-center justify-between max-w-2xl mx-auto w-full">
+<div class="flex items-center gap-4">
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-slate-200 dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300">arrow_back</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight">Keycaps Tracker</h1>
+</div>
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-slate-200 dark:hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300">search</span>
+</button>
+</div>
+</header>
+<main class="flex-1 max-w-2xl mx-auto w-full p-4 space-y-6">
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-1 rounded-xl p-5 border border-slate-200 dark:border-primary/20 bg-white dark:bg-primary/5">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Tracked</p>
+<p class="text-3xl font-bold text-primary">28</p>
+</div>
+<div class="flex flex-col gap-1 rounded-xl p-5 border border-slate-200 dark:border-primary/20 bg-white dark:bg-primary/5">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Active Sales</p>
+<p class="text-3xl font-bold text-emerald-500">5</p>
+</div>
+</div>
+<div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+<button class="px-5 py-2 rounded-full bg-primary text-white text-sm font-semibold whitespace-nowrap">All</button>
+<button class="px-5 py-2 rounded-full bg-slate-200 dark:bg-primary/10 text-slate-700 dark:text-slate-300 text-sm font-medium whitespace-nowrap hover:bg-primary/20 transition-colors">GMK</button>
+<button class="px-5 py-2 rounded-full bg-slate-200 dark:bg-primary/10 text-slate-700 dark:text-slate-300 text-sm font-medium whitespace-nowrap hover:bg-primary/20 transition-colors">PBTFans</button>
+<button class="px-5 py-2 rounded-full bg-slate-200 dark:bg-primary/10 text-slate-700 dark:text-slate-300 text-sm font-medium whitespace-nowrap hover:bg-primary/20 transition-colors">KAT</button>
+<button class="px-5 py-2 rounded-full bg-slate-200 dark:bg-primary/10 text-slate-700 dark:text-slate-300 text-sm font-medium whitespace-nowrap hover:bg-primary/20 transition-colors">In Stock</button>
+</div>
+<div class="space-y-4">
+<h3 class="text-lg font-bold tracking-tight px-1">Monitored Products</h3>
+<div class="group relative flex flex-col gap-4 rounded-xl p-4 bg-white dark:bg-primary/5 border border-slate-100 dark:border-primary/10 hover:border-primary/40 transition-all">
+<div class="flex gap-4">
+<div class="relative size-24 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+<img class="h-full w-full object-cover" data-alt="Close up of red and black mechanical keycaps" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkniYQU2to531yw5W6LpH-C7U1xbn2rcJkNAp0nJFz4ZIVrCqyAVzaQgv5NKxHySfuGbX_0WAfwhlJLJMsVZaMCRSgiFh2VpeIfmOuzlvc0RnaexF_SzXWMIj9hGw9Kd4Dp293kS9PCfejZf4GM2pHhVAYngGrHVIuIcBNd-JL5oNJYtPgKYR83wIthM4q2EcZ22vrgstLYRRc2DZcMClgjN01TtiSQ2cmiDchdfYc9pCBqFamlDGmChrb4SsgHe86bcGCkEkYTWEr"/>
+<span class="absolute top-1 left-1 bg-primary px-1.5 py-0.5 rounded text-[10px] font-bold text-white uppercase">GMK</span>
+</div>
+<div class="flex flex-1 flex-col justify-between py-0.5">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-bold text-lg leading-none">GMK Redline</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Cherry Profile • CannonKeys</p>
+</div>
+<div class="flex flex-col items-end">
+<span class="bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">IN STOCK</span>
+<div class="mt-2 text-right">
+<span class="text-xs text-slate-400 line-through">$145.00</span>
+<p class="text-lg font-bold text-primary leading-none">$120.00</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center gap-2">
+<div class="h-6 w-20 flex items-end gap-0.5">
+<div class="flex-1 bg-primary/20 h-1/2 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/20 h-3/4 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-2/3 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/60 h-1/2 rounded-t-sm"></div>
+<div class="flex-1 bg-primary h-1/3 rounded-t-sm"></div>
+</div>
+<span class="text-[10px] font-medium text-slate-400">Price History</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-xl">notifications_active</span>
+<div class="w-8 h-4 bg-primary rounded-full relative">
+<div class="absolute right-0.5 top-0.5 size-3 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 rounded-xl p-4 bg-white dark:bg-primary/5 border border-slate-100 dark:border-primary/10 hover:border-primary/40 transition-all">
+<div class="flex gap-4">
+<div class="relative size-24 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+<img class="h-full w-full object-cover" data-alt="Blue and white aesthetic keycaps set" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgoF5NJ1RM3WaFIanrEQuaAK5uT2lKP2DMfHFDB_74_zqqY9lniYfD63H_XaSNg9D8wVOlepdcclseNVCpGxtsPYfsl5usGDasHve91rGVJiMJgt6kG7Cc_f9T60IMu5bsSMqwBC768CxOC4d7NMGyWdfdHvsc6WluSNcPf4pO_knRga65zwHZQuChDVEDJuoPPx2IPIKd3wl6qJFxvXJH15NUU7cIHsli3nHYqQzIop8hBzqo_xpoyS0NDoGca_Maayz8W6eQpm-W"/>
+<span class="absolute top-1 left-1 bg-slate-700 px-1.5 py-0.5 rounded text-[10px] font-bold text-white uppercase">PBTFANS</span>
+</div>
+<div class="flex flex-1 flex-col justify-between py-0.5">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-bold text-lg leading-none">PBTFans Deep Sea</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Cherry Profile • OmniType</p>
+</div>
+<div class="flex flex-col items-end">
+<span class="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full border border-primary/20 uppercase tracking-wider">Group Buy</span>
+<div class="mt-2 text-right">
+<p class="text-lg font-bold text-slate-900 dark:text-slate-100 leading-none">$95.00</p>
+<span class="text-[10px] font-bold text-primary">-15% OFF</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center gap-2">
+<div class="h-6 w-20 flex items-end gap-0.5">
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-1/3 rounded-t-sm"></div>
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-1/2 rounded-t-sm"></div>
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-2/3 rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-3/4 rounded-t-sm"></div>
+<div class="flex-1 bg-primary h-1/2 rounded-t-sm"></div>
+</div>
+<span class="text-[10px] font-medium text-slate-400">Price History</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400 text-xl">notifications</span>
+<div class="w-8 h-4 bg-slate-300 dark:bg-slate-700 rounded-full relative">
+<div class="absolute left-0.5 top-0.5 size-3 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 rounded-xl p-4 bg-white dark:bg-primary/5 border border-slate-100 dark:border-primary/10 hover:border-primary/40 transition-all">
+<div class="flex gap-4 opacity-70">
+<div class="relative size-24 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800 grayscale">
+<img class="h-full w-full object-cover" data-alt="Retro mechanical keyboard keycaps" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYeFSdxjD7PViHk0IcCNV8x_u5vSXyX03RbZpAWAdYuKvfeO8l33-XICeTo9JrGYSlItCLuTjC1itmQZsqxv0akh9XIV8U0rDltUXGzwno6JKovQ5I1frDNK6RY5B138HsdL84ejrxjpfaG1kyRI2NCWv7sMccmfWYXNJgOeh9Cs6ffLUYPQZ2a19L2ywOJ52v6autlbjO5LVTmmmsYBS4qoUrSvgv1jpO4l4mfHCd6zNEtnUj370HITRKEHBPs_fPhzbPwsg-e-uT"/>
+<span class="absolute top-1 left-1 bg-slate-500 px-1.5 py-0.5 rounded text-[10px] font-bold text-white uppercase">KAT</span>
+</div>
+<div class="flex flex-1 flex-col justify-between py-0.5">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-bold text-lg leading-none">KAT Milkshake</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">KAT Profile • NovelKeys</p>
+</div>
+<div class="flex flex-col items-end">
+<span class="bg-slate-500/10 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-500/20">OUT OF STOCK</span>
+<div class="mt-2 text-right">
+<p class="text-lg font-bold text-slate-400 leading-none">$110.00</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center gap-2">
+<div class="h-6 w-20 flex items-end gap-0.5">
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-1/2 rounded-t-sm"></div>
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-1/2 rounded-t-sm"></div>
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-1/2 rounded-t-sm"></div>
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-1/2 rounded-t-sm"></div>
+<div class="flex-1 bg-slate-300 dark:bg-slate-700 h-1/2 rounded-t-sm"></div>
+</div>
+<span class="text-[10px] font-medium text-slate-400">No Change</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-500 text-xl">notifications_off</span>
+<div class="w-8 h-4 bg-slate-200 dark:bg-slate-800 rounded-full relative">
+<div class="absolute left-0.5 top-0.5 size-3 bg-slate-400 rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<nav class="sticky bottom-0 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-primary/20 pb-safe-area-inset-bottom">
+<div class="flex max-w-2xl mx-auto px-4 py-2">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-1 text-slate-500 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium uppercase tracking-wider">Home</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">track_changes</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Tracker</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-1 text-slate-500 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="text-[10px] font-medium uppercase tracking-wider">Alerts</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-1 text-slate-500 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium uppercase tracking-wider">Settings</span>
+</a>
+</div>
+</nav>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .pb-safe-area-inset-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+        }
+    </style>
+</body></html>

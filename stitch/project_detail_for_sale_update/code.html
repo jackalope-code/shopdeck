@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#182634",
+                        "border-dark": "#223649",
+                        "accent-dark": "#90adcb",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Space Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header -->
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-border-dark px-4 py-3 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100 cursor-pointer">arrow_back</span>
+<h1 class="text-lg font-bold tracking-tight">Project Tracker</h1>
+</div>
+<button class="p-1 hover:bg-slate-200 dark:hover:bg-surface-dark rounded-lg transition-colors">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100">more_vert</span>
+</button>
+</header>
+<main class="flex-1 overflow-y-auto pb-24">
+<!-- Project Title & Hero -->
+<section class="px-4 pt-6 pb-4">
+<div class="flex justify-between items-center mb-4"><h2 class="text-3xl font-bold">Neo65 Keyboard Build</h2><label class="relative inline-flex items-center cursor-pointer"><input checked="" class="sr-only peer" type="checkbox" value=""/><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div><span class="ms-3 text-xs font-semibold text-accent-dark uppercase tracking-wider">For Sale</span></label></div>
+<!-- Summary Card -->
+<div class="bg-surface-dark rounded-xl overflow-hidden shadow-xl border border-border-dark">
+<div class="h-40 w-full bg-slate-800 relative" data-alt="Close up of a custom mechanical keyboard mechanical switches" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCu1SAwBDniVxa9H2jtYo_t9g-GxDLzGII3pvIirhGhi5BpjXe44a1NMxz5mdB-1UBFul680FPqMG7bP2jqbfQw3JqCgKix2b89GMcVi4u8mQH7w-cBebbTc8vZRySelY-tLWnjfl8_3ihi5QsG0OC9X3ITrRFOfC071W8dazWveDeh14s35RU_bE74VzwwzSLeFs4t5nsJMIbJ5uiiBqk4E-G0udNXuGdhfscJKjJU5LhGiwJgSmPPihipftIk7P-IL4Hc9ttBhGr-'); background-size: cover; background-position: center;">
+<div class="absolute inset-0 bg-gradient-to-t from-surface-dark via-transparent to-transparent"></div>
+</div>
+<div class="p-5">
+<div class="flex justify-between items-start mb-6">
+<div>
+<p class="text-accent-dark text-xs uppercase tracking-widest font-semibold mb-1">Financial Summary</p>
+<div class="flex items-baseline gap-2">
+<span class="text-2xl font-bold">$285.50</span>
+<span class="text-accent-dark text-sm">/ $350.00 Budget</span>
+</div>
+</div>
+<div class="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/30">
+                            ON TRACK
+                        </div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-end">
+<span class="text-slate-100 font-medium text-sm">Build Progress</span>
+<span class="text-primary text-sm font-bold">60%</span>
+</div>
+<div class="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 60%"></div>
+</div>
+<p class="text-accent-dark text-xs">3 of 5 components sourced</p>
+</div>
+</div>
+</div><div class="bg-surface-dark rounded-xl overflow-hidden shadow-xl border border-border-dark mt-4 p-5"><p class="text-accent-dark text-xs uppercase tracking-widest font-semibold mb-4">Market Summary</p><div class="grid grid-cols-2 gap-4 mb-6"><div class="p-3 bg-slate-800/50 rounded-lg border border-border-dark"><p class="text-accent-dark text-[10px] uppercase font-bold mb-1">Unit Cost</p><p class="text-xl font-bold text-slate-100">$323.49</p></div><div class="p-3 bg-slate-800/50 rounded-lg border border-border-dark"><p class="text-accent-dark text-[10px] uppercase font-bold mb-1">Target Price</p><div class="flex items-center gap-1"><span class="text-primary text-xl font-bold">$</span><input class="bg-transparent border-none p-0 text-xl font-bold text-primary focus:ring-0 w-full" type="text" value="450.00"/></div></div></div><div class="flex justify-between items-center pt-4 border-t border-border-dark"><div class="flex flex-col"><span class="text-accent-dark text-[10px] uppercase font-bold">Revenue</span><span class="text-lg font-bold text-slate-100">$450.00</span></div><div class="flex flex-col items-end"><span class="text-accent-dark text-[10px] uppercase font-bold">Est. Profit</span><span class="text-2xl font-bold text-green-400">+$126.51</span></div></div></div>
+</section>
+<!-- Component List -->
+<section class="px-4 py-4">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-lg font-bold">Components</h3>
+<button class="flex items-center gap-1 text-primary text-sm font-semibold">
+<span class="material-symbols-outlined text-sm">add</span> Add New
+                </button>
+</div>
+<div class="space-y-3">
+<!-- Case -->
+<div class="bg-surface-dark p-4 rounded-xl border border-border-dark flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-accent-dark">grid_view</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-slate-100 truncate">Neo65 Aluminum Case</h4>
+<span class="text-green-400 text-sm font-bold">$120.00</span>
+</div>
+<div class="flex justify-between items-center mt-1">
+<p class="text-accent-dark text-xs truncate">Vendor: QwertyKeys</p>
+<span class="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter border border-green-500/20">Sourced</span>
+</div>
+</div>
+</div>
+<!-- PCB -->
+<div class="bg-surface-dark p-4 rounded-xl border border-border-dark flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-accent-dark">memory</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-slate-100 truncate">Hotswap Tri-mode PCB</h4>
+<span class="text-green-400 text-sm font-bold">$45.50</span>
+</div>
+<div class="flex justify-between items-center mt-1">
+<p class="text-accent-dark text-xs truncate">Vendor: QwertyKeys</p>
+<span class="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter border border-green-500/20">Sourced</span>
+</div>
+</div>
+</div>
+<!-- Switches -->
+<div class="bg-surface-dark p-4 rounded-xl border border-border-dark flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-accent-dark">radio_button_checked</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-slate-100 truncate">Gateron Milky Yellow Pro (x70)</h4>
+<span class="text-primary text-sm font-bold">$18.00</span>
+</div>
+<div class="flex justify-between items-center mt-1">
+<p class="text-accent-dark text-xs truncate">Vendor: Kinetic Labs</p>
+<span class="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter border border-primary/20">Tracked</span>
+</div>
+</div>
+</div>
+<!-- Keycaps -->
+<div class="bg-surface-dark p-4 rounded-xl border border-border-dark flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-accent-dark">keyboard_capslock</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-slate-100 truncate">GMK Hammerhead Light</h4>
+<span class="text-green-400 text-sm font-bold">$120.00</span>
+</div>
+<div class="flex justify-between items-center mt-1">
+<p class="text-accent-dark text-xs truncate">Vendor: NovelKeys</p>
+<span class="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter border border-green-500/20">Sourced</span>
+</div>
+</div>
+</div>
+<!-- Stabilizers -->
+<div class="bg-surface-dark p-4 rounded-xl border border-border-dark flex items-center gap-4 opacity-75">
+<div class="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-accent-dark">linear_scale</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h4 class="font-bold text-slate-100 truncate">Durock V2 Screw-in Stabs</h4>
+<span class="text-slate-400 text-sm font-bold">$19.99</span>
+</div>
+<div class="flex justify-between items-center mt-1">
+<p class="text-accent-dark text-xs truncate">Vendor: Divinikey</p>
+<span class="bg-rose-500/10 text-rose-500 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter border border-rose-500/20">Out of Stock</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 bg-surface-dark/95 backdrop-blur-lg border-t border-border-dark px-4 pb-6 pt-3 flex justify-between items-center z-50">
+<a class="flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined material-symbols-fill text-primary">folder</span>
+<span class="text-primary text-[10px] font-bold">Projects</span>
+</a>
+<a class="flex flex-col items-center gap-1 group opacity-60" href="#">
+<span class="material-symbols-outlined text-accent-dark group-hover:text-slate-100 transition-colors">inventory_2</span>
+<span class="text-accent-dark group-hover:text-slate-100 text-[10px] font-medium transition-colors">Inventory</span>
+</a>
+<a class="flex flex-col items-center gap-1 group opacity-60" href="#">
+<span class="material-symbols-outlined text-accent-dark group-hover:text-slate-100 transition-colors">storefront</span>
+<span class="text-accent-dark group-hover:text-slate-100 text-[10px] font-medium transition-colors">Vendors</span>
+</a>
+<a class="flex flex-col items-center gap-1 group opacity-60" href="#">
+<span class="material-symbols-outlined text-accent-dark group-hover:text-slate-100 transition-colors">settings</span>
+<span class="text-accent-dark group-hover:text-slate-100 text-[10px] font-medium transition-colors">Settings</span>
+</a>
+</nav>
+</body></html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                        "slate-custom": {
+                            "800": "#1e293b",
+                            "900": "#0f172a"
+                        }
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center p-4 justify-between max-w-md mx-auto w-full">
+<button class="text-slate-900 dark:text-slate-100 flex size-10 items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center">RAM Availability</h1>
+<button class="text-slate-900 dark:text-slate-100 flex size-10 items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-symbols-outlined">search</span>
+</button>
+</div>
+</header>
+<main class="flex-1 max-w-md mx-auto w-full pb-24">
+<!-- Stats Section -->
+<div class="flex gap-4 p-4">
+<div class="flex min-w-[140px] flex-1 flex-col gap-1 rounded-xl p-5 bg-white dark:bg-primary/10 border border-slate-200 dark:border-primary/20 shadow-sm">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Tracked SKUs</p>
+<p class="text-slate-900 dark:text-slate-100 text-3xl font-bold">124</p>
+</div>
+<div class="flex min-w-[140px] flex-1 flex-col gap-1 rounded-xl p-5 bg-white dark:bg-primary/10 border border-slate-200 dark:border-primary/20 shadow-sm">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">In-Stock Alerts</p>
+<div class="flex items-center gap-2">
+<p class="text-primary text-3xl font-bold">18</p>
+<span class="material-symbols-outlined text-primary text-xl">notifications_active</span>
+</div>
+</div>
+</div>
+<!-- Filter Chips -->
+<div class="flex gap-3 px-4 py-2 overflow-x-auto hide-scrollbar">
+<button class="flex h-9 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-white text-sm font-semibold shadow-md shadow-primary/20">All</button>
+<button class="flex h-9 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 px-5 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">DDR5</button>
+<button class="flex h-9 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 px-5 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">DDR4</button>
+<button class="flex h-9 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 px-5 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">ECC</button>
+<button class="flex h-9 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 px-5 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">SO-DIMM</button>
+</div>
+<!-- Live Inventory List -->
+<div class="mt-6 px-4">
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-bold mb-4 flex items-center gap-2">
+                Live Inventory
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+</h2>
+<div class="flex flex-col gap-4">
+<!-- Card 1 -->
+<div class="bg-white dark:bg-slate-custom-800/40 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+<div class="flex justify-between items-start mb-3">
+<div class="flex-1">
+<h3 class="text-slate-900 dark:text-slate-100 font-bold text-base leading-tight">Samsung 32GB DDR5-5600 SO-DIMM</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">IN STOCK</span>
+<span class="text-xs text-slate-500 dark:text-slate-400">at DigiKey</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<div class="relative inline-block w-10 h-5 transition duration-200 ease-in-out">
+<input checked="" class="peer absolute w-10 h-5 opacity-0 cursor-pointer z-10" type="checkbox"/>
+<div class="w-10 h-5 bg-slate-300 dark:bg-slate-700 rounded-full peer-checked:bg-primary transition-colors"></div>
+<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5 shadow-sm"></div>
+</div>
+<span class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider">Alerts On</span>
+</div>
+</div>
+<div class="flex items-end justify-between mt-4">
+<div>
+<p class="text-2xl font-bold text-slate-900 dark:text-slate-100">$94.50</p>
+<p class="text-xs text-slate-500 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_down</span>
+                                Lowest price in 30d
+                            </p>
+</div>
+<div class="w-24 h-10 flex items-end gap-[2px]">
+<div class="w-2 bg-primary/20 rounded-t h-4"></div>
+<div class="w-2 bg-primary/20 rounded-t h-6"></div>
+<div class="w-2 bg-primary/20 rounded-t h-5"></div>
+<div class="w-2 bg-primary/20 rounded-t h-8"></div>
+<div class="w-2 bg-primary/20 rounded-t h-3"></div>
+<div class="w-2 bg-primary rounded-t h-2"></div>
+<div class="w-2 bg-primary rounded-t h-1"></div>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white dark:bg-slate-custom-800/40 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 bg-primary px-3 py-1 rounded-bl-xl">
+<span class="text-[10px] font-bold text-white uppercase tracking-tighter">-10% OFF</span>
+</div>
+<div class="flex justify-between items-start mb-3">
+<div class="flex-1">
+<h3 class="text-slate-900 dark:text-slate-100 font-bold text-base leading-tight">Crucial 16GB DDR5-4800</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">LOW STOCK</span>
+<span class="text-xs text-slate-500 dark:text-slate-400">at Mouser</span>
+</div>
+</div>
+<div class="flex flex-col items-end pr-12">
+<div class="relative inline-block w-10 h-5 transition duration-200 ease-in-out">
+<input checked="" class="peer absolute w-10 h-5 opacity-0 cursor-pointer z-10" type="checkbox"/>
+<div class="w-10 h-5 bg-slate-300 dark:bg-slate-700 rounded-full peer-checked:bg-primary transition-colors"></div>
+<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5 shadow-sm"></div>
+</div>
+</div>
+</div>
+<div class="flex items-end justify-between mt-4">
+<div>
+<div class="flex items-center gap-2">
+<p class="text-2xl font-bold text-slate-900 dark:text-slate-100">$48.00</p>
+<p class="text-sm text-slate-400 line-through">$54.00</p>
+</div>
+<p class="text-xs text-slate-500 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">timer</span>
+                                Deal ends in 4h
+                            </p>
+</div>
+<div class="w-24 h-10 flex items-end gap-[2px]">
+<div class="w-2 bg-primary/20 rounded-t h-8"></div>
+<div class="w-2 bg-primary/20 rounded-t h-8"></div>
+<div class="w-2 bg-primary/20 rounded-t h-7"></div>
+<div class="w-2 bg-primary/20 rounded-t h-8"></div>
+<div class="w-2 bg-primary/20 rounded-t h-6"></div>
+<div class="w-2 bg-primary/40 rounded-t h-5"></div>
+<div class="w-2 bg-primary rounded-t h-4"></div>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white dark:bg-slate-custom-800/20 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm opacity-80">
+<div class="flex justify-between items-start mb-3">
+<div class="flex-1">
+<h3 class="text-slate-500 dark:text-slate-400 font-bold text-base leading-tight">SK Hynix 64GB DDR5 ECC RDIMM</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">OUT OF STOCK</span>
+<span class="text-xs text-slate-500 dark:text-slate-400">at Arrow</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<div class="relative inline-block w-10 h-5 transition duration-200 ease-in-out">
+<input class="peer absolute w-10 h-5 opacity-0 cursor-pointer z-10" type="checkbox"/>
+<div class="w-10 h-5 bg-slate-200 dark:bg-slate-800 rounded-full peer-checked:bg-primary transition-colors"></div>
+<div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5 shadow-sm"></div>
+</div>
+<span class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-wider">Alerts Off</span>
+</div>
+</div>
+<div class="flex items-end justify-between mt-4">
+<div>
+<p class="text-2xl font-bold text-slate-500 dark:text-slate-400">$210.00</p>
+<p class="text-xs text-slate-400">Last seen 2d ago</p>
+</div>
+<div class="flex items-center justify-center w-24 h-10 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg">
+<span class="text-[10px] font-bold text-slate-400 uppercase">No Data</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-custom-900 border-t border-slate-200 dark:border-slate-800 z-50">
+<div class="flex max-w-md mx-auto h-16 items-center">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<p class="text-[10px] font-medium uppercase tracking-wider">Home</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary relative" href="#">
+<div class="absolute -top-1 w-8 h-1 bg-primary rounded-b-full"></div>
+<span class="material-symbols-outlined font-fill text-primary">analytics</span>
+<p class="text-[10px] font-bold uppercase tracking-wider">Tracker</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">
+<div class="relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+</div>
+<p class="text-[10px] font-medium uppercase tracking-wider">Alerts</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-[10px] font-medium uppercase tracking-wider">Settings</p>
+</a>
+</div>
+</nav>
+</body></html>

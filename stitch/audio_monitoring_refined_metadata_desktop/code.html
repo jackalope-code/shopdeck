@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AudioMonitor Pro | Inventory Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 border-r border-slate-200 dark:border-primary/20 bg-white dark:bg-background-dark flex flex-col">
+<div class="p-6 flex items-center gap-3">
+<div class="size-10 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-2xl">graphic_eq</span>
+</div>
+<div>
+<h1 class="font-bold text-lg leading-none">AudioMonitor</h1>
+<p class="text-xs text-slate-500 dark:text-primary/60">Admin Console</p>
+</div>
+</div>
+<nav class="flex-1 px-4 py-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary text-white shadow-lg shadow-primary/20" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-medium text-sm">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">sell</span>
+<span class="font-medium text-sm">Deals</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-medium text-sm">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium text-sm">Settings</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-primary/10">
+<div class="flex items-center gap-3 p-2 rounded-lg bg-slate-100 dark:bg-primary/5">
+<div class="size-8 rounded-full bg-slate-300 dark:bg-slate-700 overflow-hidden">
+<img alt="User" class="w-full h-full object-cover" data-alt="User profile avatar photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAasU5oC_hkvizIl3N4bpmYPP1OKS8ZzceJzHJaV6F8b68tsiS3ZAPG2L9lfaKrVQt7eDCjbEBe7IeSFxFMXeU4amxRpypq8EX-04cQN4Yf9B-hpuUEVEvtarDzb6JuhFifqQUGaQMQNryCJG9iR7gj5W-9PKACZJIpUVJfh3Px7gMOn7zDekGL-XUn30Ik6lYhdhEwfXe460E4N4HzRknhDpNrzRZvbAG5ED6MkmmEd9WdOY__RCFKAPGJEGLX63ajYxzKNA_LARPa"/>
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="text-xs font-bold truncate">Alex Chen</p>
+<p class="text-[10px] text-slate-500">Premium Pro</p>
+</div>
+<span class="material-symbols-outlined text-sm text-slate-400">unfold_more</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<!-- Header -->
+<header class="h-16 border-b border-slate-200 dark:border-primary/20 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md px-8 flex items-center justify-between">
+<div class="flex items-center gap-4 flex-1 max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="w-full bg-slate-100 dark:bg-primary/5 border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/50 placeholder:text-slate-500" placeholder="Search inventory, brands, or specs..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="size-10 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-primary/10">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined text-sm">add</span>
+                        Add Item
+                    </button>
+</div>
+</header>
+<!-- Scrollable Area -->
+<div class="flex-1 overflow-y-auto p-8">
+<!-- Stats Grid -->
+<div class="grid grid-cols-12 gap-6 mb-8">
+<div class="col-span-12 md:col-span-4 p-6 rounded-xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-background-dark shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined">inventory</span>
+</div>
+<span class="text-emerald-500 text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_up</span> +12%
+                            </span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Tracked Items</p>
+<h3 class="text-3xl font-bold mt-1">1,284</h3>
+</div>
+<div class="col-span-12 md:col-span-4 p-6 rounded-xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-background-dark shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+<span class="material-symbols-outlined">local_offer</span>
+</div>
+<span class="text-emerald-500 text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_up</span> +5%
+                            </span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Active Deals</p>
+<h3 class="text-3xl font-bold mt-1">42</h3>
+</div>
+<div class="col-span-12 md:col-span-4 p-6 rounded-xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-background-dark shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 rounded-lg bg-rose-500/10 text-rose-500">
+<span class="material-symbols-outlined">percent</span>
+</div>
+<span class="text-rose-500 text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_down</span> -2%
+                            </span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Avg. Discount</p>
+<h3 class="text-3xl font-bold mt-1">18.5%</h3>
+</div>
+</div>
+<!-- Product Table -->
+<div class="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-primary/20 shadow-sm overflow-hidden"><div class="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+<h2 class="text-xl font-bold">Audio Equipment Monitor</h2>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+Filter
+</button>
+<button class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-sm">download</span>
+Export
+</button>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-6 p-6">
+<!-- Card 1: Sennheiser HD800S -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">In Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCGRnFceAZwbTtMsrrudA8Ne8Tkb-C8vv1hDu16Efu0dlISnTBL-8WqFE7fGmB1xN-0-yJUeDWWWY6a464wR00kDXTXKFUwSkc2QL2BFsbY6m7PARN13e4ocLLKww8Em0r9SqoaqqmVndpmcGeIuD_bWXZKx96tTjFpzvH_s7Z9FjOPKdJX_oPiqgBsXTdwTvUFeTIN2IY0_SDVD8q1il-JRpCBl3imeSzN22BEogVern4I6f6VJP9IesMEqgYAE0NYOhtunRnK6GbR');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Sweetwater</span>
+<span class="text-[10px] font-medium text-emerald-500">Available Now</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">Sennheiser HD800S</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$1,399.00</p>
+<p class="text-[10px] text-slate-500 line-through">$1,599.00</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">Open-Back Dynamic Headphones • 300 Ohms</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+<!-- Card 2: Beyerdynamic DT 1990 -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-amber-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">Limited Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCuW8G_GBwpcB9YwOzZ41oy61rczzbFF8TlLijoZ6j-_dcy5EYLeTKaKYYceIVnb8Vx6k7ihBKYc8BJmQFjvowD-EHjC-B0lbB3hpbIvxJeo5nSsR8cwMC1CQXUHsLaJrmr4I0HRxIaj7ecv7-IN1V4in0Rmofr4eLiwUbeWVWNO6yem_Dj02tVaDFyN0ME7aB98wfNZDETr4amhDJQuzIBJ3P8BJ6pgUglWKE_kIiLSf-Mme4F5tp-y1EW-eZRmgjD2Xxt3Nx8oY6d');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">B&amp;H Photo</span>
+<span class="text-[10px] font-medium text-amber-500">3 Left</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">Beyerdynamic DT 1990 Pro</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$529.00</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">Tesla Studio Reference • 250 Ohms</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+<!-- Card 3: Schiit Magni Heresy -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">Out of Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBV445mfNLM-zyIkXq5AsuVxMBkc14GTfGVGosOApRNtJsO39rP6VOVugQZxdj-xekyclQB-Jbgd_b4JaRGk9rxNBqmUMlmy2QHAr7XXGyZbl1UzY9QMx0W7N_QSeZftgP2Jw5FS2ukGwW2uSJ-seR6b57rVXLjpvEf2JaXVykKzbTUK-cQsCxccFkQ84HzeCUTdnqnS454W-w6l6QcIceW9UzaER5ujJU1w_tAb0nfJI57qE_QdzqSq5zTW0zAlLjd78q1PB4fIaKt');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Amazon</span>
+<span class="text-[10px] font-medium text-rose-500">Expected: 5 Days</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">Schiit Magni Heresy</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$109.00</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">High-Power Headphone Amp • 2.4W @ 32Ω</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs font-bold cursor-not-allowed opacity-50">Notify Me</button>
+</div>
+</div>
+</div>
+<!-- Card 4: Sony IER-M9 -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3 group">
+<div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-all shadow-sm flex flex-col h-full">
+<div class="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+<div class="absolute top-2 left-2 z-10 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">In Stock</div>
+<button class="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-primary transition-colors">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+<div class="w-full h-full bg-cover bg-center transition-transform group-hover:scale-105" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCus_GaUdjlgNSvFd8ugaQVvh4dg0DqOE3Y-3h6cxXLixTFjNH5LXfQQOXj3lIul7eI1KU7gRmrflwu4KLAK_Atdb-cZtAei72CoxjltYkpR7hIleDEINU5kHp7BvPrMzO7-T81vZJdumv97zSHOYNLF6ge1OA72i92Ikzv1Tae5X7EWLneeVajkIFkIfF_-Pet9xozgeziB2NkwdmqSDXSHVPlEmr4mcsoSLOWSm6g1SIC0pQIpfbW6ZUP33fjscuGvjVEzuZ9IlPv');"></div>
+</div>
+<div class="flex-1 space-y-2">
+<div class="flex justify-between items-start">
+<span class="text-[10px] font-bold text-primary uppercase tracking-wider">Crutchfield</span>
+<span class="text-[10px] font-medium text-emerald-500">In Stock</span>
+</div>
+<div class="flex justify-between items-start">
+<h3 class="text-base font-bold leading-tight group-hover:text-primary transition-colors">Sony IER-M9 IEMs</h3>
+<div class="text-right">
+<p class="text-primary font-bold text-sm">$999.00</p>
+<p class="text-[10px] text-slate-500 line-through">$1,099.00</p>
+</div>
+</div>
+<p class="text-xs text-slate-500">5-way Balanced Armature • 20 Ohms</p>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-3">
+<button class="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+<button class="py-2 rounded-lg bg-primary text-white text-xs font-bold hover:brightness-110 transition-all">Buy Now</button>
+</div>
+</div>
+</div>
+</div>
+<div class="p-8 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between mt-4">
+<p class="text-xs text-slate-500 dark:text-slate-400">Showing 1 to 4 of 1,284 results</p>
+<div class="flex items-center gap-2">
+<button class="size-8 rounded border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-400 hover:bg-slate-50 dark:hover:bg-primary/5">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="size-8 rounded bg-primary text-white text-xs font-bold">1</button>
+<button class="size-8 rounded border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-500 text-xs hover:bg-slate-50 dark:hover:bg-primary/5">2</button>
+<button class="size-8 rounded border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-500 text-xs hover:bg-slate-50 dark:hover:bg-primary/5">3</button>
+<button class="size-8 rounded border border-slate-200 dark:border-primary/20 flex items-center justify-center text-slate-400 hover:bg-slate-50 dark:hover:bg-primary/5">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

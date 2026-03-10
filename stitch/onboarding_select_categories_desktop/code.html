@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0d7ff2",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>Onboarding - Select Categories</title>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<header class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4 md:px-20">
+<div class="flex items-center gap-4">
+<div class="text-primary size-8 flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">auto_awesome</span>
+</div>
+<h2 class="text-xl font-bold tracking-tight">Onboarding</h2>
+</div>
+<div class="flex items-center gap-6">
+<button class="hidden md:flex items-center justify-center rounded-lg h-10 px-6 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm font-bold">
+                        Skip
+                    </button>
+<div class="size-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border border-primary/30">
+<img class="w-full h-full object-cover" data-alt="User profile avatar placeholder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDciMbUj6QceVr-cjuBXHpdhCxGA73yu-LrLJL4KLLhbNMMza8TRpI49HpGyxuM4ayYQFP90Cy03HjyMI-Zew8-BFklsdodpICZ5PZD7Nm4kb5jw-8j3eBo5x4aX1dopm0qY8sLbtvs_U005hdcaoRMyETr0T8woCpYK_6knrGwGfC59Og3NbjwxHUw2NsB8wYLRalh78c5gCoQXBAtJk_qKqxYyS4XKd-EZ87IArZJydLwpQISWpim7tExsgaGTBSzA39LcdNcoRL2"/>
+</div>
+</div>
+</header>
+<main class="flex-1 flex flex-col items-center py-12 px-6">
+<div class="w-full max-w-[1200px] flex flex-col gap-10">
+<div class="flex flex-col gap-4">
+<div class="flex items-end justify-between">
+<div class="flex flex-col gap-1">
+<span class="text-primary font-bold text-sm uppercase tracking-widest">Step 1 of 3</span>
+<h1 class="text-4xl md:text-5xl font-black tracking-tight">Select Categories</h1>
+</div>
+<p class="text-slate-500 dark:text-slate-400 font-medium">33% Complete</p>
+</div>
+<div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+<div class="h-full bg-primary rounded-full w-1/3"></div>
+</div>
+<p class="text-lg text-slate-600 dark:text-slate-400 max-w-2xl">
+                            Choose the topics that interest you most to personalize your feed and discover new communities.
+                        </p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-primary transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden grayscale group-hover:grayscale-0 transition-all">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Modern mechanical keyboard with colorful keycaps" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQCNAxUuWp95gZxK-NDeHM0zPaLNnT4AbZFz4LgmlorQl8IqXzXkxGJfSfMGa2JgJsEZ3nJsiO6DV8Ey6-L6jLHaUCCoColZqestv9FxMZgEYFoMURll8N7PN1gVe0fi3GW_9h3mO-fYevAWoLNwOJGtEfJ41hm7b2TvSafqMr6Z2im5eDLN2LlGdNOi_gpEsaskLRKq88zzsXJUu_EK5-AIx34mxQIoLG0u_5XGbWVmwtMYo0pnncy39_7aMQ299IWubHSiajuhvB"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">Keyboard Enthusiast</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Custom mechanical builds and keycap sets.</p>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-primary bg-primary/5 dark:bg-primary/10 transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Electronic circuit board with microchips" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIu19YEct4huR78v_KFCa2bOnb5mP5AUXRyhmxeuKDo8gEIggBBrze32sKUrCKj6RrMCDnc83CuWr7e0TwCH599Lb04f47NMyaQXAG3bVjWvKUKaUr7QbiP0TlWOjyxT7rpzGQEpkA8DwA5L-rABvmuaPXWCnljx2u0h8CnstrW-kIbnUce25mLRlM6ehCNw0GNY_bpEdYfcVxwa3gLvKOpwR2dSVbiPJmVk6pYN9bCDbPoO3leLyKUI100BJTBWuF0pC_pIW2rQwG"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">Electronics Maker</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">DIY circuits, Arduino projects, and robotics.</p>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-primary transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden grayscale group-hover:grayscale-0 transition-all">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Professional studio headphones on a stand" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiF-d7Rqojgin3JRpMwPpmd99l5FwkOd8EKs_LubYE0wIq9C1YNSsGjfO2EONAmHitalSL7ZVKxKNPjgOdFXt8nDNVlH9K0RrpmD5PWf4ahJAJ7LgZTFMdjB6HI-lR-6TYTde_4o4cs6baVaoxiCkG7FUPtRlg3odZ93XaivfxtGgb9E_gMXVeIeVTr_zlFvn9nhjACNwOKTiBHrctzGn8O1pt9d4ldkNwtINQyulFKymF3D2aAYDXSLBWmgLMGaD6PLEYyi4BTPdy"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">Audio Gear</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">High-fidelity sound equipment and setups.</p>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-primary transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden grayscale group-hover:grayscale-0 transition-all">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Retro computer and gaming consoles" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsX2CvLk5UBGmJHEpzxuFxtJdNuob4qwK6pjxJeqsjDH3msFRDOrhHSuo865FzDRFun-pd-WGTpKHcehyvNXgOD_FLiW_aZjqCkb6ILY1DLt_KMEMJXO9SXa4LpqEhFjIMZ5eNDBy-NQemGTkWh_YIs09AgalnQpeAOjM3EvNeftYekeV3ivOUcvguH3oSwi-BFRzKI4yEtStHA2sDT5B0FwPwlMbt9xBfFUm39dg2flym9VOeceMJ8hqiMD6M4mI89wYrJODa00GR"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">Retro Tech</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Classic computing and vintage hardware.</p>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-primary transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden grayscale group-hover:grayscale-0 transition-all">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Digital art UI design concept" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfu_9R1JxgE7kWqiqjB7jAcIlfQ0tY-SyaX3FGaVn5nnVWMEeLHSd5fnQ_xDZNhqfcYuO8AwjlGC7sJOK_-8xniFeoOWOp08AUT4-wMu2OD1pQvK85n6WLPMejlWbBGyfg95jy5HS5AWs611VxmJelPxWPXuf1r16Fq8loXTwRtvSvZM-5MRaTQ0wi8M8YAK5g6YojPobPIhhpWkeHpCC-rZYDvup0tVaHMJClLNMZ5IR2v7y4qps4ijlRZLHB9jVDQuz8MCiNmtGE"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">UI/UX Design</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Interface design and user experience trends.</p>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-primary transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden grayscale group-hover:grayscale-0 transition-all">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Futuristic robot arm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZIbygqoH8Gn3EL-FNTykMivvnRHRxcO8XSInaCO4PM-1tkpsWXoBP-nCd0dWwYXF3oC0kNPrYxMZtRxBoJdu8EVdpAgvwQo-Wioriiucj9ik7ut-kiW47d7r4OlI4vtSvGFATrJuxB83t9ik9OVWPaa2CfCcKMuSBNKn4h27n-8vbx0bE0k3bYW2lZ40JIBCD2BjKPnCus_1zKFnHphWS83H0GQ6PFfVwdIWzbuxs2hy1ShERmDO3qz0hgV4L0kRZcvfFKP98NjvS"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">Artificial Intelligence</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Machine learning and neural networks.</p>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-primary transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden grayscale group-hover:grayscale-0 transition-all">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Gaming setup with dual monitors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDf9aTVsjcHVnRScgiAw_9bMVZ51zajLstNsjNxT-mCauoL9mqw2xTQcltFi8uPrtyPuSWiSnvNQ_UWAji9IvEiQ5eIw_OKvDr-9wyiOeh71qb2ij9duheuQbgggzI4XI5m6VTdkPcHR2UcRL_XTEwbiAvgHmbbx_82q2oDsK_e5XZbfltRBnEMyzF7h8LrZ_8CsFW-CI5-YT8k8G3tpU0KHAb5xTxl_JpqbqcnetSog82e9QBB55Pb17SZHtHpT_PamVHO4zYXaQOy"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">PC Gaming</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">High-performance gaming and hardware builds.</p>
+</div>
+</div>
+<div class="group relative flex flex-col gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-primary transition-all cursor-pointer">
+<div class="absolute top-6 right-6 z-10 size-6 rounded-full bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-sm">check</span>
+</div>
+<div class="w-full aspect-square rounded-lg overflow-hidden grayscale group-hover:grayscale-0 transition-all">
+<img class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" data-alt="Extreme close up of a CPU" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4Hv4nKvP79nwKCDxYsu2ES0PhpdaONoyuFkdr9d_dCBZyIgbn-72p1QvUbKnAt56sC_Jc3MNXjeCppFWkYZuXrlUelxam-16UV__W3GSdW4J7yAoCk05SEnv2P_yWtcd9kj48lNB5MT6wK5jAdzuTwQSZCXy4Lr3F_osZ-ZsPU48Yopp2F2cNErFSKvuguW6jf45VVV2-7lyqCUcPqbe2C_QnVXht40mnqv4A9vM6_BZyy9753yf45RzflyBkpXlxnddJlTryhczo"/>
+</div>
+<div>
+<h3 class="text-xl font-bold">Semi-Conductors</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Latest in chip architecture and fabrication.</p>
+</div>
+</div>
+</div>
+<div class="flex flex-col md:flex-row items-center justify-between py-10 border-t border-slate-200 dark:border-slate-800 mt-6">
+<p class="text-slate-500 dark:text-slate-400 text-sm mb-6 md:mb-0">
+                            You can always change these settings later in your profile.
+                        </p>
+<div class="flex gap-4 w-full md:w-auto">
+<button class="flex-1 md:flex-none flex min-w-[140px] items-center justify-center rounded-lg h-14 px-8 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white text-lg font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+                                Back
+                            </button>
+<button class="flex-1 md:flex-none flex min-w-[200px] items-center justify-center rounded-lg h-14 px-8 bg-primary text-white text-lg font-bold hover:opacity-90 transition-all shadow-lg shadow-primary/20">
+                                Next Step
+                            </button>
+</div>
+</div>
+</div>
+</main>
+<footer class="py-6 px-6 text-center text-slate-500 dark:text-slate-500 text-xs">
+                © 2024 Tech Enthusiast Network. All rights reserved.
+            </footer>
+</div>
+</div>
+</body></html>
