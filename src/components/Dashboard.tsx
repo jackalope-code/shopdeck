@@ -749,7 +749,7 @@ export default function Dashboard() {
               { href: '/dashboard', label: 'Dashboard', icon: 'grid_view' },
               { href: '/projects', label: 'Projects', icon: 'rocket_launch' },
               { href: '/active-deals', label: 'Deals', icon: 'sell' },
-              { href: '/my-electronics', label: 'Electronics', icon: 'memory' },
+              { href: '/drops', label: 'Drops', icon: 'new_releases' },
             ].map(n => (
               <Link key={n.href} href={n.href} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-blue-500 hover:bg-blue-500/5 transition-colors">
                 <span className="material-symbols-outlined text-[16px]">{n.icon}</span>{n.label}
