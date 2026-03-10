@@ -1,5 +1,5 @@
 # ShopDeck
-# React + TypeScript + Vite
+# React + TypeScript + Nextjs + Tailwindcss 4
 <img width="3822" height="1795" alt="Screenshot 2026-03-09 180716" src="https://github.com/user-attachments/assets/35489334-648e-4e08-a8dc-6bf93b806799" />
 
 Modeled after SitDeck.
