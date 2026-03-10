@@ -2,7 +2,7 @@
 # React + TypeScript + Nextjs + Tailwindcss 4
 <img width="3822" height="1795" alt="Screenshot 2026-03-09 180716" src="https://github.com/user-attachments/assets/35489334-648e-4e08-a8dc-6bf93b806799" />
 
-Modeled after SitDeck.
+
 
 # Running development mode
 1. `git clone https://github.com/jackalope-code/shopdeck.git`
@@ -20,3 +20,5 @@ Modeled after SitDeck.
 6. `npm start` Start Nextjs
 
 Note that the user.json file contains sensitive data! (OAuth tokens)
+
+Modeled after SitDeck.
