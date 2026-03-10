@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
+import { getToken } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
@@ -17,6 +18,7 @@ interface RamItem {
   deal?: string;
   note?: string;
   alertOn: boolean;
+  image?: string;
   trend: number[]; // 7 heights, 0-10
 }
 
@@ -80,12 +82,66 @@ function AlertToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+// ─── Product image thumbnail ──────────────────────────────────────────────────
+function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconClass = 'text-slate-400' }: {
+  src?: string; icon: string; bg?: string; iconClass?: string;
+}) {
+  const [err, setErr] = useState(false);
+  return (
+    <div className={`shrink-0 flex items-center justify-center size-10 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
+      {src && !err
+        ? <img src={src} alt="" className="w-full h-full object-contain p-1" onError={() => setErr(true)} />
+        : <span className={`material-symbols-outlined text-[20px] ${iconClass}`}>{icon}</span>
+      }
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function RamAvailabilityTracker() {
   const [items, setItems] = useState<RamItem[]>(INITIAL_ITEMS);
   const [filter, setFilter] = useState<Filter>('All');
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch('/api/feed-config/data/ram-availability', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(({ sources }) => {
+        if (!sources) return;
+        const live: RamItem[] = [];
+        let idx = 0;
+        for (const [srcId, src] of Object.entries(sources as Record<string, { name: string; data: { name: string; image?: string; price?: string; url?: string }[] }>)) {
+          for (const item of src.data ?? []) {
+            const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+            const nameLower = item.name.toLowerCase();
+            const types: RamType[] = [];
+            if (nameLower.includes('ddr5')) types.push('DDR5');
+            else if (nameLower.includes('ddr4')) types.push('DDR4');
+            else types.push('DDR5');
+            if (nameLower.includes('so-dimm') || nameLower.includes('sodimm')) types.push('SO-DIMM');
+            if (nameLower.includes('ecc')) types.push('ECC');
+            live.push({
+              id: `${srcId}-${idx++}`,
+              name: item.name,
+              vendor: src.name,
+              type: types,
+              status: 'IN STOCK',
+              price,
+              image: item.image,
+              alertOn: false,
+              trend: [],
+            });
+          }
+        }
+        if (live.length > 0) setItems(live);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleAlert = (id: string) => {
     setItems(prev => prev.map(it => it.id === id ? { ...it, alertOn: !it.alertOn } : it));
@@ -186,20 +242,23 @@ export default function RamAvailabilityTracker() {
                     )}
 
                     {/* Top row */}
-                    <div className={`flex justify-between items-start mb-3 ${item.deal ? 'pr-16' : ''}`}>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-sm leading-tight">{item.name}</h3>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[item.status]}`}>{item.status}</span>
-                          <span className="text-xs text-slate-500">at {item.vendor}</span>
-                          <div className="flex gap-1">
-                            {item.type.map(t => (
-                              <span key={t} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase">{t}</span>
-                            ))}
+                    <div className={`flex items-start gap-3 mb-3 ${item.deal ? 'pr-16' : ''}`}>
+                      <ProductThumb src={item.image} icon="memory" bg="bg-blue-500/10" iconClass="text-blue-500" />
+                      <div className="flex-1 min-w-0 flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-sm leading-tight">{item.name}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[item.status]}`}>{item.status}</span>
+                            <span className="text-xs text-slate-500">at {item.vendor}</span>
+                            <div className="flex gap-1">
+                              {item.type.map(t => (
+                                <span key={t} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase">{t}</span>
+                              ))}
+                            </div>
                           </div>
                         </div>
+                        <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.id)} />
                       </div>
-                      <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.id)} />
                     </div>
 
                     {/* Price + sparkline */}

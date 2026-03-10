@@ -87,6 +87,12 @@ router.post('/test', verifyToken, testLimiter, async (req, res) => {
 const feedDataCache = new Map();
 const FEED_DATA_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — matches scraper scheduled cooldown
 
+// Source-level result cache: { [sourceId]: { at: number, data: object[] } }
+// Shared across all widgets so the same source is only fetched once per TTL period,
+// preventing cross-widget hostname cooldown collisions (e.g. 'drops' and
+// 'keyboard-releases' both reference 'cannonkeys-keyboards').
+const sourceResultCache = new Map();
+
 // GET /api/feed-config/data/:widgetId  — scrape enabled built-in + custom sources for a widget
 router.get('/data/:widgetId', verifyToken, async (req, res) => {
   const { widgetId } = req.params;
@@ -107,12 +113,18 @@ router.get('/data/:widgetId', verifyToken, async (req, res) => {
 
   const results = {};
 
-  // Run enabled built-in sources
+  // Run enabled built-in sources — reuse source-level cache when available
   for (const src of sources.filter(s => s.enabled)) {
     const rule = scraper.BUILTIN_SOURCE_RULES[src.id];
     if (!rule) continue;
+    const cachedSrc = sourceResultCache.get(src.id);
+    if (cachedSrc && (Date.now() - cachedSrc.at) < FEED_DATA_CACHE_TTL_MS) {
+      results[src.id] = { name: src.name, data: cachedSrc.data, error: null };
+      continue;
+    }
     try {
       const data = await scraper.runSource(rule, 'scheduled');
+      sourceResultCache.set(src.id, { at: Date.now(), data });
       results[src.id] = { name: src.name, data, error: null };
     } catch (err) {
       results[src.id] = { name: src.name, data: [], error: err.message };

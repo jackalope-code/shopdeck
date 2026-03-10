@@ -195,12 +195,35 @@ export function TopNav({ active }: { active?: string }) {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-20 bg-black/20 dark:bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
           />
           {/* Panel */}
-          <aside className="fixed top-14 left-0 bottom-0 z-20 w-64 bg-white dark:bg-[#101922] border-r border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-y-auto">
+          <aside className="fixed top-14 left-0 bottom-0 z-40 w-64 bg-white dark:bg-[#101922] border-r border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-y-auto">
             <div className="px-4 pt-5 pb-2">
+              {/* Main nav links — only shown in drawer on smaller screens since header hides them */}
+              <div className="md:hidden mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">Main</p>
+                <nav className="space-y-0.5">
+                  {TOP_NAV_LINKS.map(l => {
+                    const isActive = active ? l.label === active : currentPath === l.href;
+                    return (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-blue-500/10 text-blue-500'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">{l.icon}</span>
+                        {l.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">Trackers</p>
               <nav className="space-y-0.5">
                 {DRAWER_LINKS.map(l => {
@@ -260,6 +283,7 @@ interface Project {
   estProfit?: number;
   gradient: string;
   icon: string;
+  image?: string;
 }
 
 const SEED_PROJECTS: Project[] = [
@@ -426,6 +450,7 @@ export default function ProjectsOverview() {
 // ─── Project card ─────────────────────────────────────────────────────────────
 function ProjectCard({ project: p, onDelete, onStatusChange }: { project: Project; onDelete: (id: string) => void; onStatusChange: (id: string, s: Project['status']) => void }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [imgErr, setImgErr] = useState(false);
   const pct = p.total > 0 ? Math.round((p.sourced / p.total) * 100) : 0;
   return (
     <Link href={`/project?id=${p.id}`}>
@@ -433,7 +458,10 @@ function ProjectCard({ project: p, onDelete, onStatusChange }: { project: Projec
         {/* Image / gradient header */}
         <div className="aspect-video relative overflow-hidden">
           <div className={`absolute inset-0 bg-linear-to-br ${p.gradient} flex items-center justify-center transition-transform duration-500 group-hover:scale-105`}>
-            <span className="material-symbols-outlined text-white/30 text-8xl">{p.icon}</span>
+            {p.image && !imgErr
+              ? <img src={p.image} alt={p.name} className="absolute inset-0 w-full h-full object-cover" onError={() => setImgErr(true)} />
+              : <span className="material-symbols-outlined text-white/30 text-8xl">{p.icon}</span>
+            }
           </div>
           <div className="absolute top-4 left-4 flex gap-2 flex-wrap">
             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${STATUS_BADGE[p.status]}`}>{p.status}</span>

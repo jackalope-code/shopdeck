@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
+import { getToken } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Keyboard {
@@ -13,6 +14,7 @@ interface Keyboard {
   tierColor: string;
   gradient: string;
   icon: string;
+  image?: string;
   specs: SpecRow[];
   verdict: string;
   verdictColor: string;
@@ -83,12 +85,16 @@ const KB_B: Keyboard = {
 
 // ─── Product column ───────────────────────────────────────────────────────────
 function ProductHeader({ kb }: { kb: Keyboard }) {
+  const [imgErr, setImgErr] = useState(false);
   return (
     <div className="group bg-white dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800 overflow-hidden">
       {/* Image / banner */}
       <div className="relative h-52 w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 mb-5">
         <div className={`absolute inset-0 bg-linear-to-br ${kb.gradient} flex items-center justify-center transition-transform duration-500 group-hover:scale-105`}>
-          <span className="material-symbols-outlined text-white/20 text-8xl">{kb.icon}</span>
+          {kb.image && !imgErr
+            ? <img src={kb.image} alt={kb.name} className="absolute inset-0 w-full h-full object-contain bg-white p-4" onError={() => setImgErr(true)} />
+            : <span className="material-symbols-outlined text-white/20 text-8xl">{kb.icon}</span>
+          }
         </div>
         <div className="absolute top-3 left-3">
           <span className={`${kb.tierColor} px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest`}>{kb.tier}</span>
@@ -130,6 +136,27 @@ function ProductActions({ kb }: { kb: Keyboard }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function KeyboardComparison() {
   const [search, setSearch] = useState('');
+  const [kbA, setKbA] = useState<Keyboard>(KB_A);
+  const [kbB, setKbB] = useState<Keyboard>(KB_B);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch('/api/feed-config/data/keyboard-releases', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(({ sources }) => {
+        if (!sources) return;
+        const items: { name: string; image?: string; price?: string }[] = [];
+        for (const src of Object.values(sources as Record<string, { data: typeof items }>)) {
+          items.push(...(src.data ?? []));
+        }
+        if (items[0]?.image) setKbA(prev => ({ ...prev, image: items[0].image }));
+        if (items[1]?.image) setKbB(prev => ({ ...prev, image: items[1].image }));
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
@@ -174,12 +201,12 @@ export default function KeyboardComparison() {
 
             {/* Product headers + actions */}
             <div className="grid grid-cols-2 gap-8 mb-2">
-              <ProductHeader kb={KB_A} />
-              <ProductHeader kb={KB_B} />
+              <ProductHeader kb={kbA} />
+              <ProductHeader kb={kbB} />
             </div>
             <div className="grid grid-cols-2 gap-8 mb-8">
-              <ProductActions kb={KB_A} />
-              <ProductActions kb={KB_B} />
+              <ProductActions kb={kbA} />
+              <ProductActions kb={kbB} />
             </div>
 
             {/* Specs table */}
@@ -188,16 +215,16 @@ export default function KeyboardComparison() {
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-800/50">
                     <th className="p-4 w-1/4 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Technical Specs</th>
-                    <th className="p-4 w-[37.5%] font-bold border-b border-slate-200 dark:border-slate-800">{KB_A.name}</th>
-                    <th className="p-4 w-[37.5%] font-bold border-b border-slate-200 dark:border-slate-800">{KB_B.name}</th>
+                    <th className="p-4 w-[37.5%] font-bold border-b border-slate-200 dark:border-slate-800">{kbA.name}</th>
+                    <th className="p-4 w-[37.5%] font-bold border-b border-slate-200 dark:border-slate-800">{kbB.name}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {KB_A.specs.map((spec, i) => (
+                  {kbA.specs.map((spec, i) => (
                     <tr key={spec.label} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">{spec.label}</td>
-                      <td className={`p-4 text-sm ${KB_A.specs[i].highlight ? 'text-blue-500 font-medium' : ''}`}>{KB_A.specs[i].value}</td>
-                      <td className={`p-4 text-sm ${KB_B.specs[i].highlight ? 'text-blue-500 font-medium' : ''}`}>{KB_B.specs[i].value}</td>
+                      <td className={`p-4 text-sm ${kbA.specs[i].highlight ? 'text-blue-500 font-medium' : ''}`}>{kbA.specs[i].value}</td>
+                      <td className={`p-4 text-sm ${kbB.specs[i]?.highlight ? 'text-blue-500 font-medium' : ''}`}>{kbB.specs[i]?.value ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -220,13 +247,13 @@ export default function KeyboardComparison() {
                 <h4 className="font-bold mb-2 text-sm uppercase tracking-wider text-slate-500 flex items-center gap-2">
                   <span className="material-symbols-outlined text-blue-500 text-sm">verified</span>Mode Envoy verdict
                 </h4>
-                <p className={`text-sm ${KB_A.verdictColor}`}>{KB_A.verdict}</p>
+                <p className={`text-sm ${kbA.verdictColor}`}>{kbA.verdict}</p>
               </div>
               <div className="bg-white dark:bg-slate-900/40 rounded-xl p-5 border border-slate-200 dark:border-slate-800">
                 <h4 className="font-bold mb-2 text-sm uppercase tracking-wider text-slate-500 flex items-center gap-2">
                   <span className="material-symbols-outlined text-amber-500 text-sm">verified</span>QK65v2 verdict
                 </h4>
-                <p className={`text-sm ${KB_B.verdictColor}`}>{KB_B.verdict}</p>
+                <p className={`text-sm ${kbB.verdictColor}`}>{kbB.verdict}</p>
               </div>
             </div>
           </div>

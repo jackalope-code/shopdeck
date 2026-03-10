@@ -1,7 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
+import { getToken } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DropStatus = 'group-buy' | 'in-stock' | 'ic' | 'sold-out' | 'sale';
@@ -17,6 +18,7 @@ interface Drop {
   daysLeft?: number;
   discount?: number;
   hot?: boolean;
+  image?: string;
   imageIcon: string;
   gradient: string;
 }
@@ -54,18 +56,22 @@ const STATUSES: DropStatus[] = ['group-buy', 'in-stock', 'ic', 'sale', 'sold-out
 
 // ─── Drop card ────────────────────────────────────────────────────────────────
 function DropCard({ drop }: { drop: Drop }) {
+  const [imgErr, setImgErr] = useState(false);
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group">
       {/* Banner */}
-      <div className={`h-28 bg-linear-to-br ${drop.gradient} flex items-center justify-center relative`}>
-        <span className="material-symbols-outlined text-white/20 text-6xl">{drop.imageIcon}</span>
+      <div className={`h-28 bg-linear-to-br ${drop.gradient} flex items-center justify-center relative overflow-hidden`}>
+        {drop.image && !imgErr
+          ? <img src={drop.image} alt={drop.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={() => setImgErr(true)} />
+          : <span className="material-symbols-outlined text-white/20 text-6xl">{drop.imageIcon}</span>
+        }
         {drop.hot && (
-          <span className="absolute top-2 left-2 flex items-center gap-1 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+          <span className="absolute top-2 left-2 flex items-center gap-1 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
             <span className="material-symbols-outlined text-[11px]">local_fire_department</span>Hot
           </span>
         )}
         {drop.discount && (
-          <span className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+          <span className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
             -{drop.discount}%
           </span>
         )}
@@ -98,8 +104,58 @@ export default function Drops() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<DropCategory | 'All'>('All');
   const [activeStatus, setActiveStatus] = useState<DropStatus | 'All'>('All');
+  const [liveItems, setLiveItems] = useState<Drop[]>([]);
 
-  const filtered = ALL_DROPS.filter(d => {
+  // Fetch real product data (including images) from scraped vendor sources
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch('/api/feed-config/data/drops', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then((json: null | { sources: Record<string, { name: string; data: Array<{ name?: string; image?: string; price?: string; handle?: string; url?: string }> }> }) => {
+        if (!json?.sources) return;
+        const live: Drop[] = [];
+        for (const [sourceId, source] of Object.entries(json.sources)) {
+          const category: DropCategory =
+            sourceId.includes('keycap') ? 'Keycaps' :
+            sourceId.includes('switch') ? 'Switches' :
+            'Keyboards';
+          const gradients: Record<DropCategory, string> = {
+            Keyboards: 'from-slate-800 to-slate-700',
+            Keycaps:   'from-indigo-900 to-slate-700',
+            Switches:  'from-emerald-900 to-slate-700',
+            Accessories: 'from-stone-800 to-slate-700',
+          };
+          const icons: Record<DropCategory, string> = {
+            Keyboards: 'keyboard', Keycaps: 'format_color_text',
+            Switches: 'tune', Accessories: 'cable',
+          };
+          for (const item of source.data.slice(0, 6)) {
+            if (!item.name) continue;
+            live.push({
+              id: `live-${sourceId}-${item.handle ?? item.name}`,
+              name: item.name,
+              vendor: source.name,
+              category,
+              status: 'in-stock',
+              price: item.price ? `$${parseFloat(item.price).toFixed(0)}` : 'TBD',
+              image: item.image,
+              imageIcon: icons[category],
+              gradient: gradients[category],
+            });
+          }
+        }
+        if (live.length > 0) setLiveItems(live);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Merge: show live scraped items first (with real images), then mock items as fill
+  const ALL_ITEMS = liveItems.length > 0 ? [...liveItems, ...ALL_DROPS] : ALL_DROPS;
+
+  const filtered = ALL_ITEMS.filter(d => {
     const matchesSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.vendor.toLowerCase().includes(search.toLowerCase());
     const matchesCat = activeCategory === 'All' || d.category === activeCategory;
     const matchesStatus = activeStatus === 'All' || d.status === activeStatus;
@@ -107,10 +163,10 @@ export default function Drops() {
   });
 
   const stats = [
-    { label: 'Active Group Buys', value: ALL_DROPS.filter(d => d.status === 'group-buy').length.toString(), icon: 'group', color: 'text-blue-500' },
-    { label: 'In Stock Now', value: ALL_DROPS.filter(d => d.status === 'in-stock').length.toString(), icon: 'check_circle', color: 'text-emerald-500' },
-    { label: 'Interest Checks', value: ALL_DROPS.filter(d => d.status === 'ic').length.toString(), icon: 'visibility', color: 'text-slate-400' },
-    { label: 'On Sale', value: ALL_DROPS.filter(d => d.status === 'sale').length.toString(), icon: 'sell', color: 'text-orange-500' },
+    { label: 'Active Group Buys', value: ALL_ITEMS.filter(d => d.status === 'group-buy').length.toString(), icon: 'group', color: 'text-blue-500' },
+    { label: 'In Stock Now', value: ALL_ITEMS.filter(d => d.status === 'in-stock').length.toString(), icon: 'check_circle', color: 'text-emerald-500' },
+    { label: 'Interest Checks', value: ALL_ITEMS.filter(d => d.status === 'ic').length.toString(), icon: 'visibility', color: 'text-slate-400' },
+    { label: 'On Sale', value: ALL_ITEMS.filter(d => d.status === 'sale').length.toString(), icon: 'sell', color: 'text-orange-500' },
   ];
 
   return (

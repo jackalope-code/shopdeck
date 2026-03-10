@@ -883,9 +883,35 @@ export default function Dashboard() {
       {/* Hamburger drawer */}
       {drawerOpen && (
         <>
-          <div className="fixed inset-0 z-20 bg-black/20 dark:bg-black/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside className="fixed top-14 left-0 bottom-0 z-20 w-64 bg-white dark:bg-[#101922] border-r border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-y-auto">
+          <div className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <aside className="fixed top-14 left-0 bottom-0 z-40 w-64 bg-white dark:bg-[#101922] border-r border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-y-auto">
             <div className="px-4 pt-5 pb-2">
+              {/* Main nav links — only shown in drawer on smaller screens */}
+              <div className="md:hidden mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">Main</p>
+                <nav className="space-y-0.5">
+                  {[
+                    { href: '/dashboard',    label: 'Dashboard', icon: 'grid_view' },
+                    { href: '/projects',     label: 'Projects',  icon: 'rocket_launch' },
+                    { href: '/active-deals', label: 'Deals',     icon: 'sell' },
+                    { href: '/drops',        label: 'Drops',     icon: 'new_releases' },
+                  ].map(l => (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      onClick={() => setDrawerOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        router.pathname === l.href
+                          ? 'bg-blue-500/10 text-blue-500'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">{l.icon}</span>
+                      {l.label}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">Trackers</p>
               <nav className="space-y-0.5">
                 {DASH_DRAWER_LINKS.map(l => (

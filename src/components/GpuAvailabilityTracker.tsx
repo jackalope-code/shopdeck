@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopNav } from './ProjectsOverview';
+import { getToken } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
@@ -20,6 +21,7 @@ interface GpuItem {
   deal?: string;
   note?: string;
   alertOn: boolean;
+  image?: string;
   trend: number[];     // 7 heights, 0–10
 }
 
@@ -84,13 +86,70 @@ function AlertToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
     </button>
   );
 }
-
+// ─── Product image thumbnail ──────────────────────────────────────────────────
+function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconClass = 'text-slate-400' }: {
+  src?: string; icon: string; bg?: string; iconClass?: string;
+}) {
+  const [err, setErr] = useState(false);
+  return (
+    <div className={`shrink-0 flex items-center justify-center size-10 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
+      {src && !err
+        ? <img src={src} alt="" className="w-full h-full object-contain p-1" onError={() => setErr(true)} />
+        : <span className={`material-symbols-outlined text-[20px] ${iconClass}`}>{icon}</span>
+      }
+    </div>
+  );
+}
 // ─── Main component ─────────────────────────────────────────────────────────────
 export default function GpuAvailabilityTracker() {
   const [items, setItems] = useState<GpuItem[]>(INITIAL_ITEMS);
   const [filter, setFilter] = useState<Filter>('All');
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch('/api/feed-config/data/gpu-availability', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(({ sources }) => {
+        if (!sources) return;
+        const live: GpuItem[] = [];
+        let idx = 0;
+        for (const [srcId, src] of Object.entries(sources as Record<string, { name: string; data: { name: string; image?: string; price?: string; url?: string }[] }>)) {
+          for (const item of src.data ?? []) {
+            const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+            const nameLower = item.name.toLowerCase();
+            const series: GpuSeries =
+              nameLower.includes('rx 7') || nameLower.includes('rx7') ? 'RX 7000' :
+              nameLower.includes('rx 6') || nameLower.includes('rx6') ? 'RX 6000' :
+              nameLower.includes('rtx 30') || nameLower.includes('3080') || nameLower.includes('3070') ? 'RTX 30xx' :
+              'RTX 40xx';
+            const memType: MemType = nameLower.includes('gddr5x') || nameLower.includes('gddr6x') ? 'GDDR6X' :
+              nameLower.includes('gddr5') ? 'GDDR5' : 'GDDR6';
+            const vramMatch = item.name.match(/(\d+)\s*gb/i);
+            const vram = vramMatch ? parseInt(vramMatch[1]) : 8;
+            live.push({
+              id: `${srcId}-${idx++}`,
+              name: item.name,
+              vendor: src.name as GpuVendor,
+              series,
+              vram,
+              memType,
+              status: 'IN STOCK',
+              price,
+              image: item.image,
+              alertOn: false,
+              trend: [],
+            });
+          }
+        }
+        if (live.length > 0) setItems(live);
+      })
+      .catch(() => {});
+  }, []);
 
   const filters: Filter[] = ['All', 'RTX 40xx', 'RTX 30xx', 'RX 7000', 'RX 6000'];
 
@@ -186,10 +245,8 @@ export default function GpuAvailabilityTracker() {
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-r" />
                   )}
 
-                  {/* Icon */}
-                  <div className="shrink-0 flex items-center justify-center size-10 rounded-xl bg-green-500/10 text-green-500">
-                    <span className="material-symbols-outlined text-[20px]">videogame_asset</span>
-                  </div>
+                  {/* Icon / image */}
+                  <ProductThumb src={item.image} icon="videogame_asset" bg="bg-green-500/10" iconClass="text-green-500" />
 
                   {/* Name + meta */}
                   <div className="flex-1 min-w-0">

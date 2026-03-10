@@ -22,30 +22,54 @@
     },
     "active-deals": {
       "sources": [
-        { "id": "amazon-deals", "name": "Amazon", "enabled": true },
-        { "id": "slickdeals", "name": "Slickdeals", "enabled": true }
+        { "id": "cannonkeys-sale",    "name": "CannonKeys",    "enabled": true },
+        { "id": "novelkeys-sale",     "name": "NovelKeys",     "enabled": true },
+        { "id": "kbdfans-sale",       "name": "KBDfans",       "enabled": true },
+        { "id": "1upkeyboards-sale",  "name": "1upKeyboards",  "enabled": true }
       ],
       "custom": []
     },
     "keyboard-releases": {
       "sources": [
-        { "id": "geekhack", "name": "Geekhack", "enabled": true },
-        { "id": "kbdfans", "name": "KBDfans", "enabled": true },
-        { "id": "novelkeys", "name": "Novelkeys", "enabled": true },
-        { "id": "microcenter-keyboards", "name": "Microcenter", "enabled": true },
-        { "id": "stupidbulletstech", "name": "Stupid Bullets Tech", "enabled": true },
-        { "id": "customkeysco", "name": "Custom Keys Co.", "enabled": true }
+        { "id": "cannonkeys-keyboards",   "name": "CannonKeys",   "enabled": true },
+        { "id": "novelkeys-keyboards",    "name": "NovelKeys",    "enabled": true },
+        { "id": "kbdfans-keyboards",      "name": "KBDfans",      "enabled": true },
+        { "id": "1upkeyboards-keyboards", "name": "1upKeyboards", "enabled": true },
+        { "id": "geekhack",               "name": "Geekhack",     "enabled": true },
+        { "id": "microcenter-keyboards",  "name": "Microcenter",  "enabled": true }
       ],
       "custom": []
     },
     "keyboard-sales": {
       "sources": [
-        { "id": "geekhack", "name": "Geekhack", "enabled": true },
-        { "id": "kbdfans", "name": "KBDfans", "enabled": true },
-        { "id": "novelkeys", "name": "Novelkeys", "enabled": true },
-        { "id": "microcenter-keyboards", "name": "Microcenter", "enabled": true },
-        { "id": "stupidbulletstech", "name": "Stupid Bullets Tech", "enabled": true },
-        { "id": "customkeysco", "name": "Custom Keys Co.", "enabled": true }
+        { "id": "cannonkeys-keyboards",   "name": "CannonKeys",   "enabled": true },
+        { "id": "novelkeys-keyboards",    "name": "NovelKeys",    "enabled": true },
+        { "id": "kbdfans-keyboards",      "name": "KBDfans",      "enabled": true },
+        { "id": "microcenter-keyboards",  "name": "Microcenter",  "enabled": true }
+      ],
+      "custom": []
+    },
+    "keycap-releases": {
+      "sources": [
+        { "id": "novelkeys-keycaps",   "name": "NovelKeys",  "enabled": true },
+        { "id": "kbdfans-keycaps",     "name": "KBDfans",    "enabled": true },
+        { "id": "cannonkeys-keycaps",  "name": "CannonKeys", "enabled": true },
+        { "id": "omnitype-keycaps",    "name": "Omnitype",   "enabled": true }
+      ],
+      "custom": []
+    },
+    "drops": {
+      "sources": [
+        { "id": "cannonkeys-keyboards",   "name": "CannonKeys",   "enabled": true },
+        { "id": "novelkeys-keyboards",    "name": "NovelKeys",    "enabled": true },
+        { "id": "kbdfans-keyboards",      "name": "KBDfans",      "enabled": true },
+        { "id": "1upkeyboards-keyboards", "name": "1upKeyboards", "enabled": true },
+        { "id": "novelkeys-keycaps",      "name": "NovelKeys",    "enabled": true },
+        { "id": "kbdfans-keycaps",        "name": "KBDfans",      "enabled": true },
+        { "id": "cannonkeys-keycaps",     "name": "CannonKeys",   "enabled": true },
+        { "id": "omnitype-keycaps",       "name": "Omnitype",     "enabled": true },
+        { "id": "novelkeys-switches",     "name": "NovelKeys",    "enabled": true },
+        { "id": "cannonkeys-switches",    "name": "CannonKeys",   "enabled": true }
       ],
       "custom": []
     },

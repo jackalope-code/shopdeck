@@ -77,7 +77,7 @@ router.patch('/:id', verifyToken, (req, res) => {
   const pIdx = projects.findIndex(p => p.id === req.params.id);
   if (pIdx === -1) return res.status(404).json({ error: 'Project not found' });
 
-  const allowed = ['name', 'status', 'icon', 'forSale', 'budget', 'targetPrice', 'estProfit', 'sourced', 'total', 'spent', 'gradient', 'components'];
+  const allowed = ['name', 'status', 'icon', 'forSale', 'budget', 'targetPrice', 'estProfit', 'sourced', 'total', 'spent', 'gradient', 'components', 'image'];
   for (const key of allowed) {
     if (key in req.body) projects[pIdx][key] = req.body[key];
   }

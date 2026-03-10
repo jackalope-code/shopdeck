@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopNav } from './ProjectsOverview';
+import { getToken } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out';
@@ -17,6 +18,7 @@ interface KeycapSet {
   statusLabel: string;
   icon: string;
   gradient: string;
+  image?: string;
   favorited?: boolean;
 }
 
@@ -52,13 +54,17 @@ const ALL_BRANDS: BrandFilter[] = ['All Sets', 'GMK', 'PBTFans', 'KAT', 'DCX', '
 
 function KeycapCard({ set }: { set: KeycapSet }) {
   const [faved, setFaved] = useState(set.favorited || false);
+  const [imgErr, setImgErr] = useState(false);
 
   return (
     <div className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-all shadow-sm h-full">
       {/* Image / banner */}
       <div className="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
         <div className={`absolute inset-0 bg-linear-to-br ${set.gradient} flex items-center justify-center transition-transform duration-500 group-hover:scale-105`}>
-          <span className="material-symbols-outlined text-white/20 text-6xl">{set.icon}</span>
+          {set.image && !imgErr
+            ? <img src={set.image} alt={set.name} className="absolute inset-0 w-full h-full object-cover" onError={() => setImgErr(true)} />
+            : <span className="material-symbols-outlined text-white/10 text-8xl">{set.icon}</span>
+          }
         </div>
         {/* Status badge */}
         <div className={`absolute top-2 left-2 z-10 ${STATUS_BADGE[set.status]} text-[10px] font-black px-2 py-1 rounded-full uppercase`}>
@@ -113,8 +119,46 @@ export default function KeycapsTracker() {
   const [search, setSearch] = useState('');
   const [brand, setBrand] = useState<BrandFilter>('All Sets');
   const [page, setPage] = useState(1);
+  const [liveSets, setLiveSets] = useState<KeycapSet[]>([]);
 
-  const filtered = SETS.filter(s => {
+  // Fetch real keycap data (with actual product images) from scraped vendor sources
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch('/api/feed-config/data/keycap-releases', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then((json: null | { sources: Record<string, { name: string; data: Array<{ name?: string; image?: string; price?: string; handle?: string }> }> }) => {
+        if (!json?.sources) return;
+        const live: KeycapSet[] = [];
+        let idx = 100;
+        for (const [, source] of Object.entries(json.sources)) {
+          for (const item of source.data.slice(0, 8)) {
+            if (!item.name) continue;
+            live.push({
+              id: `live-${idx++}`,
+              name: item.name,
+              brand: source.name,
+              vendor: source.name,
+              profile: 'Cherry',
+              price: item.price ? parseFloat(item.price) : 0,
+              status: 'in-stock',
+              statusLabel: 'In Stock',
+              icon: 'format_color_text',
+              gradient: 'from-indigo-900 to-slate-700',
+              image: item.image,
+            });
+          }
+        }
+        if (live.length > 0) setLiveSets(live);
+      })
+      .catch(() => {});
+  }, []);
+
+  const ALL_SETS = liveSets.length > 0 ? [...liveSets, ...SETS] : SETS;
+
+  const filtered = ALL_SETS.filter(s => {
     const matchBrand = brand === 'All Sets' || s.brand === brand || s.vendor === brand;
     const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.vendor.toLowerCase().includes(search.toLowerCase());
     return matchBrand && matchSearch;

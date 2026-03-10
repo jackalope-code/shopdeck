@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
+import { getToken } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DealCategory = 'Keyboards' | 'Electronics' | 'Audio' | 'Components';
@@ -22,6 +23,7 @@ interface Deal {
   icon: string;
   gradient: string;
   discountIcon: string;
+  image?: string;
 }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -51,12 +53,16 @@ type FilterChip = 'All' | DealCategory;
 
 // ─── Deal card ────────────────────────────────────────────────────────────────
 function DealCard({ deal }: { deal: Deal }) {
+  const [imgErr, setImgErr] = useState(false);
   return (
     <div className="group relative flex flex-col bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:ring-1 hover:ring-blue-500/50 transition-all">
       {/* Image / gradient banner */}
       <div className="relative h-44 w-full overflow-hidden">
         <div className={`absolute inset-0 bg-linear-to-br ${deal.gradient} flex items-center justify-center transition-transform duration-500 group-hover:scale-105`}>
-          <span className="material-symbols-outlined text-white/20 text-8xl">{deal.icon}</span>
+          {deal.image && !imgErr
+            ? <img src={deal.image} alt={deal.name} className="absolute inset-0 w-full h-full object-cover" onError={() => setImgErr(true)} />
+            : <span className="material-symbols-outlined text-white/20 text-8xl">{deal.icon}</span>
+          }
         </div>
         {/* Discount badge */}
         <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg">
@@ -117,10 +123,52 @@ export default function ActiveDealsDashboard() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterChip>('All');
   const [sort, setSort] = useState<SortMode>('discount');
+  const [deals, setDeals] = useState<Deal[]>(DEALS);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch('/api/feed-config/data/active-deals', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(({ sources }) => {
+        if (!sources) return;
+        const live: Deal[] = [];
+        let idx = 0;
+        for (const [srcId, src] of Object.entries(sources as Record<string, { name: string; data: { name: string; image?: string; price?: string; comparePrice?: string; productType?: string; url?: string }[] }>)) {
+          for (const item of src.data ?? []) {
+            const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+            const wasPrice = parseFloat((item.comparePrice ?? '0').replace(/[^0-9.]/g, '')) || 0;
+            if (price <= 0) continue;
+            const discount = wasPrice > price ? Math.round((1 - price / wasPrice) * 100) : 0;
+            const type = item.productType?.toLowerCase() ?? '';
+            const cat: DealCategory = type.includes('keycap') ? 'Keyboards' : type.includes('switch') ? 'Components' : 'Keyboards';
+            live.push({
+              id: `${srcId}-${idx++}`,
+              name: item.name,
+              category: cat,
+              vendor: src.name,
+              price,
+              wasPrice: wasPrice || price,
+              discount,
+              timeLeft: 'Sale',
+              timeUrgency: 'comfortable',
+              icon: 'keyboard',
+              gradient: 'from-blue-900 to-blue-600',
+              discountIcon: discount >= 20 ? 'local_fire_department' : 'trending_down',
+              image: item.image,
+            });
+          }
+        }
+        if (live.length > 0) setDeals([...live, ...DEALS]);
+      })
+      .catch(() => {});
+  }, []);
 
   const cats: FilterChip[] = ['All', 'Keyboards', 'Electronics', 'Audio', 'Components'];
 
-  const displayed = DEALS
+  const displayed = deals
     .filter(d => {
       const matchCat = filter === 'All' || d.category === filter;
       const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.vendor.toLowerCase().includes(search.toLowerCase());
