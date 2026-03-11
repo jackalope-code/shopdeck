@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TopNav } from './ProjectsOverview';
-import { getToken } from '../lib/auth';
+import { useFeedData } from '../lib/ShopdataContext';
+import { getToken, apiGet, apiPatch } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
 type GpuSeries = 'RTX 40xx' | 'RTX 30xx' | 'RX 7000' | 'RX 6000';
-type GpuVendor = 'Newegg' | 'Amazon' | 'TigerDirect';
 type MemType = 'GDDR6X' | 'GDDR6' | 'GDDR5';
 
 interface GpuItem {
   id: string;
   name: string;
-  vendor: GpuVendor;
+  vendor: string;
   series: GpuSeries;
   vram: number;        // GB
   memType: MemType;
@@ -22,6 +22,7 @@ interface GpuItem {
   note?: string;
   alertOn: boolean;
   image?: string;
+  url?: string;
   trend: number[];     // 7 heights, 0–10
 }
 
@@ -102,59 +103,58 @@ function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconCl
 }
 // ─── Main component ─────────────────────────────────────────────────────────────
 export default function GpuAvailabilityTracker() {
-  const [items, setItems] = useState<GpuItem[]>(INITIAL_ITEMS);
+  const [alertStates, setAlertStates] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<Filter>('All');
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch('/api/feed-config/data/gpu-availability', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(({ sources }) => {
-        if (!sources) return;
-        const live: GpuItem[] = [];
-        let idx = 0;
-        for (const [srcId, src] of Object.entries(sources as Record<string, { name: string; data: { name: string; image?: string; price?: string; url?: string }[] }>)) {
-          for (const item of src.data ?? []) {
-            const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
-            const nameLower = item.name.toLowerCase();
-            const series: GpuSeries =
-              nameLower.includes('rx 7') || nameLower.includes('rx7') ? 'RX 7000' :
-              nameLower.includes('rx 6') || nameLower.includes('rx6') ? 'RX 6000' :
-              nameLower.includes('rtx 30') || nameLower.includes('3080') || nameLower.includes('3070') ? 'RTX 30xx' :
-              'RTX 40xx';
-            const memType: MemType = nameLower.includes('gddr5x') || nameLower.includes('gddr6x') ? 'GDDR6X' :
-              nameLower.includes('gddr5') ? 'GDDR5' : 'GDDR6';
-            const vramMatch = item.name.match(/(\d+)\s*gb/i);
-            const vram = vramMatch ? parseInt(vramMatch[1]) : 8;
-            live.push({
-              id: `${srcId}-${idx++}`,
-              name: item.name,
-              vendor: src.name as GpuVendor,
-              series,
-              vram,
-              memType,
-              status: 'IN STOCK',
-              price,
-              image: item.image,
-              alertOn: false,
-              trend: [],
-            });
-          }
-        }
-        if (live.length > 0) setItems(live);
-      })
+    if (!getToken()) return;
+    apiGet<{ profile: { gpuAlertStates?: Record<string, boolean> } }>('/api/profile')
+      .then(data => { if (data?.profile?.gpuAlertStates) setAlertStates(data.profile.gpuAlertStates); })
       .catch(() => {});
   }, []);
 
+  const { loading, items: feedItems } = useFeedData('gpu-availability');
+
+  const items: GpuItem[] = feedItems.map((item, idx) => {
+    const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+    const nameLower = item.name.toLowerCase();
+    const series: GpuSeries =
+      nameLower.includes('rx 7') || nameLower.includes('rx7') ? 'RX 7000' :
+      nameLower.includes('rx 6') || nameLower.includes('rx6') ? 'RX 6000' :
+      nameLower.includes('rtx 30') || nameLower.includes('3080') || nameLower.includes('3070') ? 'RTX 30xx' :
+      'RTX 40xx';
+    const memType: MemType = nameLower.includes('gddr6x') ? 'GDDR6X' :
+      nameLower.includes('gddr5') ? 'GDDR5' : 'GDDR6';
+    const vramMatch = item.name.match(/(\d+)\s*gb/i);
+    const vram = vramMatch ? parseInt(vramMatch[1]) : 8;
+    const id = `${item._vendor}-${idx}`;
+    return {
+      id,
+      name: item.name,
+      vendor: item._vendor ?? '',
+      series,
+      vram,
+      memType,
+      status: 'IN STOCK' as const,
+      price,
+      image: item.image,
+      url: item.url,
+      alertOn: alertStates[item.name] ?? false,
+      trend: [],
+    };
+  });
+
   const filters: Filter[] = ['All', 'RTX 40xx', 'RTX 30xx', 'RX 7000', 'RX 6000'];
 
-  const toggleAlert = (id: string) =>
-    setItems(prev => prev.map(item => item.id === id ? { ...item, alertOn: !item.alertOn } : item));
+  const toggleAlert = (name: string) => {
+    setAlertStates(prev => {
+      const next = { ...prev, [name]: !prev[name] };
+      if (getToken()) apiPatch('/api/profile', { gpuAlertStates: next }).catch(() => {});
+      return next;
+    });
+  };
 
   const displayed = items.filter(item => {
     const matchType = filter === 'All' || item.series === filter;
@@ -230,11 +230,24 @@ export default function GpuAvailabilityTracker() {
 
         {/* GPU list */}
         <main className="flex-1 overflow-y-auto">
-          {displayed.length === 0 ? (
+          {loading ? (
+            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-6 py-4 animate-pulse">
+                  <div className="size-10 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                  </div>
+                  <div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : displayed.length === 0 ? (
             <div className="text-center py-20 text-slate-400">
               <span className="material-symbols-outlined text-5xl mb-3 block">search_off</span>
-              <p className="font-medium">No GPUs found</p>
-              <p className="text-sm mt-1">Try a different filter or search term.</p>
+              <p className="font-medium">{items.length === 0 ? 'No GPU data available right now.' : 'No GPUs found'}</p>
+              {items.length > 0 && <p className="text-sm mt-1">Try a different filter or search term.</p>}
             </div>
           ) : (
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -251,13 +264,21 @@ export default function GpuAvailabilityTracker() {
                   {/* Name + meta */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold truncate">{item.name}</p>
+                      <p className="text-sm font-semibold truncate">
+                        {item.url
+                          ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-green-500 transition-colors">{item.name}</a>
+                          : item.name}
+                      </p>
                       {item.deal && (
                         <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-black">{item.deal}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      <span className="text-[11px] text-slate-500">{item.vendor}</span>
+                      <span className="text-[11px] text-slate-500">
+                        {item.url
+                          ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-green-500 transition-colors">{item.vendor}</a>
+                          : item.vendor}
+                      </span>
                       <span className="text-[11px] font-medium text-slate-500">{item.series} · {item.vram}GB {item.memType}</span>
                       {item.note && <span className="text-[11px] text-slate-400">{item.note}</span>}
                     </div>
@@ -275,7 +296,7 @@ export default function GpuAvailabilityTracker() {
 
                   {/* Alert toggle */}
                   <div className="shrink-0 hidden md:block">
-                    <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.id)} />
+                    <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.name)} />
                   </div>
 
                   {/* Price */}

@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
+import { useFeedData, useProjects, useActivity } from '../lib/ShopdataContext';
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
 export interface WidgetDef {
@@ -43,322 +44,284 @@ export const ALL_WIDGETS: WidgetDef[] = [
   { id: 'vendor-performance', title: 'Vendor Performance', category: 'Overview', icon: 'storefront', color: 'text-yellow-500', description: 'Fulfillment rates across top vendors.' },
 ];
 
-// ─── Individual widget contents ───────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function relativeTime(timestamp: string): string {
+  const diff = Date.now() - new Date(timestamp).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function SkeletonRows({ n = 3 }: { n?: number }) {
+  return (
+    <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+          <div className="h-9 w-9 rounded bg-slate-200 dark:bg-slate-800 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Widget sub-components (each calls hooks at top level) ────────────────────
+function ActiveProjectsWidget() {
+  const { projects, loading } = useProjects();
+  if (loading) return <SkeletonRows />;
+  const active = projects.slice(0, 3);
+  if (active.length === 0) return (
+    <div className="p-6 text-center text-slate-400 text-sm">
+      <span className="material-symbols-outlined block text-3xl mb-2">rocket_launch</span>
+      No projects yet. <Link href="/projects" className="text-blue-500 hover:underline">Create one →</Link>
+    </div>
+  );
+  return (
+    <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      {active.map(p => {
+        const progress = p.total > 0 ? Math.round((p.sourced / p.total) * 100) : 0;
+        const statusCls = p.forSale
+          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+          : 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400';
+        const dotCls = p.forSale ? 'bg-emerald-500' : 'bg-blue-500';
+        const barCls = progress >= 70 ? 'bg-emerald-500' : progress >= 30 ? 'bg-blue-500' : 'bg-orange-500';
+        return (
+          <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="h-9 w-9 rounded flex items-center justify-center shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-500/10">
+              <span className="material-symbols-outlined text-[18px]">{p.icon || 'inventory_2'}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{p.name}</p>
+              <p className="text-[10px] text-slate-500">{p.status}</p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${statusCls}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${dotCls}`} />{p.forSale ? 'For Sale' : 'In Stock'}
+              </span>
+              <div className="w-20 hidden md:block">
+                <div className="flex justify-between text-[10px] font-bold mb-0.5">
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full">
+                  <div className={`h-full ${barCls} rounded-full`} style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <div className="px-4 py-3">
+        <Link href="/projects" className="text-xs font-bold text-blue-500 hover:underline">View all projects →</Link>
+      </div>
+    </div>
+  );
+}
+
+function RecentActivityWidget() {
+  const { activity, loading } = useActivity();
+  if (loading) return (
+    <div className="p-4 space-y-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex gap-3 animate-pulse">
+          <div className="size-2 mt-1.5 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+            <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+  if (activity.length === 0) return (
+    <div className="p-6 text-center text-slate-400 text-sm">
+      <span className="material-symbols-outlined block text-3xl mb-2">history</span>
+      No activity yet. Actions you take will appear here.
+    </div>
+  );
+  const TYPE_DOT: Record<string, string> = {
+    create: 'bg-emerald-500 ring-emerald-500/20',
+    update: 'bg-blue-500 ring-blue-500/20',
+    delete: 'bg-red-500 ring-red-500/20',
+    sale: 'bg-orange-500 ring-orange-500/20',
+  };
+  return (
+    <div className="p-4 space-y-4">
+      {activity.slice(0, 5).map((a, i) => (
+        <div key={i} className="flex gap-3 items-start">
+          <div className={`size-2 mt-1.5 rounded-full shrink-0 ring-4 ${TYPE_DOT[a.type] ?? 'bg-slate-400 ring-transparent'}`} />
+          <div>
+            <p className="text-sm font-medium">{a.title}</p>
+            <p className="text-[10px] text-slate-500">{relativeTime(a.timestamp)}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FeedListWidget({ widgetId, linkHref, linkLabel }: { widgetId: string; linkHref: string; linkLabel: string }) {
+  const { loading, items } = useFeedData(widgetId);
+  if (loading) return <SkeletonRows />;
+  const top = items.slice(0, 3);
+  if (top.length === 0) return (
+    <div className="px-4 py-6 text-center text-slate-400 text-sm">
+      No data available yet.
+      <div className="mt-2"><Link href={linkHref} className="text-xs font-bold text-blue-500 hover:underline">{linkLabel}</Link></div>
+    </div>
+  );
+  return (
+    <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      {top.map((item, i) => {
+        const price = item.price ? `$${parseFloat(item.price).toFixed(0)}` : '—';
+        const comparePrice = item.comparePrice ? parseFloat(item.comparePrice) : 0;
+        const currentPrice = item.price ? parseFloat(item.price) : 0;
+        const discount = comparePrice > currentPrice && comparePrice > 0
+          ? Math.round((1 - currentPrice / comparePrice) * 100)
+          : 0;
+        return (
+          <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+            <div>
+              <p className="text-sm font-semibold line-clamp-1">{item.name}</p>
+              <p className="text-[10px] text-slate-500">{item._vendor}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {discount > 0 && (
+                <span className="bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 px-2 py-0.5 rounded-full text-[10px] font-bold">-{discount}%</span>
+              )}
+              <span className="text-sm font-bold text-blue-500">{price}</span>
+            </div>
+          </div>
+        );
+      })}
+      <div className="px-4 py-3">
+        <Link href={linkHref} className="text-xs font-bold text-blue-500 hover:underline">{linkLabel}</Link>
+      </div>
+    </div>
+  );
+}
+
+function KeyboardComparisonWidget() {
+  const { loading, items } = useFeedData('keyboard-releases');
+  if (loading) return (
+    <div className="p-4 animate-pulse space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1].map(i => (
+          <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-2">
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+            {Array.from({ length: 3 }).map((_, j) => <div key={j} className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-full" />)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  const [a, b] = items;
+  if (!a) return (
+    <div className="px-4 py-6 text-center text-slate-400 text-sm">
+      No keyboard data yet.
+      <div className="mt-2"><Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link></div>
+    </div>
+  );
+  const tagSummary = (item: typeof a) =>
+    (item.tags ?? '').split(',').map(t => t.trim()).filter(Boolean).slice(0, 4);
+  return (
+    <div className="p-4">
+      <p className="text-sm text-slate-500 mb-4">Comparing {b ? '2' : '1'} keyboard{b ? 's' : ''}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {[a, b].filter(Boolean).map(kb => kb && (
+          <div key={kb.name} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+            <p className="text-sm font-bold mb-1 truncate">{kb.name}</p>
+            <p className="text-[10px] text-slate-500 mb-2">{kb._vendor}</p>
+            <ul className="space-y-1">
+              {tagSummary(kb).map(s => (
+                <li key={s} className="text-[11px] text-slate-500 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px] text-blue-500">check</span>{s}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3">
+        <Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link>
+      </div>
+    </div>
+  );
+}
+
+function InventoryStatsWidget() {
+  const { projects, loading } = useProjects();
+  if (loading) return (
+    <div className="grid grid-cols-2 gap-3 p-4 animate-pulse">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
+          <div className="h-8 w-8 rounded-lg bg-slate-200 dark:bg-slate-700 mb-2" />
+          <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-1" />
+          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+  const activeCount = projects.filter(p => p.status === 'In Progress').length;
+  const forSaleCount = projects.filter(p => p.forSale).length;
+  const totalSpent = projects.reduce((sum, p) => sum + (p.spent || 0), 0);
+  const budgetRemaining = projects.reduce((sum, p) => {
+    const b = p.budget ?? 0;
+    const s = p.spent || 0;
+    return sum + Math.max(0, b - s);
+  }, 0);
+  const stats = [
+    { icon: 'rocket_launch', bg: 'bg-blue-500/10 text-blue-500', label: 'Active Projects', value: String(activeCount), badge: 'In Progress', badgeCls: 'text-blue-500' },
+    { icon: 'sell', bg: 'bg-emerald-500/10 text-emerald-500', label: 'For Sale', value: String(forSaleCount), badge: 'Listed', badgeCls: 'text-emerald-500' },
+    { icon: 'payments', bg: 'bg-purple-500/10 text-purple-500', label: 'Total Spent', value: `$${totalSpent.toLocaleString()}`, badge: 'All Projects', badgeCls: 'text-slate-500' },
+    { icon: 'account_balance_wallet', bg: 'bg-orange-500/10 text-orange-500', label: 'Budget Left', value: `$${budgetRemaining.toLocaleString()}`, badge: 'Remaining', badgeCls: 'text-orange-500' },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-3 p-4">
+      {stats.map(c => (
+        <div key={c.label} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
+          <div className="flex justify-between items-start mb-2">
+            <div className={`p-1.5 rounded-lg ${c.bg}`}>
+              <span className="material-symbols-outlined text-[18px]">{c.icon}</span>
+            </div>
+            <span className={`text-[10px] font-bold ${c.badgeCls}`}>{c.badge}</span>
+          </div>
+          <p className="text-[10px] font-medium text-slate-500">{c.label}</p>
+          <h3 className="text-xl font-bold mt-0.5">{c.value}</h3>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── WidgetContent router ─────────────────────────────────────────────────────
 function WidgetContent({ id }: { id: string }) {
   switch (id) {
-    case 'active-projects':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { icon: 'keyboard', bg: 'bg-blue-100 text-blue-600', name: 'Nebula RGB Keyboard', pid: 'KBD-992-X', status: 'FOR SALE', statusCls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400', dot: 'bg-emerald-500', stock: 82, stockCls: 'bg-emerald-500' },
-            { icon: 'headphones', bg: 'bg-purple-100 text-purple-600', name: 'Aura Wireless Pro', pid: 'AUD-104-Y', status: 'IN STOCK', statusCls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400', dot: 'bg-blue-500', stock: 15, stockCls: 'bg-orange-500' },
-            { icon: 'speaker', bg: 'bg-orange-100 text-orange-600', name: 'Sonic-Wave Monitors', pid: 'AUD-201-Z', status: 'FOR SALE', statusCls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400', dot: 'bg-emerald-500', stock: 60, stockCls: 'bg-emerald-500' },
-          ].map(p => (
-            <div key={p.pid} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div className={`h-9 w-9 rounded flex items-center justify-center shrink-0 ${p.bg}`}>
-                <span className="material-symbols-outlined text-[18px]">{p.icon}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{p.name}</p>
-                <p className="text-[10px] text-slate-500">{p.pid}</p>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${p.statusCls}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${p.dot}`}></span>{p.status}
-                </span>
-                <div className="w-20 hidden md:block">
-                  <div className="flex justify-between text-[10px] font-bold mb-0.5">
-                    <span>{p.stock}%</span>
-                  </div>
-                  <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full">
-                    <div className={`h-full ${p.stockCls} rounded-full`} style={{ width: `${p.stock}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/projects" className="text-xs font-bold text-blue-500 hover:underline">View all projects →</Link>
-          </div>
-        </div>
-      );
-
-    case 'recent-activity':
-      return (
-        <div className="p-4 space-y-4">
-          {[
-            { dot: 'bg-blue-500 ring-blue-500/20', title: 'New bid on K80 Custom', time: '2 min ago' },
-            { dot: 'bg-slate-400 ring-transparent', title: 'Inventory updated: DDR4 RAM Chips', time: '1 hr ago' },
-            { dot: 'bg-emerald-500 ring-emerald-500/20', title: 'Vintage Preamp marked as Sold', time: 'Yesterday' },
-            { dot: 'bg-orange-500 ring-orange-500/20', title: 'Low stock alert: LogiTech Mousepad', time: '3 hr ago' },
-          ].map((a, i) => (
-            <div key={i} className="flex gap-3 items-start">
-              <div className={`size-2 mt-1.5 rounded-full shrink-0 ring-4 ${a.dot}`} />
-              <div>
-                <p className="text-sm font-medium">{a.title}</p>
-                <p className="text-[10px] text-slate-500">{a.time}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-
-    case 'keyboard-releases':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { name: 'Zoom65 V3 SE', vendor: 'Meletrix', price: '$169', tag: 'Group Buy', tagCls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' },
-            { name: 'Think6.5 V3', vendor: 'THINK Studio', price: '$250', tag: 'In Stock', tagCls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' },
-            { name: 'Hyper X Alloy Origins', vendor: 'HyperX', price: '$109', tag: 'Sale -20%', tagCls: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400' },
-          ].map((k, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div>
-                <p className="text-sm font-semibold">{k.name}</p>
-                <p className="text-[10px] text-slate-500">{k.vendor}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${k.tagCls}`}>{k.tag}</span>
-                <span className="text-sm font-bold text-blue-500">{k.price}</span>
-              </div>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">View keyboard comparison →</Link>
-          </div>
-        </div>
-      );
-
-    case 'keycaps-tracker':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { name: 'GMK WoB', status: 'Group Buy', ends: '12 days', price: '$140', hot: true },
-            { name: 'PBT Sushi', status: 'In Stock', ends: '—', price: '$55', hot: false },
-            { name: 'GMK Red Samurai', status: 'Interest Check', ends: '—', price: 'TBD', hot: false },
-          ].map((k, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div className="flex items-center gap-2">
-                {k.hot && <span className="material-symbols-outlined text-orange-500 text-[16px]">local_fire_department</span>}
-                <div>
-                  <p className="text-sm font-semibold">{k.name}</p>
-                  <p className="text-[10px] text-slate-500">{k.status}{k.ends !== '—' ? ` · ends in ${k.ends}` : ''}</p>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-blue-500">{k.price}</span>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/keycaps-tracker" className="text-xs font-bold text-blue-500 hover:underline">Open keycaps tracker →</Link>
-          </div>
-        </div>
-      );
-
-    case 'keyboard-comparison':
-      return (
-        <div className="p-4">
-          <p className="text-sm text-slate-500 mb-4">Comparing 2 keyboards</p>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { name: 'Zoom65 V3', specs: ['Brass weight', '65% layout', 'Gasket mount', 'Alu/POM plate'] },
-              { name: 'Think6.5 V3', specs: ['Stainless weight', '65% layout', 'Top mount', 'FR4/Alu plate'] },
-            ].map(kb => (
-              <div key={kb.name} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                <p className="text-sm font-bold mb-2">{kb.name}</p>
-                <ul className="space-y-1">
-                  {kb.specs.map(s => (
-                    <li key={s} className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[12px] text-blue-500">check</span>{s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3">
-            <Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link>
-          </div>
-        </div>
-      );
-
-    case 'ram-availability':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { name: 'G.Skill Trident Z5 DDR5-6000', stock: 'In Stock', stockCls: 'text-emerald-500', price: '$189', change: '+$4', changeCls: 'text-red-500', vendor: 'Newegg' },
-            { name: 'Corsair Vengeance DDR4-3600', stock: 'Low Stock', stockCls: 'text-orange-500', price: '$72', change: '-$3', changeCls: 'text-emerald-500', vendor: 'Amazon' },
-            { name: 'Kingston FURY Beast DDR5', stock: 'Out of Stock', stockCls: 'text-red-500', price: '$155', change: '—', changeCls: 'text-slate-400', vendor: 'DigiKey' },
-          ].map((r, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div>
-                <p className="text-sm font-semibold">{r.name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className={`text-[10px] font-bold ${r.stockCls}`}>{r.stock}</p>
-                  <span className="text-[10px] text-slate-400">{r.vendor}</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-bold">{r.price}</p>
-                <p className={`text-[10px] font-bold ${r.changeCls}`}>{r.change}</p>
-              </div>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/ram-availability-tracker" className="text-xs font-bold text-blue-500 hover:underline">Open RAM tracker →</Link>
-          </div>
-        </div>
-      );
-
-    case 'gpu-availability':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { name: 'RTX 4090 24GB GDDR6X', stock: 'In Stock', stockCls: 'text-emerald-500', price: '$1,599', change: '-$20', changeCls: 'text-emerald-500', vendor: 'Newegg' },
-            { name: 'RX 7900 XTX 24GB GDDR6', stock: 'In Stock', stockCls: 'text-emerald-500', price: '$799', change: '+$10', changeCls: 'text-red-500', vendor: 'Amazon' },
-            { name: 'RTX 4070 Ti 12GB GDDR6X', stock: 'Low Stock', stockCls: 'text-orange-500', price: '$749', change: '—', changeCls: 'text-slate-400', vendor: 'TigerDirect' },
-          ].map((r, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div>
-                <p className="text-sm font-semibold">{r.name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className={`text-[10px] font-bold ${r.stockCls}`}>{r.stock}</p>
-                  <span className="text-[10px] text-slate-400">{r.vendor}</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-bold">{r.price}</p>
-                <p className={`text-[10px] font-bold ${r.changeCls}`}>{r.change}</p>
-              </div>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/gpu-availability-tracker" className="text-xs font-bold text-green-500 hover:underline">Open GPU tracker →</Link>
-          </div>
-        </div>
-      );
-
-    case 'keyboard-sales':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { name: 'Keychron Q1 Pro Wireless', vendor: 'Amazon', discount: '40%', price: '$119', was: '$199', ends: '2h left', endCls: 'text-red-500' },
-            { name: 'Leopold FC750R PD', vendor: 'KBDfans', discount: '20%', price: '$96', was: '$120', ends: '1d left', endCls: 'text-orange-500' },
-            { name: 'GMMK Pro Barebones', vendor: 'Newegg', discount: '35%', price: '$89', was: '$138', ends: '3d left', endCls: 'text-slate-400' },
-          ].map((k, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div>
-                <p className="text-sm font-semibold">{k.name}</p>
-                <p className="text-[10px] text-slate-500">
-                  {k.vendor} · <span className={k.endCls}>{k.ends}</span>
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 px-2 py-0.5 rounded-full text-[10px] font-bold">-{k.discount}</span>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-blue-500">{k.price}</p>
-                  <p className="text-[10px] text-slate-400 line-through">{k.was}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/active-deals" className="text-xs font-bold text-blue-500 hover:underline">View all keyboard deals →</Link>
-          </div>
-        </div>
-      );
-
-    case 'active-deals':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { name: 'Sony WH-1000XM5', discount: '28%', price: '$259', was: '$359', ends: '6h left', endCls: 'text-red-500' },
-            { name: 'Logitech G Pro X', discount: '15%', price: '$89', was: '$105', ends: '1d left', endCls: 'text-orange-500' },
-            { name: 'Samsung 990 Pro 2TB', discount: '22%', price: '$155', was: '$199', ends: '3d left', endCls: 'text-slate-400' },
-          ].map((d, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div>
-                <p className="text-sm font-semibold">{d.name}</p>
-                <p className={`text-[10px] font-bold ${d.endCls}`}>{d.ends}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 px-2 py-0.5 rounded-full text-[10px] font-bold">-{d.discount}</span>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-blue-500">{d.price}</p>
-                  <p className="text-[10px] text-slate-400 line-through">{d.was}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/active-deals" className="text-xs font-bold text-blue-500 hover:underline">View all deals →</Link>
-          </div>
-        </div>
-      );
-
-    case 'electronics-watchlist':
-      return (
-        <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {[
-            { eid: 'resistors', type: 'Category', source: 'DigiKey', status: 'Tracking', statusCls: 'text-emerald-500' },
-            { eid: '123-4567', type: 'Product', source: 'DigiKey', status: 'Alert set', statusCls: 'text-blue-500' },
-            { eid: 'capacitors', type: 'Category', source: 'Mouser', status: 'Tracking', statusCls: 'text-emerald-500' },
-          ].map((e) => (
-            <div key={e.eid} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <div>
-                <p className="text-sm font-semibold font-mono">{e.eid}</p>
-                <p className="text-[10px] text-slate-500">{e.type} · {e.source}</p>
-              </div>
-              <span className={`text-[10px] font-bold ${e.statusCls}`}>{e.status}</span>
-            </div>
-          ))}
-          <div className="px-4 py-3">
-            <Link href="/my-electronics" className="text-xs font-bold text-blue-500 hover:underline">Manage watchlist →</Link>
-          </div>
-        </div>
-      );
-
-    case 'inventory-stats':
-      return (
-        <div className="grid grid-cols-2 gap-3 p-4">
-          {[
-            { icon: 'payments', bg: 'bg-emerald-500/10 text-emerald-500', label: 'Monthly Profit', value: '$42,850', badge: '+12.5%', badgeCls: 'text-emerald-500' },
-            { icon: 'rocket_launch', bg: 'bg-blue-500/10 text-blue-500', label: 'Active Projects', value: '28', badge: '+4 new', badgeCls: 'text-blue-500' },
-            { icon: 'inventory_2', bg: 'bg-orange-500/10 text-orange-500', label: 'Stock Items', value: '1,429', badge: '-5%', badgeCls: 'text-orange-500' },
-            { icon: 'groups', bg: 'bg-purple-500/10 text-purple-500', label: 'Vendors', value: '18', badge: 'Stable', badgeCls: 'text-slate-500' },
-          ].map(c => (
-            <div key={c.label} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
-              <div className="flex justify-between items-start mb-2">
-                <div className={`p-1.5 rounded-lg ${c.bg}`}>
-                  <span className="material-symbols-outlined text-[18px]">{c.icon}</span>
-                </div>
-                <span className={`text-[10px] font-bold ${c.badgeCls}`}>{c.badge}</span>
-              </div>
-              <p className="text-[10px] font-medium text-slate-500">{c.label}</p>
-              <h3 className="text-xl font-bold mt-0.5">{c.value}</h3>
-            </div>
-          ))}
-        </div>
-      );
-
+    case 'active-projects':    return <ActiveProjectsWidget />;
+    case 'recent-activity':    return <RecentActivityWidget />;
+    case 'keyboard-releases':  return <FeedListWidget widgetId="keyboard-releases" linkHref="/keyboard-comparison" linkLabel="View keyboard comparison →" />;
+    case 'keycaps-tracker':    return <FeedListWidget widgetId="keycap-releases" linkHref="/keycaps-tracker" linkLabel="Open keycaps tracker →" />;
+    case 'keyboard-sales':     return <FeedListWidget widgetId="keyboard-sales" linkHref="/active-deals" linkLabel="View all keyboard deals →" />;
+    case 'keyboard-comparison': return <KeyboardComparisonWidget />;
+    case 'ram-availability':   return <FeedListWidget widgetId="ram-availability" linkHref="/ram-availability-tracker" linkLabel="Open RAM tracker →" />;
+    case 'gpu-availability':   return <FeedListWidget widgetId="gpu-availability" linkHref="/gpu-availability-tracker" linkLabel="Open GPU tracker →" />;
+    case 'active-deals':       return <FeedListWidget widgetId="active-deals" linkHref="/active-deals" linkLabel="View all deals →" />;
+    case 'electronics-watchlist': return <FeedListWidget widgetId="electronics-watchlist" linkHref="/my-electronics" linkLabel="Manage watchlist →" />;
+    case 'inventory-stats':    return <InventoryStatsWidget />;
     case 'vendor-performance':
       return (
-        <div className="p-4 space-y-3">
-          {[['L', 'LogiTech Int.', 98, 'bg-emerald-500'], ['S', 'Soniq Audio', 94, 'bg-emerald-500'], ['M', 'Matrix Gear', 81, 'bg-orange-500'], ['D', 'DigiKey', 99, 'bg-emerald-500']].map(([abbr, name, pct, bar]) => (
-            <div key={String(name)} className="space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[11px]">{String(abbr)}</div>
-                  <span className="text-xs font-medium">{String(name)}</span>
-                </div>
-                <span className={`text-xs font-bold ${Number(pct) >= 90 ? 'text-emerald-500' : 'text-orange-500'}`}>{String(pct)}%</span>
-              </div>
-              <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full">
-                <div className={`h-full ${String(bar)} rounded-full`} style={{ width: `${String(pct)}%` }} />
-              </div>
-            </div>
-          ))}
+        <div className="p-6 flex flex-col items-center justify-center text-center text-slate-400 gap-2">
+          <span className="material-symbols-outlined text-3xl">storefront</span>
+          <p className="text-sm font-medium">Vendor analytics not yet available.</p>
+          <p className="text-xs">Connect vendor order history to enable this widget.</p>
         </div>
       );
-
     default:
       return <div className="p-4 text-sm text-slate-500">No content yet.</div>;
   }

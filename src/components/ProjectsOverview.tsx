@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { apiGet, apiPost, apiPatch, getToken, getUser as getAuthUser } from '../lib/auth';
+import { useActivity } from '../lib/ShopdataContext';
 
 // ─── Shared nav sidebar ───────────────────────────────────────────────────────
 export function Sidebar({ active }: { active: string }) {
@@ -99,8 +100,11 @@ const DRAWER_LINKS = [
 
 export function TopNav({ active }: { active?: string }) {
   const router = useRouter();
-  const user = getAuthUser();
-  const initials = user?.username?.slice(0, 2).toUpperCase() ?? 'SD';
+  const [initials, setInitials] = useState('??');
+  useEffect(() => {
+    const u = getAuthUser();
+    setInitials(u?.username?.slice(0, 2).toUpperCase() ?? 'SD');
+  }, []);
   const currentPath = router.pathname;
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -306,8 +310,9 @@ type FilterTab = 'Active' | 'Archived' | 'For Sale';
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ProjectsOverview() {
-  const [projects, setProjects] = useState<Project[]>(SEED_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const { logActivity } = useActivity();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('Active');
   const [showNewModal, setShowNewModal] = useState(false);
@@ -315,7 +320,7 @@ export default function ProjectsOverview() {
   useEffect(() => {
     if (!getToken()) { setLoading(false); return; }
     apiGet<{ projects: Project[] }>('/api/projects')
-      .then(({ projects: p }) => { if (p.length > 0) setProjects(p); })
+      .then(({ projects: p }) => setProjects(p))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -332,7 +337,9 @@ export default function ProjectsOverview() {
   }
 
   async function handleStatusChange(id: string, status: Project['status']) {
+    const proj = projects.find(p => p.id === id);
     setProjects(prev => prev.map(p => p.id === id ? { ...p, status } : p));
+    if (proj) logActivity({ type: 'update', title: `Updated "${proj.name}" status to ${status}` });
     if (getToken()) {
       apiPatch(`/api/projects/${id}`, { status }).catch(() => {});
     }
@@ -431,7 +438,7 @@ export default function ProjectsOverview() {
           <span className="text-[10px] font-bold">Home</span>
         </Link>
         <Link href="/projects" className="flex flex-col items-center gap-1 text-blue-500">
-          <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>workspaces</span>
+          <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>rocket_launch</span>
           <span className="text-[10px] font-bold">Projects</span>
         </Link>
         <Link href="/active-deals" className="flex flex-col items-center gap-1 text-slate-400">
@@ -546,6 +553,7 @@ function ProjectCard({ project: p, onDelete, onStatusChange }: { project: Projec
 }
 // ─── New Project Modal ───────────────────────────────────────────────────
 function NewProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
+  const { logActivity } = useActivity();
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('workspaces');
   const [forSale, setForSale] = useState(false);
@@ -566,6 +574,7 @@ function NewProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate:
           name, icon, forSale,
           ...(forSale ? { targetPrice: Number(targetPrice) || undefined } : { budget: Number(budget) || undefined }),
         });
+        logActivity({ type: 'create', title: `Created project "${project.name}"` });
         onCreate(project);
       } else {
         // Offline / no-auth fallback
@@ -577,6 +586,7 @@ function NewProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate:
           gradient: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)],
           modified: 'Just now',
         };
+        logActivity({ type: 'create', title: `Created project "${project.name}"` });
         onCreate(project);
       }
       onClose();

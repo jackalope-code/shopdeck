@@ -26,6 +26,11 @@ Scraping fragile HTML is a maintenance burden. Always check for a Shopify `produ
 - `jsonpath` — Single-field JSONPath extraction
 - `jsonpath-multi` — Multi-field per container (preferred for Shopify `products.json`)
 
+## Caching
+
+- Do **not** add query-parameter flags (e.g. `?refresh=1`, `?bust=true`) or any other mechanism that lets callers bypass or invalidate the cache from outside the server.
+- Cache TTL and invalidation are server-side concerns only. If stale data is a problem, fix the scraper or adjust the TTL — never expose a cache-bust escape hatch through the API.
+
 ## General Coding Conventions
 
 - Keep components co-located in `src/components/`

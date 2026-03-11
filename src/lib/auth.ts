@@ -1,7 +1,7 @@
 // src/lib/auth.ts
 // Shared auth helpers used by Login, Register, and other components
 
-export const API_BASE = 'http://localhost:4000';
+export const API_BASE = '';
 
 export interface AuthUser {
   id: string;
@@ -79,4 +79,27 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     throw new Error(err.error || res.statusText);
   }
   return res.json();
+}
+
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function apiDelete(path: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(await res.text());
 }

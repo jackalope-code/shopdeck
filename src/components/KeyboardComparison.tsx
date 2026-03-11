@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { getToken } from '../lib/auth';
+import { useFeedData, FeedItem } from '../lib/ShopdataContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Keyboard {
@@ -9,7 +9,7 @@ interface Keyboard {
   name: string;
   maker: string;
   price: number;
-  availability: 'in-stock' | 'out-of-stock' | 'pre-order' | 'restocking';
+  availability: 'in-stock' | 'out-of-stock' | 'pre-order' | 'restocking' | 'low-stock';
   tier: string;
   tierColor: string;
   gradient: string;
@@ -33,6 +33,7 @@ const AVAILABILITY_STYLE: Record<string, string> = {
   'out-of-stock': 'text-red-500',
   'pre-order': 'text-blue-400',
   'restocking': 'text-amber-500',
+  'low-stock': 'text-orange-500',
 };
 
 const AVAILABILITY_LABEL: Record<string, string> = {
@@ -40,6 +41,7 @@ const AVAILABILITY_LABEL: Record<string, string> = {
   'out-of-stock': 'Out of Stock',
   'pre-order': 'Pre-Order',
   'restocking': 'Restocking Soon',
+  'low-stock': 'Low Stock',
 };
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -133,30 +135,81 @@ function ProductActions({ kb }: { kb: Keyboard }) {
   );
 }
 
+// ─── Dynamic spec builder ─────────────────────────────────────────────────────
+function buildSpecsFromItem(item: FeedItem): SpecRow[] {
+  const tagList = (item.tags ?? '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+  const layout = tagList.find(t => /65%|tkl|full.?size|40%|75%|1800|compact|60%|96%/.test(t)) ?? item.productType ?? 'Custom';
+  const mounting = tagList.find(t => /gasket|top.?mount|tray|leaf.?spring|sandwich|integrated/.test(t)) ?? '—';
+  const material = tagList.find(t => /aluminum|polycarbonate|brass|pom|polycarb/.test(t)) ?? 'Aluminum';
+  const connectivity = tagList.find(t => /wireless|bluetooth|wired/.test(t)) ?? 'USB-C Wired';
+  const pcb = tagList.find(t => /hotswap|hot.?swap|solder/.test(t)) ?? 'Hotswap';
+  return [
+    { label: 'Type', value: item.productType || 'Keyboard Kit' },
+    { label: 'Layout', value: layout },
+    { label: 'Mounting', value: mounting },
+    { label: 'Material', value: material },
+    { label: 'PCB', value: pcb, highlight: true },
+    { label: 'Connectivity', value: connectivity },
+    { label: 'Vendor', value: item._vendor ?? '' },
+  ];
+}
+
+function itemToKeyboard(item: FeedItem, id: 'a' | 'b'): Keyboard {
+  const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+  const outOfStock = item.anyAvailable === 'false';
+  const availability: Keyboard['availability'] = outOfStock
+    ? 'out-of-stock'
+    : (item.lowStock === 'true' ? 'low-stock' : 'in-stock');
+  return {
+    id,
+    name: item.name,
+    maker: item._vendor ?? '',
+    price,
+    availability,
+    tier: 'Live Data',
+    tierColor: 'bg-blue-500 text-white',
+    gradient: id === 'a' ? 'from-blue-900 to-slate-700' : 'from-slate-800 to-slate-600',
+    icon: 'keyboard',
+    image: item.image,
+    specs: buildSpecsFromItem(item),
+    verdict: `${item.name} from ${item._vendor ?? '—'}.`,
+    verdictColor: 'text-blue-500',
+    ctaLabel: 'View Product',
+    ctaVariant: 'primary',
+  };
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+function ComparisonSkeleton() {
+  return (
+    <div className="p-8 max-w-6xl mx-auto animate-pulse">
+      <div className="mb-6 space-y-2">
+        <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
+      </div>
+      <div className="grid grid-cols-2 gap-8 mb-8">
+        {[0, 1].map(i => (
+          <div key={i} className="bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="h-52 bg-slate-200 dark:bg-slate-800" />
+            <div className="p-4 space-y-2">
+              <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function KeyboardComparison() {
   const [search, setSearch] = useState('');
-  const [kbA, setKbA] = useState<Keyboard>(KB_A);
-  const [kbB, setKbB] = useState<Keyboard>(KB_B);
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch('/api/feed-config/data/keyboard-releases', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(({ sources }) => {
-        if (!sources) return;
-        const items: { name: string; image?: string; price?: string }[] = [];
-        for (const src of Object.values(sources as Record<string, { data: typeof items }>)) {
-          items.push(...(src.data ?? []));
-        }
-        if (items[0]?.image) setKbA(prev => ({ ...prev, image: items[0].image }));
-        if (items[1]?.image) setKbB(prev => ({ ...prev, image: items[1].image }));
-      })
-      .catch(() => {});
-  }, []);
+  const { loading, items } = useFeedData('keyboard-releases');
+
+  const kbA: Keyboard | null = items[0] ? itemToKeyboard(items[0], 'a') : null;
+  const kbB: Keyboard | null = items[1] ? itemToKeyboard(items[1], 'b') : null;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
@@ -192,6 +245,15 @@ export default function KeyboardComparison() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
+          {loading ? (
+            <ComparisonSkeleton />
+          ) : !kbA || !kbB ? (
+            <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400">
+              <span className="material-symbols-outlined text-5xl mb-3">keyboard_off</span>
+              <p className="font-medium">No keyboard data available yet.</p>
+              <p className="text-sm mt-1">Check back soon — data syncs every 6 hours.</p>
+            </div>
+          ) : (
           <div className="p-8 max-w-6xl mx-auto">
             {/* Title */}
             <div className="mb-6">
@@ -239,24 +301,25 @@ export default function KeyboardComparison() {
                   <span className="material-symbols-outlined text-blue-500">analytics</span>Core Difference
                 </h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  The <strong>Envoy</strong> focuses on refinement and build experience, while the <strong>QK65v2</strong> prioritizes features and affordability.
+                  Comparing <strong>{kbA.name}</strong> vs <strong>{kbB.name}</strong> — both sourced live from vendor Shopify APIs.
                 </p>
               </div>
               {/* Verdict cards */}
               <div className="bg-white dark:bg-slate-900/40 rounded-xl p-5 border border-slate-200 dark:border-slate-800">
                 <h4 className="font-bold mb-2 text-sm uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-500 text-sm">verified</span>Mode Envoy verdict
+                  <span className="material-symbols-outlined text-blue-500 text-sm">verified</span>{kbA.name} verdict
                 </h4>
                 <p className={`text-sm ${kbA.verdictColor}`}>{kbA.verdict}</p>
               </div>
               <div className="bg-white dark:bg-slate-900/40 rounded-xl p-5 border border-slate-200 dark:border-slate-800">
                 <h4 className="font-bold mb-2 text-sm uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-amber-500 text-sm">verified</span>QK65v2 verdict
+                  <span className="material-symbols-outlined text-blue-500 text-sm">verified</span>{kbB.name} verdict
                 </h4>
                 <p className={`text-sm ${kbB.verdictColor}`}>{kbB.verdict}</p>
               </div>
             </div>
           </div>
+          )}
         </main>
       </div>
     </div>

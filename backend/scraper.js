@@ -209,6 +209,30 @@ async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = '
       const raw = values.length > 0 && values[0] != null ? String(values[0]) : '';
       if (raw) obj[f.fieldName] = raw;
     }
+    // Auto-extract Shopify inventory when variants are present.
+    // products.json omits a top-level `available` boolean. Derive availability:
+    //   - inventory_management null/'' = no tracking (made-to-order, GB, etc.) → always in stock
+    //   - inventory_policy 'continue' = oversell allowed → always in stock
+    //   - otherwise: available iff inventory_quantity > 0
+    // Low stock: ALL tracked variants have a small positive qty (1–10).
+    if (container.variants && Array.isArray(container.variants) && container.variants.length > 0) {
+      const LOW_STOCK_THRESHOLD = 10;
+      const anyAvailable = container.variants.some(v => {
+        if (!v.inventory_management) return true;          // no tracking = always available
+        if (v.inventory_policy === 'continue') return true; // oversell allowed
+        return (parseInt(v.inventory_quantity, 10) || 0) > 0;
+      });
+      const tracked = container.variants.filter(v => v.inventory_management === 'shopify');
+      const trackedLow = tracked.filter(v => {
+        const qty = parseInt(v.inventory_quantity, 10) || 0;
+        return v.inventory_policy !== 'continue' && qty > 0 && qty <= LOW_STOCK_THRESHOLD;
+      });
+      const lowStock = tracked.length > 0 && trackedLow.length === tracked.length;
+      obj.anyAvailable = anyAvailable ? 'true' : 'false';
+      obj.lowStock = lowStock ? 'true' : 'false';
+      const totalQty = tracked.reduce((acc, v) => acc + (parseInt(v.inventory_quantity, 10) || 0), 0);
+      if (totalQty > 0) obj.totalInventory = String(totalQty);
+    }
     // Build absolute product URL from handle if baseUrl provided
     if (baseUrl && obj.handle) obj.url = baseUrl + obj.handle;
     // Only include items that have at least a name
@@ -217,12 +241,152 @@ async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = '
   return results;
 }
 
+/**
+ * Lightweight fetch for RSS/Atom feeds — concurrency-capped but NOT subject to
+ * the HTML-scraping per-host cooldown. RSS is designed for frequent polling.
+ */
+async function rssFetch(url) {
+  const hostname = getHostname(url);
+  await acquireSlot(hostname);
+  try {
+    const response = await axios.get(url, {
+      timeout: REQUEST_TIMEOUT_MS,
+      responseType: 'text',
+      headers: {
+        'User-Agent': randomUA(),
+        'Accept': 'application/rss+xml, application/atom+xml, text/xml, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    if (response.status >= 400) throw new Error(`HTTP ${response.status} from ${hostname}`);
+    return response.data;
+  } finally {
+    releaseSlot(hostname);
+  }
+}
+
+/**
+ * Parse an RSS/Atom feed. Extracts title, link, price (from description regex or media),
+ * and optional image from media:thumbnail or enclosure.
+ */
+async function scrapeRss({ url, priceRegex }, _mode = 'scheduled') {
+  const xml = await rssFetch(url);
+  const $ = cheerio.load(xml, { xmlMode: true });
+  const results = [];
+  $('item, entry').each((_, el) => {
+    const name  = $(el).find('title').first().text().trim();
+    const link  = $(el).find('link').first().text().trim() ||
+                  $(el).find('link').first().attr('href') || '';
+    const desc  = $(el).find('description, summary, content').first().text();
+    // Try to pull a price out of the description text
+    const re    = priceRegex ? new RegExp(priceRegex) : /\$([0-9,]+(?:\.[0-9]{1,2})?)/;
+    const pm    = desc.match(re);
+    const price = pm ? pm[0].replace(/[^0-9.]/g, '') : undefined;
+    // Image from media:thumbnail, media:content, or enclosure
+    const image = $(el).find('media\\:thumbnail, media\\:content').first().attr('url') ||
+                  $(el).find('enclosure[type^="image"]').first().attr('url') || undefined;
+    if (name) results.push({ name, url: link || undefined, price, image });
+  });
+  return results;
+}
+
+/**
+ * Amazon Product Advertising API 5.0 — SearchItems.
+ * Requires context.apiKeys: { amazonAccessKey, amazonSecretKey, amazonPartnerTag }.
+ * Returns [] silently if any key is missing.
+ */
+async function scrapeAmazonApi({ keywords, searchIndex = 'Electronics' }, _mode, context = {}) {
+  const { amazonAccessKey, amazonSecretKey, amazonPartnerTag } = context.apiKeys ?? {};
+  if (!amazonAccessKey || !amazonSecretKey || !amazonPartnerTag) return [];
+
+  const crypto = require('crypto');
+  const HOST   = 'webservices.amazon.com';
+  const REGION = 'us-east-1';
+  const SERVICE = 'ProductAdvertisingAPI';
+  const PATH   = '/paapi5/searchitems';
+
+  const now    = new Date();
+  const date   = now.toISOString().replace(/[:-]/g, '').split('.')[0] + 'Z';
+  const dateOnly = date.slice(0, 8);
+
+  const payload = JSON.stringify({
+    Keywords: keywords,
+    Resources: ['ItemInfo.Title', 'Offers.Listings.Price', 'Images.Primary.Medium'],
+    SearchIndex: searchIndex,
+    PartnerTag: amazonPartnerTag,
+    PartnerType: 'Associates',
+    Marketplace: 'www.amazon.com',
+    ItemCount: 10,
+  });
+
+  const payloadHash = crypto.createHash('sha256').update(payload).digest('hex');
+  const canonicalHeaders = `content-encoding:amz-1.0\ncontent-type:application/json; charset=utf-8\nhost:${HOST}\nx-amz-date:${date}\nx-amz-target:com.amazon.paapi5.v1.ProductAdvertisingAPIv1.SearchItems\n`;
+  const signedHeaders = 'content-encoding;content-type;host;x-amz-date;x-amz-target';
+  const canonicalRequest = `POST\n${PATH}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+  const credScope = `${dateOnly}/${REGION}/${SERVICE}/aws4_request`;
+  const strToSign = `AWS4-HMAC-SHA256\n${date}\n${credScope}\n${crypto.createHash('sha256').update(canonicalRequest).digest('hex')}`;
+
+  function hmac(key, data) { return crypto.createHmac('sha256', key).update(data).digest(); }
+  const sigKey = hmac(hmac(hmac(hmac('AWS4' + amazonSecretKey, dateOnly), REGION), SERVICE), 'aws4_request');
+  const signature = hmac(sigKey, strToSign).toString('hex');
+
+  const authorization = `AWS4-HMAC-SHA256 Credential=${amazonAccessKey}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const hostname = HOST;
+  await acquireSlot(hostname);
+  try {
+    recordScrape(hostname);
+    const axios = require('axios');
+    const resp = await axios.post(`https://${HOST}${PATH}`, payload, {
+      timeout: REQUEST_TIMEOUT_MS,
+      headers: {
+        'content-encoding': 'amz-1.0',
+        'content-type': 'application/json; charset=utf-8',
+        host: HOST,
+        'x-amz-date': date,
+        'x-amz-target': 'com.amazon.paapi5.v1.ProductAdvertisingAPIv1.SearchItems',
+        Authorization: authorization,
+      },
+    });
+    return (resp.data?.SearchResult?.Items ?? []).map(item => ({
+      name:  item.ItemInfo?.Title?.DisplayValue ?? '',
+      url:   item.DetailPageURL ?? undefined,
+      price: item.Offers?.Listings?.[0]?.Price?.Amount?.toString() ?? undefined,
+      image: item.Images?.Primary?.Medium?.URL ?? undefined,
+    })).filter(i => i.name);
+  } finally {
+    releaseSlot(hostname);
+  }
+}
+
+/**
+ * Newegg search JSON API — public, no key required, but respects per-host cooldown.
+ * Optional context.apiKeys.neweggApiKey reserved for future affiliate API use.
+ */
+async function scrapeNeweggJson({ keywords, categoryId }, mode = 'scheduled') {
+  // Newegg's internal search API (public, unauthenticated)
+  const params = new URLSearchParams({ keyword: keywords, pageSize: '20', pageIndex: '1' });
+  if (categoryId) params.set('N', categoryId);
+  const url = `https://www.newegg.com/p/pl?${params.toString()}&ajax=1`;
+  const data = await guardedFetch(url, mode, 'json').catch(() => null);
+  if (!data) return [];
+  const products = data?.Filters?.ProductList ?? data?.ProductList ?? [];
+  return products.slice(0, 20).map(p => ({
+    name:  p.Title ?? p.Description ?? '',
+    url:   p.ProductLink ? `https://www.newegg.com${p.ProductLink}` : undefined,
+    price: p.UnitPrice ? String(p.UnitPrice) : undefined,
+    image: p.ThumbnailImageUrl ?? undefined,
+  })).filter(i => i.name);
+}
+
 /** Route a rule to the correct scraper by ruleType. */
-async function runSource(opts, mode = 'scheduled') {
+async function runSource(opts, mode = 'scheduled', context = {}) {
   if (opts.ruleType === 'css')            return scrapeHtml(opts, mode);
   if (opts.ruleType === 'jsonpath')       return scrapeJson(opts, mode);
   if (opts.ruleType === 'jsonpath-multi') return scrapeJsonMulti(opts, mode);
-  throw new Error(`Unknown ruleType: "${opts.ruleType}". Must be "css", "jsonpath", or "jsonpath-multi".`);
+  if (opts.ruleType === 'rss')            return scrapeRss(opts, mode);
+  if (opts.ruleType === 'amazon-api')     return scrapeAmazonApi(opts, mode, context);
+  throw new Error(`Unknown ruleType: "${opts.ruleType}". Must be css, jsonpath, jsonpath-multi, rss, or amazon-api.`);
 }
 
 /**
@@ -264,50 +428,135 @@ const BUILTIN_SOURCE_RULES = {
   'microcenter-ram': {
     url: 'https://www.microcenter.com/category/4294967029/memory',
     ruleType: 'css',
-    containerSelector: 'li.product_wrapper',
+    containerSelector: 'a.productClickItemV2',
     fields: [
-      { selector: 'h2.h_name a',       fieldName: 'name' },
-      { selector: 'div.image-box img',  fieldName: 'image', attribute: 'src' },
-      { selector: 'span.price',         fieldName: 'price' },
-      { selector: 'h2.h_name a',        fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
+      { selector: null,              fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'price', attribute: 'data-price' },
+      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
     ],
     label: 'Microcenter — Memory',
   },
   'microcenter-gpu': {
     url: 'https://www.microcenter.com/category/4294966937/video-cards',
     ruleType: 'css',
-    containerSelector: 'li.product_wrapper',
+    containerSelector: 'a.productClickItemV2',
     fields: [
-      { selector: 'h2.h_name a',       fieldName: 'name' },
-      { selector: 'div.image-box img',  fieldName: 'image', attribute: 'src' },
-      { selector: 'span.price',         fieldName: 'price' },
-      { selector: 'h2.h_name a',        fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
+      { selector: null,              fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'price', attribute: 'data-price' },
+      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
     ],
     label: 'Microcenter — Video Cards',
   },
   'microcenter-keyboards': {
     url: 'https://www.microcenter.com/category/4294966635/keyboards',
     ruleType: 'css',
-    containerSelector: 'li.product_wrapper',
+    containerSelector: 'a.productClickItemV2',
     fields: [
-      { selector: 'h2.h_name a',       fieldName: 'name' },
-      { selector: 'div.image-box img',  fieldName: 'image', attribute: 'src' },
-      { selector: 'span.price',         fieldName: 'price' },
-      { selector: 'h2.h_name a',        fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
+      { selector: null,              fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'price', attribute: 'data-price' },
+      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
     ],
     label: 'Microcenter — Keyboards',
   },
   'microcenter-electronics': {
     url: 'https://www.microcenter.com/category/4294966773/development-boards-kits',
     ruleType: 'css',
-    containerSelector: 'li.product_wrapper',
+    containerSelector: 'a.productClickItemV2',
     fields: [
-      { selector: 'h2.h_name a',       fieldName: 'name' },
-      { selector: 'div.image-box img',  fieldName: 'image', attribute: 'src' },
-      { selector: 'span.price',         fieldName: 'price' },
-      { selector: 'h2.h_name a',        fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
+      { selector: null,              fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'price', attribute: 'data-price' },
+      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
     ],
     label: 'Microcenter — Dev Boards & Kits',
+  },
+
+  // ─── RAM vendors ──────────────────────────────────────────────────────────────
+  // Consumer RAM sources. Amazon uses the PA API (keys must be set in app settings).
+  // Newegg uses the public JSON search API (no key needed).
+  // B&H uses their public search HTML. Reddit + CamelCamelCamel use public RSS feeds.
+
+  'newegg-ram': {
+    url: 'https://www.newegg.com/Desktop-Memory/SubCategory/ID-147',
+    ruleType: 'css',
+    containerSelector: 'div.item-cell',
+    fields: [
+      { selector: 'a.item-title',        fieldName: 'name' },
+      { selector: 'a.item-title',        fieldName: 'url',   attribute: 'href' },
+      { selector: 'a.item-img img',      fieldName: 'image', attribute: 'src' },
+      { selector: 'li.price-current',    fieldName: 'price' },
+    ],
+    label: 'Newegg — RAM',
+    vendor: 'Newegg',
+    category: 'RAM',
+  },
+  'amazon-ram': {
+    ruleType: 'amazon-api',
+    keywords: 'DDR5 DDR4 desktop RAM memory',
+    searchIndex: 'Electronics',
+    label: 'Amazon — RAM',
+    vendor: 'Amazon',
+    category: 'RAM',
+  },
+  // TigerDirect removed — site retired in 2024 (tigerdirect.com redirects to notice page).
+  // B&H Photo removed — returns HTTP 403 for automated requests.
+  'reddit-ram': {
+    url: 'https://www.reddit.com/r/buildapcsales/search.rss?q=flair%3AMemory&sort=new&restrict_sr=1&limit=25',
+    ruleType: 'rss',
+    label: 'r/buildapcsales — Memory',
+    vendor: 'Reddit',
+    category: 'RAM',
+  },
+  'camelcamel-ram': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Memory.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Memory Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'RAM',
+  },
+
+  // ─── GPU vendors ──────────────────────────────────────────────────────────────
+
+  'newegg-gpu': {
+    url: 'https://www.newegg.com/Desktop-Graphics-Cards/SubCategory/ID-48',
+    ruleType: 'css',
+    containerSelector: 'div.item-cell',
+    fields: [
+      { selector: 'a.item-title',        fieldName: 'name' },
+      { selector: 'a.item-title',        fieldName: 'url',   attribute: 'href' },
+      { selector: 'a.item-img img',      fieldName: 'image', attribute: 'src' },
+      { selector: 'li.price-current',    fieldName: 'price' },
+    ],
+    label: 'Newegg — GPUs',
+    vendor: 'Newegg',
+    category: 'GPU',
+  },
+  'amazon-gpu': {
+    ruleType: 'amazon-api',
+    keywords: 'NVIDIA AMD GPU graphics card RTX RX',
+    searchIndex: 'Electronics',
+    label: 'Amazon — GPUs',
+    vendor: 'Amazon',
+    category: 'GPU',
+  },
+  // TigerDirect removed — site retired in 2024.
+  // B&H Photo removed — returns HTTP 403 for automated requests.
+  'reddit-gpu': {
+    url: 'https://www.reddit.com/r/buildapcsales/search.rss?q=flair%3A%22Video+Card%22&sort=new&restrict_sr=1&limit=25',
+    ruleType: 'rss',
+    label: 'r/buildapcsales — Video Cards',
+    vendor: 'Reddit',
+    category: 'GPU',
+  },
+  'camelcamel-gpu': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Video_Cards.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — GPU Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'GPU',
   },
 
   // ─── Keyboard vendors (Shopify products.json API) ──────────────────────────
@@ -323,6 +572,8 @@ const BUILTIN_SOURCE_RULES = {
       { path: '$.images[0].src',       fieldName: 'image' },
       { path: '$.variants[0].price',   fieldName: 'price' },
       { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+      { path: '$.tags',                fieldName: 'tags' },
     ],
     baseUrl: 'https://cannonkeys.com/products/',
     label: 'CannonKeys — In-Stock Keyboards',
@@ -338,6 +589,8 @@ const BUILTIN_SOURCE_RULES = {
       { path: '$.images[0].src',       fieldName: 'image' },
       { path: '$.variants[0].price',   fieldName: 'price' },
       { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+      { path: '$.tags',                fieldName: 'tags' },
     ],
     baseUrl: 'https://novelkeys.com/products/',
     label: 'NovelKeys — Keyboards',
@@ -353,6 +606,8 @@ const BUILTIN_SOURCE_RULES = {
       { path: '$.images[0].src',       fieldName: 'image' },
       { path: '$.variants[0].price',   fieldName: 'price' },
       { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+      { path: '$.tags',                fieldName: 'tags' },
     ],
     baseUrl: 'https://kbdfans.com/products/',
     label: 'KBDfans — Keyboards',
@@ -368,11 +623,108 @@ const BUILTIN_SOURCE_RULES = {
       { path: '$.images[0].src',       fieldName: 'image' },
       { path: '$.variants[0].price',   fieldName: 'price' },
       { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+      { path: '$.tags',                fieldName: 'tags' },
     ],
     baseUrl: 'https://www.1upkeyboards.com/products/',
     label: '1upKeyboards — Keyboard Kits',
     category: 'Keyboards',
     vendor: '1upKeyboards',
+  },
+  'keeb-io-keyboards': {
+    url: 'https://keeb.io/collections/keyboards/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+      { path: '$.tags',                fieldName: 'tags' },
+    ],
+    baseUrl: 'https://keeb.io/products/',
+    label: 'Keeb.io — Keyboards',
+    category: 'Keyboards',
+    vendor: 'Keebio',
+  },
+  'stupidbulletstech-keyboards': {
+    url: 'https://stupidbulletstech.com/collections/keyboards-and-cases/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.handle',              fieldName: 'handle' },
+    ],
+    baseUrl: 'https://stupidbulletstech.com/products/',
+    label: 'Stupid Bullets Tech — Keyboards & Cases',
+    category: 'Keyboards',
+    vendor: 'Stupid Bullets Tech',
+  },
+  'stupidbulletstech-accessories': {
+    url: 'https://stupidbulletstech.com/collections/keyboard-building-accessories/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.handle',              fieldName: 'handle' },
+    ],
+    baseUrl: 'https://stupidbulletstech.com/products/',
+    label: 'Stupid Bullets Tech — Building Accessories',
+    category: 'Accessories',
+    vendor: 'Stupid Bullets Tech',
+  },
+  'stupidbulletstech-garage-sale': {
+    url: 'https://stupidbulletstech.com/collections/garage-sale-items/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.variants[0].compare_at_price', fieldName: 'comparePrice' },
+      { path: '$.handle',              fieldName: 'handle' },
+    ],
+    baseUrl: 'https://stupidbulletstech.com/products/',
+    label: 'Stupid Bullets Tech — Garage Sale',
+    category: 'Sale',
+    vendor: 'Stupid Bullets Tech',
+  },
+
+  'stupidbulletstech-keycaps': {
+    url: 'https://stupidbulletstech.com/collections/cap-of-the-month-1-unfuc-k/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.handle',              fieldName: 'handle' },
+    ],
+    baseUrl: 'https://stupidbulletstech.com/products/',
+    label: 'Stupid Bullets Tech — Artisan Keycaps',
+    category: 'Keycaps',
+    vendor: 'Stupid Bullets Tech',
+  },
+  'stupidbulletstech-switches': {
+    url: 'https://stupidbulletstech.com/collections/accessories/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.tags',                fieldName: 'tags' },
+    ],
+    baseUrl: 'https://stupidbulletstech.com/products/',
+    label: 'Stupid Bullets Tech — Switches',
+    category: 'Switches',
+    vendor: 'Stupid Bullets Tech',
   },
 
   // ─── Keycap vendors (Shopify products.json API) ────────────────────────────
@@ -469,6 +821,56 @@ const BUILTIN_SOURCE_RULES = {
     label: 'CannonKeys — Switches',
     category: 'Switches',
     vendor: 'CannonKeys',
+  },
+  'customkeysco-switches': {
+    url: 'https://www.customkeysco.com/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$[*]',
+    fields: [
+      { path: '$.name',                fieldName: 'name' },
+      { path: '$.images[0].url',       fieldName: 'image' },
+      { path: '$.price',               fieldName: 'price' },
+      { path: '$.permalink',           fieldName: 'handle' },
+      { path: '$.categories[0].name',  fieldName: 'productType' },
+      { path: '$.status',              fieldName: 'status' },
+    ],
+    baseUrl: 'https://www.customkeysco.com/product/',
+    label: 'Custom Keys Co — Switches & Accessories',
+    category: 'Switches',
+    vendor: 'Custom Keys Co',
+  },
+
+  'customkeysco-keyboards': {
+    url: 'https://www.customkeysco.com/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$[*]',
+    fields: [
+      { path: '$.name',                fieldName: 'name' },
+      { path: '$.images[0].url',       fieldName: 'image' },
+      { path: '$.price',               fieldName: 'price' },
+      { path: '$.permalink',           fieldName: 'handle' },
+      { path: '$.categories[0].name',  fieldName: 'productType' },
+    ],
+    baseUrl: 'https://www.customkeysco.com/product/',
+    label: 'Custom Keys Co — Keyboards & Accessories',
+    category: 'Keyboards',
+    vendor: 'Custom Keys Co',
+  },
+  'customkeysco-keycaps': {
+    url: 'https://www.customkeysco.com/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$[*]',
+    fields: [
+      { path: '$.name',                fieldName: 'name' },
+      { path: '$.images[0].url',       fieldName: 'image' },
+      { path: '$.price',               fieldName: 'price' },
+      { path: '$.permalink',           fieldName: 'handle' },
+      { path: '$.categories[0].name',  fieldName: 'productType' },
+    ],
+    baseUrl: 'https://www.customkeysco.com/product/',
+    label: 'Custom Keys Co — Keycaps & Accessories',
+    category: 'Keycaps',
+    vendor: 'Custom Keys Co',
   },
 
   // ─── Sale collections (active-deals widget) ────────────────────────────────
@@ -594,6 +996,7 @@ async function updateCache() {
 module.exports = {
   BUILTIN_SOURCE_RULES,
   runSource, testRule, scratchBatch, scrapeBuiltinSource,
-  scrapeHtml, scrapeJson, scrapeJsonMulti,
+  scrapeHtml, scrapeJson, scrapeJsonMulti, scrapeRss,
+  scrapeAmazonApi,
   scrapeAdafruit, scrapeUserDigikey, scrapeUserMouser, updateCache,
 };

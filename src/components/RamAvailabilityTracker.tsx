@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { getToken } from '../lib/auth';
+import { useFeedData } from '../lib/ShopdataContext';
+import { getToken, apiGet, apiPatch } from '../lib/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
@@ -19,6 +20,7 @@ interface RamItem {
   note?: string;
   alertOn: boolean;
   image?: string;
+  url?: string;
   trend: number[]; // 7 heights, 0-10
 }
 
@@ -99,52 +101,50 @@ function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconCl
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function RamAvailabilityTracker() {
-  const [items, setItems] = useState<RamItem[]>(INITIAL_ITEMS);
+  const [alertStates, setAlertStates] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<Filter>('All');
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch('/api/feed-config/data/ram-availability', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(({ sources }) => {
-        if (!sources) return;
-        const live: RamItem[] = [];
-        let idx = 0;
-        for (const [srcId, src] of Object.entries(sources as Record<string, { name: string; data: { name: string; image?: string; price?: string; url?: string }[] }>)) {
-          for (const item of src.data ?? []) {
-            const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
-            const nameLower = item.name.toLowerCase();
-            const types: RamType[] = [];
-            if (nameLower.includes('ddr5')) types.push('DDR5');
-            else if (nameLower.includes('ddr4')) types.push('DDR4');
-            else types.push('DDR5');
-            if (nameLower.includes('so-dimm') || nameLower.includes('sodimm')) types.push('SO-DIMM');
-            if (nameLower.includes('ecc')) types.push('ECC');
-            live.push({
-              id: `${srcId}-${idx++}`,
-              name: item.name,
-              vendor: src.name,
-              type: types,
-              status: 'IN STOCK',
-              price,
-              image: item.image,
-              alertOn: false,
-              trend: [],
-            });
-          }
-        }
-        if (live.length > 0) setItems(live);
-      })
+    if (!getToken()) return;
+    apiGet<{ profile: { ramAlertStates?: Record<string, boolean> } }>('/api/profile')
+      .then(data => { if (data?.profile?.ramAlertStates) setAlertStates(data.profile.ramAlertStates); })
       .catch(() => {});
   }, []);
 
-  const toggleAlert = (id: string) => {
-    setItems(prev => prev.map(it => it.id === id ? { ...it, alertOn: !it.alertOn } : it));
+  const { loading, items: feedItems } = useFeedData('ram-availability');
+
+  const items: RamItem[] = feedItems.map((item, idx) => {
+    const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+    const nameLower = item.name.toLowerCase();
+    const types: RamType[] = [];
+    if (nameLower.includes('ddr5')) types.push('DDR5');
+    else if (nameLower.includes('ddr4')) types.push('DDR4');
+    else types.push('DDR5');
+    if (nameLower.includes('so-dimm') || nameLower.includes('sodimm')) types.push('SO-DIMM');
+    if (nameLower.includes('ecc')) types.push('ECC');
+    const id = `${item._vendor}-${idx}`;
+    return {
+      id,
+      name: item.name,
+      vendor: item._vendor ?? '',
+      type: types,
+      status: 'IN STOCK' as const,
+      price,
+      image: item.image,
+      url: item.url,
+      alertOn: alertStates[item.name] ?? false,
+      trend: [],
+    };
+  });
+
+  const toggleAlert = (name: string) => {
+    setAlertStates(prev => {
+      const next = { ...prev, [name]: !prev[name] };
+      if (getToken()) apiPatch('/api/profile', { ramAlertStates: next }).catch(() => {});
+      return next;
+    });
   };
 
   const displayed = items.filter(it => {
@@ -154,7 +154,7 @@ export default function RamAvailabilityTracker() {
   });
 
   const trackedCount = items.length;
-  const alertCount = items.filter(it => it.alertOn && it.status !== 'OUT OF STOCK').length;
+  const alertCount = items.filter(it => it.alertOn).length;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
@@ -229,7 +229,19 @@ export default function RamAvailabilityTracker() {
               </h2>
 
               <div className="flex flex-col gap-4">
-                {displayed.map(item => (
+                {loading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 p-4 animate-pulse">
+                      <div className="flex items-start gap-3">
+                        <div className="size-10 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : displayed.map(item => (
                   <div
                     key={item.id}
                     className={`relative bg-white dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm overflow-hidden ${item.status === 'OUT OF STOCK' ? 'opacity-75' : ''}`}
@@ -246,10 +258,19 @@ export default function RamAvailabilityTracker() {
                       <ProductThumb src={item.image} icon="memory" bg="bg-blue-500/10" iconClass="text-blue-500" />
                       <div className="flex-1 min-w-0 flex justify-between items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-sm leading-tight">{item.name}</h3>
+                          <h3 className="font-bold text-sm leading-tight">
+                            {item.url
+                              ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-blue-500 transition-colors">{item.name}</a>
+                              : item.name}
+                          </h3>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[item.status]}`}>{item.status}</span>
-                            <span className="text-xs text-slate-500">at {item.vendor}</span>
+                            <span className="text-xs text-slate-500">
+                              at{' '}
+                              {item.url
+                                ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-blue-500 transition-colors">{item.vendor}</a>
+                                : item.vendor}
+                            </span>
                             <div className="flex gap-1">
                               {item.type.map(t => (
                                 <span key={t} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase">{t}</span>
@@ -257,7 +278,7 @@ export default function RamAvailabilityTracker() {
                             </div>
                           </div>
                         </div>
-                        <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.id)} />
+                        <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.name)} />
                       </div>
                     </div>
 
@@ -284,7 +305,7 @@ export default function RamAvailabilityTracker() {
                   </div>
                 ))}
 
-                {displayed.length === 0 && (
+                {!loading && displayed.length === 0 && (
                   <div className="text-center py-16 text-slate-400">
                     <span className="material-symbols-outlined text-5xl mb-3 block">search_off</span>
                     <p className="font-medium">No results for &quot;{search}&quot;</p>

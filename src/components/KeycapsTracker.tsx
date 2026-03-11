@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
-import { getToken } from '../lib/auth';
+import { useFeedData } from '../lib/ShopdataContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out';
@@ -19,6 +19,7 @@ interface KeycapSet {
   icon: string;
   gradient: string;
   image?: string;
+  url?: string;
   favorited?: boolean;
 }
 
@@ -101,14 +102,19 @@ function KeycapCard({ set }: { set: KeycapSet }) {
 
       {/* Actions */}
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-          Details
-        </button>
+        {set.url
+          ? <a href={set.url} target="_blank" rel="noopener noreferrer" className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center">Details</a>
+          : <button className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+        }
         {set.status === 'sold-out'
           ? <button className="py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs font-bold cursor-not-allowed opacity-60">Notify Me</button>
           : set.status === 'group-buy' || set.status === 'ic'
-          ? <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">{set.status === 'ic' ? 'Express Interest' : 'Join GB'}</button>
-          : <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">Buy Now</button>
+          ? (set.url
+              ? <a href={set.url} target="_blank" rel="noopener noreferrer" className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all text-center">{set.status === 'ic' ? 'Express Interest' : 'Join GB'}</a>
+              : <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">{set.status === 'ic' ? 'Express Interest' : 'Join GB'}</button>)
+          : (set.url
+              ? <a href={set.url} target="_blank" rel="noopener noreferrer" className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all text-center">Buy Now</a>
+              : <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">Buy Now</button>)
         }
       </div>
     </div>
@@ -117,52 +123,74 @@ function KeycapCard({ set }: { set: KeycapSet }) {
 
 export default function KeycapsTracker() {
   const [search, setSearch] = useState('');
-  const [brand, setBrand] = useState<BrandFilter>('All Sets');
+  const [brand, setBrand] = useState('All Sets');
   const [page, setPage] = useState(1);
-  const [liveSets, setLiveSets] = useState<KeycapSet[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statusFilters, setStatusFilters] = useState<KeycapStatus[]>([]);
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [profileFilter, setProfileFilter] = useState('All');
+  const [keycapNotifsOpen, setKeycapNotifsOpen] = useState(false);
 
-  // Fetch real keycap data (with actual product images) from scraped vendor sources
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch('/api/feed-config/data/keycap-releases', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => (r.ok ? r.json() : null))
-      .then((json: null | { sources: Record<string, { name: string; data: Array<{ name?: string; image?: string; price?: string; handle?: string }> }> }) => {
-        if (!json?.sources) return;
-        const live: KeycapSet[] = [];
-        let idx = 100;
-        for (const [, source] of Object.entries(json.sources)) {
-          for (const item of source.data.slice(0, 8)) {
-            if (!item.name) continue;
-            live.push({
-              id: `live-${idx++}`,
-              name: item.name,
-              brand: source.name,
-              vendor: source.name,
-              profile: 'Cherry',
-              price: item.price ? parseFloat(item.price) : 0,
-              status: 'in-stock',
-              statusLabel: 'In Stock',
-              icon: 'format_color_text',
-              gradient: 'from-indigo-900 to-slate-700',
-              image: item.image,
-            });
-          }
-        }
-        if (live.length > 0) setLiveSets(live);
-      })
-      .catch(() => {});
-  }, []);
+  const { loading, items: feedItems } = useFeedData('keycap-releases');
 
-  const ALL_SETS = liveSets.length > 0 ? [...liveSets, ...SETS] : SETS;
+  const ALL_SETS: KeycapSet[] = feedItems.map((item, idx) => {
+    const outOfStock = item.anyAvailable === 'false';
+    const lowStock = item.lowStock === 'true';
+    const status: KeycapStatus = outOfStock ? 'sold-out' : (lowStock ? 'limited' : 'in-stock');
+    const statusLabel = outOfStock ? 'Sold Out' : (lowStock ? 'Low Stock' : 'In Stock');
+    return {
+      id: `live-${idx}`,
+      name: item.name,
+      brand: item._vendor ?? '',
+      vendor: item._vendor ?? '',
+      profile: 'Cherry',
+      price: item.price ? parseFloat(item.price) : 0,
+      status,
+      statusLabel,
+      icon: 'format_color_text',
+      gradient: 'from-indigo-900 to-slate-700',
+      image: item.image,
+      url: item.url,
+    };
+  });
+
+  // Derived stats from live data
+  const activeGroupBuys = ALL_SETS.filter(s => s.status === 'group-buy').length;
+  const avgPrice = ALL_SETS.length > 0 ? ALL_SETS.reduce((sum, s) => sum + s.price, 0) / ALL_SETS.length : 0;
+  const totalVendors = new Set(ALL_SETS.map(s => s.vendor).filter(Boolean)).size;
+
+  // Build brand filter chips dynamically from live data
+  const brandNames = Array.from(new Set(ALL_SETS.map(s => s.brand))).filter(Boolean);
+  const allBrands = ['All Sets', ...brandNames];
+
+  // Build profile chips
+  const allProfiles = ['All', ...Array.from(new Set(ALL_SETS.map(s => s.profile).filter(Boolean)))];
+
+  // Active filter count badge
+  const activeFilterCount = statusFilters.length + (priceMin ? 1 : 0) + (priceMax ? 1 : 0) + (profileFilter !== 'All' ? 1 : 0);
+
+  const toggleStatus = (s: KeycapStatus) =>
+    setStatusFilters(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
 
   const filtered = ALL_SETS.filter(s => {
     const matchBrand = brand === 'All Sets' || s.brand === brand || s.vendor === brand;
     const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.vendor.toLowerCase().includes(search.toLowerCase());
-    return matchBrand && matchSearch;
+    const matchStatus = statusFilters.length === 0 || statusFilters.includes(s.status);
+    const matchPriceMin = !priceMin || s.price >= parseFloat(priceMin);
+    const matchPriceMax = !priceMax || s.price <= parseFloat(priceMax);
+    const matchProfile = profileFilter === 'All' || s.profile === profileFilter;
+    return matchBrand && matchSearch && matchStatus && matchPriceMin && matchPriceMax && matchProfile;
   });
+
+  // Keycap-specific notifications
+  const keycapNotifs = [
+    { id: 1, icon: 'local_offer', color: 'text-emerald-500', bg: 'bg-emerald-500/10', title: 'GMK Redline back in stock', body: 'Price dropped to $135 at Omnitype', time: '2m ago' },
+    { id: 2, icon: 'group', color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'PBTFans BoW Group Buy live', body: 'Round 2 is now open at KBDfans', time: '18m ago' },
+    { id: 3, icon: 'timer', color: 'text-blue-400', bg: 'bg-blue-400/10', title: 'KAT Refined IC closes soon', body: 'Only 3 days left to express interest', time: '1h ago' },
+    { id: 4, icon: 'trending_down', color: 'text-rose-500', bg: 'bg-rose-500/10', title: 'GMK Mizu Extras price drop', body: 'Down from $210 to $180 at Dixie Mech', time: '3h ago' },
+    { id: 5, icon: 'sell', color: 'text-purple-400', bg: 'bg-purple-400/10', title: 'DCX Marble shipped', body: 'Your order is on its way from Vala Supply', time: '1d ago' },
+  ];
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
@@ -171,7 +199,7 @@ export default function KeycapsTracker() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="h-14 sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#101922]/50 backdrop-blur-md px-8 flex items-center justify-between">
-          <div className="flex items-center gap-6 flex-1">
+          <div className="flex items-center gap-4 flex-1">
             <h2 className="text-lg font-bold tracking-tight shrink-0">Keycaps Intelligence</h2>
             <div className="max-w-md w-full relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
@@ -182,77 +210,206 @@ export default function KeycapsTracker() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+            {/* Filters button */}
+            <button
+              onClick={() => setFilterOpen(o => !o)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors shrink-0 ${filterOpen || activeFilterCount > 0 ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-500'}`}
+            >
+              <span className="material-symbols-outlined text-base">tune</span>
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="bg-white text-blue-500 text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none">{activeFilterCount}</span>
+              )}
+            </button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            {/* Keycap-specific notifications */}
+            <button
+              onClick={() => setKeycapNotifsOpen(o => !o)}
+              className={`relative p-2 rounded-full transition-colors ${keycapNotifsOpen ? 'bg-blue-500 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title="Keycap alerts"
+            >
+              <span className="material-symbols-outlined">keyboard</span>
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+            </button>
+            {/* General notifications */}
             <button className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
               <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-8">
-          {/* Stats row */}
-          <div className="grid grid-cols-4 gap-5 mb-8">
-            {[
-              { label: 'Tracked Sets', value: '1,284', delta: '+12%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
-              { label: 'Active Group Buys', value: '24', delta: '-2%', deltaColor: 'text-rose-500', deltaIcon: 'trending_down' },
-              { label: 'Avg. Set Price', value: '$142.50', delta: '+5%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
-              { label: 'Total Vendors', value: '12', delta: 'Stable', deltaColor: 'text-slate-400', deltaIcon: 'remove' },
-            ].map(s => (
-              <div key={s.label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm">
-                <p className="text-slate-500 text-sm font-medium">{s.label}</p>
-                <div className="flex items-end justify-between mt-2">
-                  <h3 className="text-2xl font-bold">{s.value}</h3>
-                  <span className={`${s.deltaColor} text-sm font-bold flex items-center gap-0.5`}>
-                    <span className="material-symbols-outlined text-sm">{s.deltaIcon}</span>{s.delta}
-                  </span>
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto p-8">
+            {/* Stats row */}
+            <div className="grid grid-cols-4 gap-5 mb-8">
+              {[
+                { label: 'Tracked Sets', value: loading ? '—' : ALL_SETS.length.toLocaleString(), delta: '+12%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
+                { label: 'Active Group Buys', value: loading ? '—' : activeGroupBuys.toString(), delta: activeGroupBuys > 0 ? `${activeGroupBuys} active` : 'None', deltaColor: activeGroupBuys > 0 ? 'text-amber-500' : 'text-slate-400', deltaIcon: activeGroupBuys > 0 ? 'trending_up' : 'remove' },
+                { label: 'Avg. Set Price', value: loading ? '—' : avgPrice > 0 ? `$${avgPrice.toFixed(2)}` : 'N/A', delta: '+5%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
+                { label: 'Total Vendors', value: loading ? '—' : totalVendors.toString(), delta: 'Stable', deltaColor: 'text-slate-400', deltaIcon: 'remove' },
+              ].map(s => (
+                <div key={s.label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm">
+                  <p className="text-slate-500 text-sm font-medium">{s.label}</p>
+                  <div className="flex items-end justify-between mt-2">
+                    <h3 className="text-2xl font-bold">{s.value}</h3>
+                    <span className={`${s.deltaColor} text-sm font-bold flex items-center gap-0.5`}>
+                      <span className="material-symbols-outlined text-sm">{s.deltaIcon}</span>{s.delta}
+                    </span>
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Brand filter bar */}
+            <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {allBrands.map(b => (
+                <button
+                  key={b}
+                  onClick={() => setBrand(b)}
+                  className={`shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-colors ${brand === b ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-blue-500'}`}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+
+            {/* Card grid */}
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden animate-pulse">
+                    <div className="aspect-square bg-slate-200 dark:bg-slate-800" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-
-          {/* Filter bar */}
-          <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-            {ALL_BRANDS.map(b => (
-              <button
-                key={b}
-                onClick={() => setBrand(b)}
-                className={`shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-colors ${brand === b ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-blue-500'}`}
-              >
-                {b}
-              </button>
-            ))}
-            <button className="ml-auto flex items-center gap-2 text-sm font-medium text-slate-500 shrink-0 hover:text-blue-500 transition-colors">
-              <span className="material-symbols-outlined text-lg">filter_list</span>Filter
-            </button>
-          </div>
-
-          {/* Card grid */}
-          {filtered.length > 0
-            ? (
+            ) : filtered.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                 {filtered.map(s => <KeycapCard key={s.id} set={s} />)}
               </div>
-            )
-            : (
+            ) : (
               <div className="text-center py-20 text-slate-400">
                 <span className="material-symbols-outlined text-5xl mb-3 block">search_off</span>
-                <p className="font-medium">No sets found</p>
-                <p className="text-sm mt-1">Try a different brand filter or search term.</p>
+                <p className="font-medium">{ALL_SETS.length === 0 ? 'No keycap sets available right now.' : 'No sets found'}</p>
+                {ALL_SETS.length > 0 && <p className="text-sm mt-1">Try a different brand or filter.</p>}
               </div>
-            )
-          }
+            )}
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between py-8 mt-2">
-            <p className="text-xs text-slate-500 font-medium">Showing {filtered.length} of 1,284 results</p>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-40">Previous</button>
-              <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-500/20">Next</button>
+            {/* Pagination */}
+            <div className="flex items-center justify-between py-8 mt-2">
+              <p className="text-xs text-slate-500 font-medium">Showing {filtered.length} of {ALL_SETS.length.toLocaleString()} results</p>
+              <div className="flex gap-2">
+                <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-40">Previous</button>
+                <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-500/20">Next</button>
+              </div>
             </div>
-          </div>
-        </main>
+          </main>
+
+          {/* Filter sidebar */}
+          {filterOpen && (
+            <aside className="w-72 shrink-0 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base">Filters</h3>
+                <button
+                  onClick={() => { setStatusFilters([]); setPriceMin(''); setPriceMax(''); setProfileFilter('All'); }}
+                  className="text-xs text-blue-500 font-bold hover:underline"
+                >Clear all</button>
+              </div>
+
+              {/* Status */}
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Status</p>
+                <div className="space-y-2">
+                  {(['in-stock', 'group-buy', 'limited', 'ic', 'sold-out'] as KeycapStatus[]).map(s => (
+                    <label key={s} className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={statusFilters.includes(s)}
+                        onChange={() => toggleStatus(s)}
+                        className="w-4 h-4 rounded accent-blue-500"
+                      />
+                      <span className={`text-sm font-medium ${STATUS_TEXT[s]}`}>
+                        {s === 'in-stock' ? 'In Stock' : s === 'group-buy' ? 'Group Buy' : s === 'limited' ? 'Limited' : s === 'ic' ? 'Interest Check' : 'Sold Out'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price range */}
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Price Range</p>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={priceMin}
+                    onChange={e => setPriceMin(e.target.value)}
+                    className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                  <span className="text-slate-400 text-sm">–</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={priceMax}
+                    onChange={e => setPriceMax(e.target.value)}
+                    className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Profile */}
+              {allProfiles.length > 1 && (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Profile</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allProfiles.map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setProfileFilter(p)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${profileFilter === p ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 dark:border-slate-700 hover:border-blue-500'}`}
+                      >{p}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </aside>
+          )}
+
+          {/* Keycap notifications panel */}
+          {keycapNotifsOpen && (
+            <aside className="w-80 shrink-0 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto">
+              <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 py-4 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm">Keycap Alerts</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Keycap-only notifications</p>
+                </div>
+                <button onClick={() => setKeycapNotifsOpen(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <span className="material-symbols-outlined text-sm text-slate-400">close</span>
+                </button>
+              </div>
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {keycapNotifs.map(n => (
+                  <div key={n.id} className="flex gap-3 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
+                    <div className={`w-9 h-9 rounded-full ${n.bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                      <span className={`material-symbols-outlined text-base ${n.color}`}>{n.icon}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-snug">{n.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">{n.body}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">{n.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -4,13 +4,14 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
+import { getToken, apiGet, apiPut } from '../lib/auth';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 
 export type AlertSource = 'ram' | 'gpu' | 'keyboard' | 'electronics' | 'keycaps' | 'deals';
 export type AlertHistoryType = 'price_drop' | 'restock' | 'deal' | 'gb_open' | 'project';
 
-export interface TrackedAlert {
+export type TrackedAlert = {
   id: string;
   source: AlertSource;
   itemId: string;
@@ -20,9 +21,9 @@ export interface TrackedAlert {
   threshold?: number;
   status?: string;
   createdAt: string;
-}
+};
 
-export interface AlertHistoryEntry {
+export type AlertHistoryEntry = {
   id: string;
   alertId: string;
   name: string;
@@ -30,20 +31,7 @@ export interface AlertHistoryEntry {
   message: string;
   firedAt: string;
   read: boolean;
-}
-
-const KEY_TRACKED = 'sd-tracked-alerts';
-const KEY_HISTORY = 'sd-alert-history';
-
-export function loadTracked(): TrackedAlert[] {
-  try { return JSON.parse(localStorage.getItem(KEY_TRACKED) ?? '[]'); } catch { return []; }
-}
-export function saveTracked(items: TrackedAlert[]) {
-  localStorage.setItem(KEY_TRACKED, JSON.stringify(items));
-}
-export function loadHistory(): AlertHistoryEntry[] {
-  try { return JSON.parse(localStorage.getItem(KEY_HISTORY) ?? '[]'); } catch { return []; }
-}
+};
 
 // ─── Source definitions ───────────────────────────────────────────────────────
 
@@ -215,20 +203,25 @@ export default function Notifications() {
   const [history, setHistory]     = useState<AlertHistoryEntry[]>([]);
 
   useEffect(() => {
-    setTracked(loadTracked());
-    setHistory(loadHistory());
+    if (!getToken()) return;
+    apiGet<{ alerts: TrackedAlert[] }>('/api/alerts/tracked')
+      .then(data => { if (data?.alerts) setTracked(data.alerts); })
+      .catch(() => {});
+    apiGet<{ entries: AlertHistoryEntry[] }>('/api/alerts/history')
+      .then(data => { if (data?.entries) setHistory(data.entries); })
+      .catch(() => {});
   }, []);
 
   function handleRemove(id: string) {
     const next = tracked.filter(t => t.id !== id);
     setTracked(next);
-    saveTracked(next);
+    if (getToken()) apiPut('/api/alerts/tracked', { alerts: next }).catch(() => {});
   }
 
   function handleMarkRead(id: string) {
     setHistory(prev => {
       const next = prev.map(e => e.id === id ? { ...e, read: true } : e);
-      localStorage.setItem(KEY_HISTORY, JSON.stringify(next));
+      if (getToken()) apiPut('/api/alerts/history', { entries: next }).catch(() => {});
       return next;
     });
   }

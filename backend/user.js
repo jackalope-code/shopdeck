@@ -1,24 +1,19 @@
 // backend/user.js
-// User model and helpers for electronics watchlist
+// User watchlist helpers — backed by PostgreSQL
+const db = require('./db');
 
-const fs = require('fs');
-const path = require('path');
-
-const userWatchlistsPath = path.join(__dirname, 'userWatchlists.json');
-
-function getUserWatchlist(userId) {
-  if (!fs.existsSync(userWatchlistsPath)) return null;
-  const userWatchlists = JSON.parse(fs.readFileSync(userWatchlistsPath, 'utf-8'));
-  return userWatchlists[userId] || { digikey: [], mouser: [] };
+async function getUserWatchlist(userId) {
+  const result = await db.query('SELECT watchlist FROM user_watchlists WHERE user_id=$1', [userId]);
+  return result.rows[0]?.watchlist ?? { digikey: [], mouser: [] };
 }
 
-function setUserWatchlist(userId, watchlist) {
-  let userWatchlists = {};
-  if (fs.existsSync(userWatchlistsPath)) {
-    userWatchlists = JSON.parse(fs.readFileSync(userWatchlistsPath, 'utf-8'));
-  }
-  userWatchlists[userId] = watchlist;
-  fs.writeFileSync(userWatchlistsPath, JSON.stringify(userWatchlists, null, 2));
+async function setUserWatchlist(userId, watchlist) {
+  await db.query(
+    `INSERT INTO user_watchlists (user_id, watchlist, updated_at)
+     VALUES ($1,$2,NOW())
+     ON CONFLICT (user_id) DO UPDATE SET watchlist=$2, updated_at=NOW()`,
+    [userId, JSON.stringify(watchlist)]
+  );
 }
 
 module.exports = { getUserWatchlist, setUserWatchlist };

@@ -96,19 +96,23 @@ const WIDGET_LABELS: Record<string, string> = {
   'electronics-watchlist': 'Electronics Watchlist',
 };
 
-const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences'];
-
-const STORAGE_KEY_NOTIFS = 'sd-browser-alerts';
+const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences', 'API Keys'];
 
 // ─── Tab 4: Preferences ─────────────────────────────────────────────────────────────
 function PreferencesTab() {
-  const [notifEnabled, setNotifEnabled] = React.useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY_NOTIFS) === 'true'; } catch { return false; }
-  });
+  const [notifEnabled, setNotifEnabled] = React.useState(false);
   const [perm, setPerm] = React.useState<NotificationPermission | 'unsupported'>(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
     return Notification.permission;
   });
+
+  // Load from profile API on mount
+  useEffect(() => {
+    if (!getToken()) return;
+    apiGet<{ profile: { browserAlerts?: boolean } }>('/api/profile')
+      .then(data => { if (data?.profile?.browserAlerts != null) setNotifEnabled(data.profile.browserAlerts); })
+      .catch(() => {});
+  }, []);
 
   async function handleToggle() {
     if (perm === 'unsupported') return;
@@ -119,10 +123,10 @@ function PreferencesTab() {
         if (result !== 'granted') return;
       }
       setNotifEnabled(true);
-      localStorage.setItem(STORAGE_KEY_NOTIFS, 'true');
+      apiPatch('/api/profile', { browserAlerts: true }).catch(() => {});
     } else {
       setNotifEnabled(false);
-      localStorage.setItem(STORAGE_KEY_NOTIFS, 'false');
+      apiPatch('/api/profile', { browserAlerts: false }).catch(() => {});
     }
   }
 
@@ -492,8 +496,6 @@ function CustomSourcesTab({ config, onAdd, onDelete }: {
 }
 
 // ─── AI Permissions ──────────────────────────────────────────────────────────
-const AI_PERMS_KEY = 'sd-ai-perms';
-
 interface AIPermissions {
   projects:  boolean;
   inventory: boolean;
@@ -510,17 +512,6 @@ const AI_PERM_DEFS: { key: keyof AIPermissions; label: string; desc: string; ico
   { key: 'deals',     label: 'Active Deals', desc: 'Current discounts & price history', icon: 'sell' },
 ];
 
-function loadAIPerms(): AIPermissions {
-  try {
-    const raw = localStorage.getItem(AI_PERMS_KEY);
-    return raw ? { ...DEFAULT_AI_PERMS, ...JSON.parse(raw) } : DEFAULT_AI_PERMS;
-  } catch { return DEFAULT_AI_PERMS; }
-}
-
-function saveAIPerms(p: AIPermissions) {
-  localStorage.setItem(AI_PERMS_KEY, JSON.stringify(p));
-}
-
 // ─── Tab 3: AI Assistant settings ─────────────────────────────────────────────
 function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
   const [cfg, setCfg] = useState<AIConfig>({ provider: 'openai', model: 'gpt-4o', apiKey: '' });
@@ -530,18 +521,15 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
   const [perms, setPerms] = useState<AIPermissions>(DEFAULT_AI_PERMS);
 
   useEffect(() => {
-    setPerms(loadAIPerms());
+    if (!getToken()) return;
+    apiGet<{ profile: { aiConfig?: AIConfig; aiPerms?: AIPermissions } }>('/api/profile').then(data => {
+      if (data?.profile?.aiConfig?.provider) setCfg(data.profile.aiConfig);
+      if (data?.profile?.aiPerms) setPerms({ ...DEFAULT_AI_PERMS, ...data.profile.aiPerms });
+    }).catch(() => {});
     try {
       const raw = localStorage.getItem('sd-ai-config');
       if (raw) setCfg(JSON.parse(raw));
     } catch {}
-    // Also try backend profile
-    const token = getToken();
-    if (token) {
-      apiGet<{ aiConfig: AIConfig }>('/api/profile').then(data => {
-        if (data?.aiConfig?.provider) setCfg(data.aiConfig);
-      }).catch(() => {});
-    }
   }, []);
 
   const providerModels = PROVIDERS.find(p => p.id === cfg.provider)?.models ?? [];
@@ -651,7 +639,7 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
                 onClick={() => {
                   const next = { ...perms, [d.key]: !perms[d.key] };
                   setPerms(next);
-                  saveAIPerms(next);
+                  apiPatch('/api/profile', { aiPerms: next }).catch(() => {});
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${
                   perms[d.key]
@@ -679,7 +667,7 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
           </div>
           {Object.values(perms).some(Boolean) && (
             <button
-              onClick={() => { setPerms(DEFAULT_AI_PERMS); saveAIPerms(DEFAULT_AI_PERMS); }}
+              onClick={() => { setPerms(DEFAULT_AI_PERMS); apiPatch('/api/profile', { aiPerms: DEFAULT_AI_PERMS }).catch(() => {}); }}
               className="w-full py-1.5 rounded-lg text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               Revoke all access
@@ -699,6 +687,122 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Tab 5: API Keys ─────────────────────────────────────────────────────────
+function ApiKeysTab() {
+  const [keys, setKeys] = React.useState({
+    amazonAccessKey: '',
+    amazonSecretKey: '',
+    amazonPartnerTag: '',
+    neweggApiKey: '',
+  });
+  const [loaded, setLoaded] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    if (!getToken()) return;
+    apiGet<{ profile: { apiKeys?: typeof keys } }>('/api/profile')
+      .then(({ profile }) => {
+        if (profile?.apiKeys) setKeys(k => ({ ...k, ...profile.apiKeys }));
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true); setSaved(false); setError('');
+    try {
+      await apiPatch('/api/profile', { apiKeys: keys });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function field(label: string, key: keyof typeof keys, placeholder: string, hint: string, isSecret = false) {
+    return (
+      <div>
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{label}</label>
+        <input
+          type={isSecret ? 'password' : 'text'}
+          autoComplete="off"
+          value={keys[key]}
+          onChange={e => setKeys(k => ({ ...k, [key]: e.target.value }))}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p className="mt-1 text-[11px] text-slate-400">{hint}</p>
+      </div>
+    );
+  }
+
+  if (!loaded) return <div className="animate-pulse h-40 rounded-xl bg-slate-200 dark:bg-slate-800" />;
+
+  return (
+    <form onSubmit={handleSave} className="space-y-6 max-w-2xl">
+      {/* Amazon PA API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-orange-400">deployed_code</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Amazon Product Advertising API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Enables live Amazon pricing for RAM and GPU trackers. Requires an{' '}
+            <a href="https://affiliate-program.amazon.com/assoc_credentials/home" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Amazon Associates account</a>{' '}
+            and a PA API application. Keys are stored server-side and never sent to the browser.
+          </p>
+          {field('Access Key ID', 'amazonAccessKey', 'AKIAIOSFODNN7EXAMPLE', 'From the PA API credentials page')}
+          {field('Secret Access Key', 'amazonSecretKey', '••••••••', 'Never share this — stored encrypted on the server', true)}
+          {field('Partner / Associate Tag', 'amazonPartnerTag', 'yourtag-20', 'Your Associates store ID, e.g. mystore-20')}
+        </div>
+      </div>
+
+      {/* Newegg API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-orange-500">shopping_bag</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Newegg Affiliate API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Newegg results are available without a key via their public search API. Setting an affiliate key
+            here enables higher rate limits and affiliate commission on purchases.
+          </p>
+          {field('Newegg Affiliate Key', 'neweggApiKey', 'your-newegg-key', 'From the Newegg affiliate program dashboard')}
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2 border border-red-200 dark:border-red-800">
+          <span className="material-symbols-outlined text-base">error</span>{error}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
+      >
+        {saving ? (
+          <><span className="material-symbols-outlined text-base animate-spin">progress_activity</span> Saving…</>
+        ) : saved ? (
+          <><span className="material-symbols-outlined text-base">check_circle</span> Saved</>
+        ) : (
+          <><span className="material-symbols-outlined text-base">save</span> Save API Keys</>
+        )}
+      </button>
+    </form>
   );
 }
 
@@ -811,7 +915,7 @@ export default function Settings() {
           )}
           {tab === 2 && <AISettingsTab />}
           {tab === 3 && <PreferencesTab />}
-          {tab === 4 && <NotificationsSettingsTab />}
+          {tab === 4 && <ApiKeysTab />}
         </main>
       </div>
     </div>

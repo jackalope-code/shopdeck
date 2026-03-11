@@ -1,8 +1,8 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { getToken } from '../lib/auth';
+import { useFeedData } from '../lib/ShopdataContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DropStatus = 'group-buy' | 'in-stock' | 'ic' | 'sold-out' | 'sale';
@@ -104,56 +104,42 @@ export default function Drops() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<DropCategory | 'All'>('All');
   const [activeStatus, setActiveStatus] = useState<DropStatus | 'All'>('All');
-  const [liveItems, setLiveItems] = useState<Drop[]>([]);
 
-  // Fetch real product data (including images) from scraped vendor sources
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch('/api/feed-config/data/drops', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => (r.ok ? r.json() : null))
-      .then((json: null | { sources: Record<string, { name: string; data: Array<{ name?: string; image?: string; price?: string; handle?: string; url?: string }> }> }) => {
-        if (!json?.sources) return;
-        const live: Drop[] = [];
-        for (const [sourceId, source] of Object.entries(json.sources)) {
-          const category: DropCategory =
-            sourceId.includes('keycap') ? 'Keycaps' :
-            sourceId.includes('switch') ? 'Switches' :
-            'Keyboards';
-          const gradients: Record<DropCategory, string> = {
-            Keyboards: 'from-slate-800 to-slate-700',
-            Keycaps:   'from-indigo-900 to-slate-700',
-            Switches:  'from-emerald-900 to-slate-700',
-            Accessories: 'from-stone-800 to-slate-700',
-          };
-          const icons: Record<DropCategory, string> = {
-            Keyboards: 'keyboard', Keycaps: 'format_color_text',
-            Switches: 'tune', Accessories: 'cable',
-          };
-          for (const item of source.data.slice(0, 6)) {
-            if (!item.name) continue;
-            live.push({
-              id: `live-${sourceId}-${item.handle ?? item.name}`,
-              name: item.name,
-              vendor: source.name,
-              category,
-              status: 'in-stock',
-              price: item.price ? `$${parseFloat(item.price).toFixed(0)}` : 'TBD',
-              image: item.image,
-              imageIcon: icons[category],
-              gradient: gradients[category],
-            });
-          }
-        }
-        if (live.length > 0) setLiveItems(live);
-      })
-      .catch(() => {});
-  }, []);
+  const { loading, items: feedItems } = useFeedData('drops');
 
-  // Merge: show live scraped items first (with real images), then mock items as fill
-  const ALL_ITEMS = liveItems.length > 0 ? [...liveItems, ...ALL_DROPS] : ALL_DROPS;
+  const CATEGORY_GRADIENTS: Record<DropCategory, string> = {
+    Keyboards: 'from-slate-800 to-slate-700',
+    Keycaps: 'from-indigo-900 to-slate-700',
+    Switches: 'from-emerald-900 to-slate-700',
+    Accessories: 'from-stone-800 to-slate-700',
+  };
+  const CATEGORY_ICONS: Record<DropCategory, string> = {
+    Keyboards: 'keyboard',
+    Keycaps: 'format_color_text',
+    Switches: 'tune',
+    Accessories: 'cable',
+  };
+
+  const liveItems: Drop[] = feedItems.map(item => {
+    const sourceId = item._vendor?.toLowerCase().replace(/\s+/g, '-') ?? '';
+    const category: DropCategory =
+      sourceId.includes('keycap') ? 'Keycaps' :
+      sourceId.includes('switch') ? 'Switches' :
+      'Keyboards';
+    return {
+      id: `live-${sourceId}-${item.handle ?? item.name}`,
+      name: item.name,
+      vendor: item._vendor ?? '',
+      category,
+      status: 'in-stock',
+      price: item.price ? `$${parseFloat(item.price).toFixed(0)}` : 'TBD',
+      image: item.image,
+      imageIcon: CATEGORY_ICONS[category],
+      gradient: CATEGORY_GRADIENTS[category],
+    };
+  });
+
+  const ALL_ITEMS = liveItems;
 
   const filtered = ALL_ITEMS.filter(d => {
     const matchesSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.vendor.toLowerCase().includes(search.toLowerCase());
@@ -245,10 +231,22 @@ export default function Drops() {
           </div>
 
           {/* Grid */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden animate-pulse">
+                  <div className="h-28 bg-slate-200 dark:bg-slate-800" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
               <span className="material-symbols-outlined text-5xl mb-3">search_off</span>
-              <p className="text-sm font-medium">No drops match your filters</p>
+              <p className="text-sm font-medium">{ALL_ITEMS.length === 0 ? 'No drops available right now. Check back soon.' : 'No drops match your filters'}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">

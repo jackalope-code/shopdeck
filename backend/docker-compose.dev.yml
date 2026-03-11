@@ -1,0 +1,8 @@
+services:
+  postgres:
+    volumes:
+      - ./seed-demo.sql:/docker-entrypoint-initdb.d/02-seed-demo.sql:ro
+
+  api:
+    environment:
+      NODE_ENV: development

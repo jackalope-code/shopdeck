@@ -1,0 +1,19 @@
+# Exposes Postgres and Redis ports to localhost so the backend can run
+# outside Docker (e.g. via nodemon) while still using containerised services.
+#
+# Usage: npm run docker:services:dev
+#   Then in a separate terminal: npm run dev
+
+services:
+  postgres:
+    ports:
+      - "5433:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:

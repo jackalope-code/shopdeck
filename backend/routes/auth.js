@@ -4,25 +4,10 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const path = require('path');
 const axios = require('axios');
 const { verifyToken, JWT_SECRET } = require('../middleware/auth');
 const { validatePassword } = require('../lib/passwordValidation');
-
-const USERS_FILE = path.join(__dirname, '../users.json');
-
-function readUsers() {
-  try {
-    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
-}
-
-function writeUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
+const db = require('../db');
 
 function generateToken(user) {
   return jwt.sign(
@@ -32,46 +17,116 @@ function generateToken(user) {
   );
 }
 
+const DEFAULT_ACTIVE_WIDGETS = [
+  'active-projects', 'recent-activity', 'inventory-stats', 'vendor-performance',
+  'keyboard-releases', 'keycaps-tracker', 'keyboard-sales', 'keyboard-comparison',
+  'ram-availability', 'gpu-availability', 'active-deals', 'electronics-watchlist',
+];
+
+const DEFAULT_FEED_CONFIG = {
+  'ram-availability': {
+    sources: [
+      { id: 'newegg-ram',      name: 'Newegg',          enabled: true },
+      { id: 'amazon-ram',      name: 'Amazon',          enabled: false },
+      { id: 'microcenter-ram', name: 'Microcenter',     enabled: false },
+      { id: 'reddit-ram',      name: 'r/buildapcsales', enabled: true },
+      { id: 'camelcamel-ram',  name: 'CamelCamelCamel', enabled: false },
+    ], custom: [],
+  },
+  'gpu-availability': {
+    sources: [
+      { id: 'newegg-gpu',      name: 'Newegg',          enabled: true },
+      { id: 'amazon-gpu',      name: 'Amazon',          enabled: false },
+      { id: 'microcenter-gpu', name: 'Microcenter',     enabled: false },
+      { id: 'reddit-gpu',      name: 'r/buildapcsales', enabled: true },
+      { id: 'camelcamel-gpu',  name: 'CamelCamelCamel', enabled: false },
+    ], custom: [],
+  },
+  'active-deals': {
+    sources: [
+      { id: 'amazon-deals', name: 'Amazon',     enabled: true },
+      { id: 'slickdeals',   name: 'Slickdeals', enabled: true },
+    ], custom: [],
+  },
+  'keyboard-releases': {
+    sources: [
+      { id: 'geekhack',          name: 'Geekhack',            enabled: true },
+      { id: 'kbdfans',           name: 'KBDfans',             enabled: true },
+      { id: 'novelkeys',         name: 'Novelkeys',           enabled: true },
+      { id: 'stupidbulletstech', name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco',      name: 'Custom Keys Co.',     enabled: true },
+    ], custom: [],
+  },
+  'keyboard-sales': {
+    sources: [
+      { id: 'geekhack',          name: 'Geekhack',            enabled: true },
+      { id: 'kbdfans',           name: 'KBDfans',             enabled: true },
+      { id: 'novelkeys',         name: 'Novelkeys',           enabled: true },
+      { id: 'stupidbulletstech', name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco',      name: 'Custom Keys Co.',     enabled: true },
+    ], custom: [],
+  },
+  'electronics-watchlist': {
+    sources: [
+      { id: 'digikey-electronics', name: 'DigiKey', enabled: true },
+      { id: 'mouser-electronics',  name: 'Mouser',  enabled: true },
+    ], custom: [],
+  },
+};
+
+async function createUserWithProfile(client, { id, username, email, passwordHash, isDeveloper = false }) {
+  await client.query(
+    `INSERT INTO users (id, username, email, password_hash, is_developer) VALUES ($1,$2,$3,$4,$5)`,
+    [id, username, email, passwordHash, isDeveloper]
+  );
+  await client.query(
+    `INSERT INTO user_profiles (user_id, active_widgets, grid_cols, feed_config, ai_config)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [
+      id,
+      JSON.stringify(DEFAULT_ACTIVE_WIDGETS),
+      3,
+      JSON.stringify(DEFAULT_FEED_CONFIG),
+      JSON.stringify({ provider: 'openai', model: 'gpt-4o', apiKey: '' }),
+    ]
+  );
+  await client.query(`INSERT INTO ai_history      (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
+  await client.query(`INSERT INTO tracked_alerts  (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
+  await client.query(`INSERT INTO alert_history   (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
+  await client.query(`INSERT INTO user_watchlists (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    if (!username || !email || !password) {
+    if (!username || !email || !password)
       return res.status(400).json({ error: 'username, email, and password are required' });
-    }
+
     const pwCheck = validatePassword(password);
-    if (!pwCheck.valid) {
+    if (!pwCheck.valid)
       return res.status(400).json({ error: pwCheck.errors[0], errors: pwCheck.errors });
+
+    const existing = await db.query(
+      'SELECT email, username FROM users WHERE email=$1 OR username=$2', [email, username]
+    );
+    if (existing.rows.length > 0) {
+      const row = existing.rows[0];
+      return res.status(409).json({ error: row.email === email ? 'Email already in use' : 'Username already taken' });
     }
-    const users = readUsers();
-    if (users.find(u => u.email === email)) {
-      return res.status(409).json({ error: 'Email already in use' });
-    }
-    if (users.find(u => u.username === username)) {
-      return res.status(409).json({ error: 'Username already taken' });
-    }
+
     const passwordHash = await bcrypt.hash(password, 12);
-    const newUser = {
-      id: uuidv4(),
-      username,
-      email,
-      passwordHash,
-      createdAt: new Date().toISOString(),
-      profile: {
-        activeWidgets: ['inventory-stats', 'active-projects', 'recent-activity', 'keyboard-releases', 'ram-availability', 'active-deals'],
-        widgetOrder: null,
-        gridCols: 3,
-        feedConfig: {},
-        aiConfig: { provider: 'openai', model: 'gpt-4o', apiKey: '' },
-      },
-    };
-    users.push(newUser);
-    writeUsers(users);
-    const token = generateToken(newUser);
-    res.status(201).json({
-      token,
-      user: { id: newUser.id, username: newUser.username, email: newUser.email },
-    });
+    const id = uuidv4();
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      await createUserWithProfile(client, { id, username, email, passwordHash });
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK'); throw e; }
+    finally { client.release(); }
+
+    const token = generateToken({ id, email, username });
+    res.status(201).json({ token, user: { id, username, email } });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -82,127 +137,73 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
+    if (!email || !password)
       return res.status(400).json({ error: 'email and password are required' });
-    }
-    const users = readUsers();
-    const user = users.find(u => u.email === email);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    const token = generateToken(user);
-    res.json({
-      token,
-      user: { id: user.id, username: user.username, email: user.email },
-    });
+
+    const result = await db.query('SELECT * FROM users WHERE email=$1', [email]);
+    const user = result.rows[0];
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const token = generateToken({ id: user.id, email: user.email, username: user.username });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// POST /api/auth/demo  — dev-only instant login as a demo account
-router.post('/demo', async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: 'Demo login is not available in production' });
+// POST /api/auth/developer  — dev-only instant login as the developer account
+router.post('/developer', async (req, res) => {
+  if (process.env.NODE_ENV === 'production')
+    return res.status(403).json({ error: 'Developer login is not available in production' });
+
+  const DEV_EMAIL = 'developer@shopdeck.dev';
+  try {
+    let result = await db.query('SELECT * FROM users WHERE email=$1', [DEV_EMAIL]);
+    let dev = result.rows[0];
+
+    if (!dev) {
+      const passwordHash = await bcrypt.hash('Dev@ShopDeck1!', 12);
+      const id = uuidv4();
+      const client = await db.connect();
+      try {
+        await client.query('BEGIN');
+        await createUserWithProfile(client, { id, username: 'developer', email: DEV_EMAIL, passwordHash, isDeveloper: true });
+        await client.query('COMMIT');
+      } catch (e) { await client.query('ROLLBACK'); throw e; }
+      finally { client.release(); }
+      dev = { id, username: 'developer', email: DEV_EMAIL };
+    }
+
+    const token = generateToken({ id: dev.id, email: dev.email, username: dev.username });
+    res.json({ token, user: { id: dev.id, username: dev.username, email: dev.email } });
+  } catch (err) {
+    console.error('Developer login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  const DEMO_EMAIL = 'demo@shopdeck.dev';
-  let users = readUsers();
-  let demo = users.find(u => u.email === DEMO_EMAIL);
-  if (!demo) {
-    // Create demo account on first use
-    const passwordHash = await bcrypt.hash('Demo@ShopDeck1!', 12);
-    demo = {
-      id: uuidv4(),
-      username: 'demo',
-      email: DEMO_EMAIL,
-      passwordHash,
-      isDemo: true,
-      createdAt: new Date().toISOString(),
-      profile: {
-        activeWidgets: [
-          'active-projects', 'recent-activity', 'inventory-stats', 'vendor-performance',
-          'keyboard-releases', 'keycaps-tracker', 'keyboard-sales', 'keyboard-comparison',
-          'ram-availability', 'gpu-availability', 'active-deals', 'electronics-watchlist',
-        ],
-        widgetOrder: null,
-        gridCols: 3,
-        feedConfig: {
-          'ram-availability': {
-            sources: [
-              { id: 'newegg-ram', name: 'Newegg', enabled: true },
-              { id: 'amazon-ram', name: 'Amazon', enabled: true },
-              { id: 'tigerdirect-ram', name: 'TigerDirect', enabled: true },
-              { id: 'mouser-ram', name: 'Mouser', enabled: true },
-              { id: 'digikey-ram', name: 'DigiKey', enabled: true },
-            ], custom: [],
-          },
-          'gpu-availability': {
-            sources: [
-              { id: 'newegg-gpu', name: 'Newegg', enabled: true },
-              { id: 'amazon-gpu', name: 'Amazon', enabled: true },
-              { id: 'tigerdirect-gpu', name: 'TigerDirect', enabled: true },
-            ], custom: [],
-          },
-          'active-deals': {
-            sources: [
-              { id: 'amazon-deals', name: 'Amazon', enabled: true },
-              { id: 'slickdeals', name: 'Slickdeals', enabled: true },
-            ], custom: [],
-          },
-          'keyboard-releases': {
-            sources: [
-              { id: 'geekhack', name: 'Geekhack', enabled: true },
-              { id: 'kbdfans', name: 'KBDfans', enabled: true },
-              { id: 'novelkeys', name: 'Novelkeys', enabled: true },
-              { id: 'stupidbulletstech', name: 'Stupid Bullets Tech', enabled: true },
-              { id: 'customkeysco', name: 'Custom Keys Co.', enabled: true },
-            ], custom: [],
-          },
-          'keyboard-sales': {
-            sources: [
-              { id: 'geekhack', name: 'Geekhack', enabled: true },
-              { id: 'kbdfans', name: 'KBDfans', enabled: true },
-              { id: 'novelkeys', name: 'Novelkeys', enabled: true },
-              { id: 'stupidbulletstech', name: 'Stupid Bullets Tech', enabled: true },
-              { id: 'customkeysco', name: 'Custom Keys Co.', enabled: true },
-            ], custom: [],
-          },
-          'electronics-watchlist': {
-            sources: [
-              { id: 'digikey-electronics', name: 'DigiKey', enabled: true },
-              { id: 'mouser-electronics', name: 'Mouser', enabled: true },
-            ], custom: [],
-          },
-        },
-        aiConfig: { provider: 'openai', model: 'gpt-4o', apiKey: '' },
-      },
-    };
-    users.push(demo);
-    writeUsers(users);
-  }
-  const token = generateToken(demo);
-  res.json({ token, user: { id: demo.id, username: demo.username, email: demo.email } });
 });
 
 // GET /api/auth/me  (protected)
-router.get('/me', verifyToken, (req, res) => {
-  const users = readUsers();
-  const user = users.find(u => u.id === req.user.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ id: user.id, username: user.username, email: user.email });
+router.get('/me', verifyToken, async (req, res) => {
+  try {
+    const result = await db.query('SELECT id, username, email FROM users WHERE id=$1', [req.user.id]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET /api/auth/github/status  (protected)
-router.get('/github/status', verifyToken, (req, res) => {
-  const users = readUsers();
-  const user = users.find(u => u.id === req.user.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ connected: !!user.githubToken, githubUsername: user.githubUsername ?? null });
+router.get('/github/status', verifyToken, async (req, res) => {
+  try {
+    const result = await db.query('SELECT github_token, github_username FROM users WHERE id=$1', [req.user.id]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ connected: !!user.github_token, githubUsername: user.github_username ?? null });
+  } catch (err) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST /api/auth/github/device/start  — proxies GitHub Device Flow initiation (no auth needed)
@@ -254,14 +255,10 @@ router.post('/github/device/poll', verifyToken, async (req, res) => {
       githubUsername = ghUser.data.login ?? null;
     } catch { /* non-fatal */ }
 
-    // Persist token to user record
-    const users = readUsers();
-    const idx = users.findIndex(u => u.id === req.user.id);
-    if (idx === -1) return res.status(404).json({ error: 'User not found' });
-    users[idx].githubToken    = access_token;
-    users[idx].githubUsername = githubUsername;
-    writeUsers(users);
-
+    await db.query(
+      'UPDATE users SET github_token=$1, github_username=$2 WHERE id=$3',
+      [access_token, githubUsername, req.user.id]
+    );
     res.json({ status: 'success', githubUsername });
   } catch (err) {
     res.status(502).json({ error: err.response?.data?.error_description || err.message });
@@ -269,14 +266,11 @@ router.post('/github/device/poll', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/auth/github/token  (protected)
-router.delete('/github/token', verifyToken, (req, res) => {
-  const users = readUsers();
-  const idx = users.findIndex(u => u.id === req.user.id);
-  if (idx === -1) return res.status(404).json({ error: 'User not found' });
-  delete users[idx].githubToken;
-  delete users[idx].githubUsername;
-  writeUsers(users);
-  res.json({ ok: true });
+router.delete('/github/token', verifyToken, async (req, res) => {
+  try {
+    await db.query('UPDATE users SET github_token=NULL, github_username=NULL WHERE id=$1', [req.user.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Internal server error' }); }
 });
 
 module.exports = router;

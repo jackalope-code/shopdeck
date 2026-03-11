@@ -9,9 +9,14 @@ const authRouter = require('./routes/auth');
 const profileRouter = require('./routes/profile');
 const feedConfigRouter = require('./routes/feedConfig');
 const projectsRouter = require('./routes/projects');
+const activityRouter = require('./routes/activity');
 const aiRouter = require('./routes/ai');
+const aiHistoryRouter = require('./routes/aiHistory');
+const alertsRouter = require('./routes/alerts');
 const cron = require('node-cron');
 const scraper = require('./scraper');
+const db = require('./db');
+const redis = require('./redis');
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -26,7 +31,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/feed-config', feedConfigRouter);
 app.use('/api/projects', projectsRouter);
+app.use('/api/activity', activityRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/ai-history', aiHistoryRouter);
+app.use('/api/alerts', alertsRouter);
 app.use('/api', apiRouter);
 
 // Catch-all for unknown API routes — always return JSON
@@ -45,6 +53,23 @@ cron.schedule('0 2 * * *', () => {
   scraper.updateCache().catch(console.error);
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`);
-});
+// Verify infrastructure connections before accepting traffic
+async function start() {
+  try {
+    await db.query('SELECT 1');
+    console.log('✓ PostgreSQL connected');
+  } catch (err) {
+    console.error('✗ PostgreSQL unavailable:', err.message);
+  }
+  try {
+    await redis.ping();
+    console.log('✓ Redis connected');
+  } catch (err) {
+    console.warn('⚠ Redis unavailable (cache will degrade to in-memory):', err.message);
+  }
+  app.listen(PORT, () => {
+    console.log(`Backend server running on port ${PORT}`);
+  });
+}
+
+start();

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { getToken } from '../lib/auth';
+import { useFeedData } from '../lib/ShopdataContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DealCategory = 'Keyboards' | 'Electronics' | 'Audio' | 'Components';
@@ -123,48 +123,33 @@ export default function ActiveDealsDashboard() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterChip>('All');
   const [sort, setSort] = useState<SortMode>('discount');
-  const [deals, setDeals] = useState<Deal[]>(DEALS);
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch('/api/feed-config/data/active-deals', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(({ sources }) => {
-        if (!sources) return;
-        const live: Deal[] = [];
-        let idx = 0;
-        for (const [srcId, src] of Object.entries(sources as Record<string, { name: string; data: { name: string; image?: string; price?: string; comparePrice?: string; productType?: string; url?: string }[] }>)) {
-          for (const item of src.data ?? []) {
-            const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
-            const wasPrice = parseFloat((item.comparePrice ?? '0').replace(/[^0-9.]/g, '')) || 0;
-            if (price <= 0) continue;
-            const discount = wasPrice > price ? Math.round((1 - price / wasPrice) * 100) : 0;
-            const type = item.productType?.toLowerCase() ?? '';
-            const cat: DealCategory = type.includes('keycap') ? 'Keyboards' : type.includes('switch') ? 'Components' : 'Keyboards';
-            live.push({
-              id: `${srcId}-${idx++}`,
-              name: item.name,
-              category: cat,
-              vendor: src.name,
-              price,
-              wasPrice: wasPrice || price,
-              discount,
-              timeLeft: 'Sale',
-              timeUrgency: 'comfortable',
-              icon: 'keyboard',
-              gradient: 'from-blue-900 to-blue-600',
-              discountIcon: discount >= 20 ? 'local_fire_department' : 'trending_down',
-              image: item.image,
-            });
-          }
-        }
-        if (live.length > 0) setDeals([...live, ...DEALS]);
-      })
-      .catch(() => {});
-  }, []);
+  const { loading, items: feedItems } = useFeedData('active-deals');
+
+  const deals: Deal[] = feedItems
+    .flatMap((item, idx) => {
+      const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+      const wasPrice = parseFloat((item.comparePrice ?? '0').replace(/[^0-9.]/g, '')) || 0;
+      if (price <= 0) return [];
+      const discount = wasPrice > price ? Math.round((1 - price / wasPrice) * 100) : 0;
+      const type = item.productType?.toLowerCase() ?? '';
+      const cat: DealCategory = type.includes('keycap') ? 'Keyboards' : type.includes('switch') ? 'Components' : 'Keyboards';
+      return [{
+        id: `${item._vendor}-${idx}`,
+        name: item.name,
+        category: cat,
+        vendor: item._vendor ?? '',
+        price,
+        wasPrice: wasPrice || price,
+        discount,
+        timeLeft: 'Sale',
+        timeUrgency: 'comfortable' as const,
+        icon: 'keyboard',
+        gradient: 'from-blue-900 to-blue-600',
+        discountIcon: discount >= 20 ? 'local_fire_department' : 'trending_down',
+        image: item.image,
+      }];
+    });
 
   const cats: FilterChip[] = ['All', 'Keyboards', 'Electronics', 'Audio', 'Components'];
 
@@ -236,16 +221,25 @@ export default function ActiveDealsDashboard() {
         {/* Deals list */}
         <main className="flex-1 overflow-y-auto pb-24 md:pb-6 px-4 py-4">
           <div className="max-w-2xl mx-auto w-full space-y-4">
-            {displayed.length > 0
-              ? displayed.map(d => <DealCard key={d.id} deal={d} />)
-              : (
-                <div className="text-center py-16 text-slate-400">
-                  <span className="material-symbols-outlined text-5xl mb-3 block">search_off</span>
-                  <p className="font-medium">No deals found</p>
-                  <p className="text-sm mt-1">Try adjusting your filters or search term.</p>
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-pulse">
+                  <div className="h-44 bg-slate-200 dark:bg-slate-800" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                  </div>
                 </div>
-              )
-            }
+              ))
+            ) : displayed.length > 0 ? (
+              displayed.map(d => <DealCard key={d.id} deal={d} />)
+            ) : (
+              <div className="text-center py-16 text-slate-400">
+                <span className="material-symbols-outlined text-5xl mb-3 block">search_off</span>
+                <p className="font-medium">{deals.length === 0 ? 'No deals available right now.' : 'No deals found'}</p>
+                {deals.length > 0 && <p className="text-sm mt-1">Try adjusting your filters or search term.</p>}
+              </div>
+            )}
           </div>
         </main>
       </div>

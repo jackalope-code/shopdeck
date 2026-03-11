@@ -3,7 +3,7 @@
 // Opens via: document.dispatchEvent(new CustomEvent('sd:open-ai'))
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { getToken, getUser } from '../lib/auth';
+import { getToken, getUser, apiGet, apiPatch, apiPut, apiDelete } from '../lib/auth';
 import GitHubConnect from './GitHubConnect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -75,15 +75,14 @@ const CONTEXT_CHIPS = [
 ];
 
 const STORAGE_KEY = 'sd-ai-config';
-const HISTORY_KEY = 'sd-ai-history';
-const PERMS_KEY   = 'sd-ai-perms';
+const HISTORY_KEY = 'sd-ai-history'; // localStorage mirror only
 
 // ─── Permissions ─────────────────────────────────────────────────────────────
 interface AIPermissions {
-  projects:  boolean;   // saved projects & budgets
-  inventory: boolean;   // electronics parts inventory
-  watchlist: boolean;   // price alerts & watchlists
-  deals:     boolean;   // active deals & price history
+  projects:  boolean;
+  inventory: boolean;
+  watchlist: boolean;
+  deals:     boolean;
 }
 
 const DEFAULT_PERMS: AIPermissions = { projects: false, inventory: false, watchlist: false, deals: false };
@@ -94,17 +93,6 @@ const PERM_DEFS: { key: keyof AIPermissions; label: string; desc: string; icon: 
   { key: 'watchlist', label: 'Price Alerts',    desc: 'Watchlists & alert thresholds',     icon: 'notifications_active' },
   { key: 'deals',     label: 'Active Deals',    desc: 'Current discounts & price history', icon: 'sell' },
 ];
-
-function loadPerms(): AIPermissions {
-  try {
-    const raw = localStorage.getItem(PERMS_KEY);
-    return raw ? { ...DEFAULT_PERMS, ...JSON.parse(raw) } : DEFAULT_PERMS;
-  } catch { return DEFAULT_PERMS; }
-}
-
-function savePerms(p: AIPermissions) {
-  localStorage.setItem(PERMS_KEY, JSON.stringify(p));
-}
 
 function buildSystemContext(perms: AIPermissions): string {
   const granted = PERM_DEFS.filter(d => perms[d.key]).map(d => d.label);
@@ -127,16 +115,10 @@ function saveConfig(cfg: AIConfig) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
 }
 
-function loadHistory(): Message[] {
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function saveHistory(msgs: Message[]) {
-  // Keep last 50 messages to bound storage
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(msgs.slice(-50)));
+// Mirror last 50 messages to localStorage (offline / fast hydration)
+function mirrorHistoryToLS(msgs: Message[]) {
+  const trimmed = msgs.slice(-50);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed)); } catch {}
 }
 
 // ─── Markdown-lite renderer ───────────────────────────────────────────────────
@@ -169,7 +151,8 @@ export default function AIAgent() {
   function togglePerm(key: keyof AIPermissions) {
     setPerms(prev => {
       const next = { ...prev, [key]: !prev[key] };
-      savePerms(next);
+      // Persist to API and keep in sync
+      if (getToken()) apiPatch('/api/profile', { aiPerms: next }).catch(() => {});
       return next;
     });
   }
@@ -198,18 +181,40 @@ export default function AIAgent() {
     return () => document.removeEventListener('sd:open-ai', handler);
   }, []);
 
-  // Hydrate from localStorage
+  // Hydrate: config from localStorage, perms + history from API (fallback to LS)
   useEffect(() => {
     const cfg = loadConfig();
     setConfig(cfg);
     setPendingCfg(cfg);
-    setMessages(loadHistory());
-    setPerms(loadPerms());
+
+    // Load localStorage mirror immediately for fast paint
+    try {
+      const lsMsgs = localStorage.getItem(HISTORY_KEY);
+      if (lsMsgs) setMessages(JSON.parse(lsMsgs));
+    } catch {}
+
+    if (getToken()) {
+      // Fetch authoritative history + perms from server
+      apiGet<{ messages: Message[] }>('/api/ai-history')
+        .then(data => { if (data?.messages?.length) setMessages(data.messages); })
+        .catch(() => {});
+      apiGet<{ profile: { aiPerms?: AIPermissions } }>('/api/profile')
+        .then(data => { if (data?.profile?.aiPerms) setPerms({ ...DEFAULT_PERMS, ...data.profile.aiPerms }); })
+        .catch(() => {});
+    }
   }, []);
 
-  // Persist history on change
+  // Persist history to API + localStorage mirror on change
   useEffect(() => {
-    if (messages.length > 0) saveHistory(messages);
+    if (messages.length === 0) return;
+    mirrorHistoryToLS(messages);
+    if (getToken()) {
+      // Debounce: avoid a write on every keystroke — fire after short idle
+      const t = setTimeout(() => {
+        apiPut('/api/ai-history', { messages }).catch(() => {});
+      }, 1500);
+      return () => clearTimeout(t);
+    }
   }, [messages]);
 
   // Scroll to bottom on new message
@@ -338,7 +343,11 @@ export default function AIAgent() {
               </button>
             )}
             <button
-              onClick={() => { setMessages([]); localStorage.removeItem(HISTORY_KEY); }}
+              onClick={() => {
+                setMessages([]);
+                mirrorHistoryToLS([]);
+                if (getToken()) apiDelete('/api/ai-history').catch(() => {});
+              }}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-100 transition-colors"
               title="Clear chat"
             >
@@ -432,7 +441,7 @@ export default function AIAgent() {
             </div>
             {Object.values(perms).some(Boolean) && (
               <button
-                onClick={() => { setPerms(DEFAULT_PERMS); savePerms(DEFAULT_PERMS); }}
+                onClick={() => { setPerms(DEFAULT_PERMS); if (getToken()) apiPatch('/api/profile', { aiPerms: DEFAULT_PERMS }).catch(() => {}); }}
                 className="w-full py-1.5 rounded-lg text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 Revoke all access

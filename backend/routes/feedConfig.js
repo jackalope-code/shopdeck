@@ -7,6 +7,8 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const { verifyToken } = require('../middleware/auth');
 const scraper = require('../scraper');
+const db = require('../db');
+const redis = require('../redis');
 
 // Max 5 test-rule requests per user per minute (keyed on user ID, falls back to IP).
 const testLimiter = rateLimit({
@@ -19,53 +21,71 @@ const testLimiter = rateLimit({
 });
 
 const DEFAULTS_FILE = path.join(__dirname, '../userFeedConfig.json');
-const USERS_FILE = path.join(__dirname, '../users.json');
 
-function readUsers() {
-  try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch { return []; }
-}
-function writeUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
 function readDefaults() {
   try { return JSON.parse(fs.readFileSync(DEFAULTS_FILE, 'utf8')).defaults; } catch { return {}; }
 }
 
+// Redis TTL for scrape cache — matches scheduled cooldown in scraper.js
+const FEED_DATA_CACHE_TTL_S  = 6 * 60 * 60;  // 6 hours (seconds for Redis EX)
+const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
+
+// Fallback in-process Maps (used if Redis is unavailable)
+const localFeedCache   = new Map();
+const localSourceCache = new Map();
+
+async function rGet(key) {
+  try { return await redis.get(key); } catch { return null; }
+}
+async function rSet(key, value, ttlSeconds) {
+  try { await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds); } catch { /* degraded */ }
+}
+async function rGetJson(key) {
+  const raw = await rGet(key);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
 // GET /api/feed-config  — returns merged (defaults + user overrides)
-router.get('/', verifyToken, (req, res) => {
-  const users = readUsers();
-  const user = users.find(u => u.id === req.user.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  const defaults = readDefaults();
-  const userCfg = user.profile?.feedConfig || {};
-  // Merge: user overrides per-widget take precedence
-  const merged = {};
-  for (const widgetId of Object.keys(defaults)) {
-    merged[widgetId] = userCfg[widgetId] ?? defaults[widgetId];
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const result = await db.query('SELECT feed_config FROM user_profiles WHERE user_id=$1', [req.user.id]);
+    const userCfg = result.rows[0]?.feed_config ?? {};
+    const defaults = readDefaults();
+    const merged = {};
+    for (const widgetId of Object.keys(defaults)) {
+      merged[widgetId] = userCfg[widgetId] ?? defaults[widgetId];
+    }
+    for (const widgetId of Object.keys(userCfg)) {
+      if (!merged[widgetId]) merged[widgetId] = userCfg[widgetId];
+    }
+    res.json({ config: merged });
+  } catch (err) {
+    console.error('GET /feed-config error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  // Include any extra user-defined widget configs
-  for (const widgetId of Object.keys(userCfg)) {
-    if (!merged[widgetId]) merged[widgetId] = userCfg[widgetId];
-  }
-  res.json({ config: merged });
 });
 
 // PATCH /api/feed-config/:widgetId  — update sources/custom for one widget
-router.patch('/:widgetId', verifyToken, (req, res) => {
+router.patch('/:widgetId', verifyToken, async (req, res) => {
   const { widgetId } = req.params;
   const { sources, custom } = req.body;
-  const users = readUsers();
-  const idx = users.findIndex(u => u.id === req.user.id);
-  if (idx === -1) return res.status(404).json({ error: 'User not found' });
-
-  const feedConfig = users[idx].profile?.feedConfig || {};
-  feedConfig[widgetId] = feedConfig[widgetId] || {};
-  if (sources !== undefined) feedConfig[widgetId].sources = sources;
-  if (custom !== undefined) feedConfig[widgetId].custom = custom;
-  users[idx].profile = users[idx].profile || {};
-  users[idx].profile.feedConfig = feedConfig;
-  writeUsers(users);
-  res.json({ config: feedConfig[widgetId] });
+  try {
+    const result = await db.query('SELECT feed_config FROM user_profiles WHERE user_id=$1', [req.user.id]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Profile not found' });
+    const feedConfig = result.rows[0].feed_config ?? {};
+    feedConfig[widgetId] = feedConfig[widgetId] ?? {};
+    if (sources !== undefined) feedConfig[widgetId].sources = sources;
+    if (custom  !== undefined) feedConfig[widgetId].custom  = custom;
+    await db.query(
+      `UPDATE user_profiles SET feed_config=$1, updated_at=NOW() WHERE user_id=$2`,
+      [JSON.stringify(feedConfig), req.user.id]
+    );
+    res.json({ config: feedConfig[widgetId] });
+  } catch (err) {
+    console.error('PATCH /feed-config error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // POST /api/feed-config/test  — test a custom source rule against a URL
@@ -83,48 +103,54 @@ router.post('/test', verifyToken, testLimiter, async (req, res) => {
   }
 });
 
-// In-memory result cache: { [widgetId]: { at: number, results: object } }
-const feedDataCache = new Map();
-const FEED_DATA_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — matches scraper scheduled cooldown
-
-// Source-level result cache: { [sourceId]: { at: number, data: object[] } }
-// Shared across all widgets so the same source is only fetched once per TTL period,
-// preventing cross-widget hostname cooldown collisions (e.g. 'drops' and
-// 'keyboard-releases' both reference 'cannonkeys-keyboards').
-const sourceResultCache = new Map();
-
 // GET /api/feed-config/data/:widgetId  — scrape enabled built-in + custom sources for a widget
 router.get('/data/:widgetId', verifyToken, async (req, res) => {
   const { widgetId } = req.params;
+  const cacheKey = `feed:widget:${req.user.id}:${widgetId}`;
 
-  // Serve cached result if still fresh
-  const cached = feedDataCache.get(widgetId);
-  if (cached && (Date.now() - cached.at) < FEED_DATA_CACHE_TTL_MS) {
-    return res.json({ sources: cached.results, at: new Date(cached.at).toISOString(), cached: true });
+  // Serve Redis-cached result if still fresh
+  const cachedRaw = await rGetJson(cacheKey);
+  if (cachedRaw) {
+    return res.json({ sources: cachedRaw.results, at: cachedRaw.at, cached: true });
+  }
+  // Fallback: in-process Map (Redis unavailable)
+  const localCached = localFeedCache.get(widgetId);
+  if (localCached && (Date.now() - localCached.at) < FEED_DATA_CACHE_TTL_MS) {
+    return res.json({ sources: localCached.results, at: new Date(localCached.at).toISOString(), cached: true });
   }
 
-  const users = readUsers();
-  const user = users.find(u => u.id === req.user.id);
+  // Load user config from Postgres
+  const [profileResult] = await Promise.all([
+    db.query('SELECT feed_config, api_keys FROM user_profiles WHERE user_id=$1', [req.user.id]),
+  ]);
+  const profile = profileResult.rows[0] ?? {};
   const defaults = readDefaults();
-
-  const widgetCfg = user?.profile?.feedConfig?.[widgetId] ?? defaults[widgetId] ?? {};
-  const sources = widgetCfg.sources ?? [];
-  const custom  = widgetCfg.custom  ?? [];
+  const userCfg  = profile.feed_config ?? {};
+  const widgetCfg = userCfg[widgetId] ?? defaults[widgetId] ?? {};
+  const sources  = widgetCfg.sources ?? [];
+  const custom   = widgetCfg.custom  ?? [];
+  const apiKeys  = profile.api_keys  ?? {};
 
   const results = {};
 
-  // Run enabled built-in sources — reuse source-level cache when available
+  // Run enabled built-in sources — reuse source-level Redis cache when available
   for (const src of sources.filter(s => s.enabled)) {
     const rule = scraper.BUILTIN_SOURCE_RULES[src.id];
     if (!rule) continue;
-    const cachedSrc = sourceResultCache.get(src.id);
-    if (cachedSrc && (Date.now() - cachedSrc.at) < FEED_DATA_CACHE_TTL_MS) {
+    const srcKey = `feed:source:${src.id}`;
+    const cachedSrc = await rGetJson(srcKey) ?? (() => {
+      const m = localSourceCache.get(src.id);
+      return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
+    })();
+    if (cachedSrc) {
       results[src.id] = { name: src.name, data: cachedSrc.data, error: null };
       continue;
     }
     try {
-      const data = await scraper.runSource(rule, 'scheduled');
-      sourceResultCache.set(src.id, { at: Date.now(), data });
+      const data = await scraper.runSource(rule, 'scheduled', { apiKeys });
+      const entry = { at: new Date().toISOString(), data };
+      await rSet(srcKey, entry, FEED_DATA_CACHE_TTL_S);
+      localSourceCache.set(src.id, { at: Date.now(), data });
       results[src.id] = { name: src.name, data, error: null };
     } catch (err) {
       results[src.id] = { name: src.name, data: [], error: err.message };
@@ -141,9 +167,10 @@ router.get('/data/:widgetId', verifyToken, async (req, res) => {
     }
   }
 
-  // Cache and respond
-  feedDataCache.set(widgetId, { at: Date.now(), results });
-  res.json({ sources: results, at: new Date().toISOString(), cached: false });
+  const at = new Date().toISOString();
+  await rSet(cacheKey, { at, results }, FEED_DATA_CACHE_TTL_S);
+  localFeedCache.set(widgetId, { at: Date.now(), results });
+  res.json({ sources: results, at, cached: false });
 });
 
 module.exports = router;

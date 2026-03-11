@@ -27,16 +27,16 @@ export default function Login() {
     }
   }
 
-  async function handleDemo() {
+  async function handleDeveloper() {
     setError('');
     setLoading(true);
     try {
-      const data = await apiPost<{ token: string; user: AuthUser }>('/api/auth/demo', {});
+      const data = await apiPost<{ token: string; user: AuthUser }>('/api/auth/developer', {});
       setToken(data.token);
       setUser(data.user);
       router.replace('/');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Demo login failed');
+      setError(err instanceof Error ? err.message : 'Developer login failed');
     } finally {
       setLoading(false);
     }
@@ -118,12 +118,12 @@ export default function Login() {
                 <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
               </div>
               <button
-                onClick={handleDemo}
+                onClick={handleDeveloper}
                 disabled={loading}
                 className="w-full py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined text-base">science</span>
-                Continue as Demo
+                <span className="material-symbols-outlined text-base">terminal</span>
+                Continue as Developer
               </button>
             </>
           )}
