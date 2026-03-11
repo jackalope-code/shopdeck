@@ -14,9 +14,14 @@ export interface FeedItem {
   _vendor?: string;
   _sourceCategory?: string;
   anyAvailable?: string;  // 'true' | 'false' — undefined means source has no stock data
-  partialStock?: string;   // 'true' | 'false' — only set when inventory tracking is on
-  lowStock?: string;       // 'true' | 'false' — only set when inventory tracking is on
-  totalInventory?: string; // sum of tracked variant quantities (electronics sites)
+  partialStock?: string;   // 'true' | 'false' — 25–50% of variants available
+  lowStock?: string;       // 'true' | 'false' — <25% of variants available
+  totalInventory?: string; // sum of tracked variant quantities
+  variantCount?: string;   // total tracked variants
+  availableCount?: string; // number of variants currently available
+  priceMin?: string;       // lowest variant price
+  priceMax?: string;       // highest variant price
+  itemType?: string;       // 'Kit' | 'Pre-built' | 'Barebones' | 'PCB' | 'Plate' | 'Keycaps' | 'Switches' | 'Deskmat'
 }
 
 export interface SourceResult {

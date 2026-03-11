@@ -32,7 +32,7 @@ const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
 // Old versioned keys are never written again and expire naturally via their TTL.
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 
 // Fallback in-process Maps (used if Redis is unavailable)
 const localFeedCache   = new Map();

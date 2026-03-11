@@ -212,40 +212,60 @@ async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = '
     // Auto-extract Shopify inventory when variants are present.
     // Only emit stock fields when Shopify is *actively tracking* inventory
     // (inventory_management === 'shopify'). Variants with null management are
-    // group buys, made-to-order, or pre-orders — their availability is unknown
-    // and they would create false "In Stock" signals if treated as available.
+    // group buys, made-to-order, or pre-orders — their availability is unknown.
     //
-    //   - inventory_policy 'continue' = oversell allowed (backorder/pre-order) → available
-    //   - otherwise: available iff inventory_quantity > 0
-    // Low stock:     ALL tracked variants have qty 1–10 (none sold out, just low).
-    // Limited stock: SOME tracked variants available, SOME sold out (mixed).
+    // Stock tiers (based on % of tracked variants that are available):
+    //   anyAvailable=false           → Out of Stock  (0% available)
+    //   lowStock=true                → Low Stock     (<25% available, including just 1 variant)
+    //   partialStock=true            → Limited Stock  (25–50% available)
+    //   else                         → In Stock      (>50% available)
     if (container.variants && Array.isArray(container.variants) && container.variants.length > 0) {
-      const LOW_STOCK_THRESHOLD = 10;
       const tracked = container.variants.filter(v => v.inventory_management === 'shopify');
-      // Without tracked variants we cannot reliably determine stock — emit nothing.
       if (tracked.length > 0) {
         const trackedAvailable = tracked.filter(v =>
           v.inventory_policy === 'continue' || (parseInt(v.inventory_quantity, 10) || 0) > 0
         );
+        const availRatio = trackedAvailable.length / tracked.length;
         const anyAvailable = trackedAvailable.length > 0;
-        const trackedLow = trackedAvailable.filter(v => {
-          const qty = parseInt(v.inventory_quantity, 10) || 0;
-          return v.inventory_policy !== 'continue' && qty > 0 && qty <= LOW_STOCK_THRESHOLD;
-        });
-        // lowStock: every tracked variant is available but at a low qty
-        const lowStock = anyAvailable &&
-          trackedAvailable.length === tracked.length &&
-          trackedLow.length === tracked.length;
-        // partialStock ("Limited Stock"): some variants available, some sold out
-        const partialStock = tracked.length > 1 &&
-          trackedAvailable.length > 0 &&
-          trackedAvailable.length < tracked.length;
+        // Low stock: <25% of variants available (or only 1 variant left when multiple exist)
+        const lowStock = anyAvailable && availRatio < 0.25;
+        // Limited stock: 25–50% of variants available
+        const partialStock = anyAvailable && !lowStock && availRatio <= 0.5;
+
         obj.anyAvailable  = anyAvailable  ? 'true' : 'false';
         obj.lowStock      = lowStock      ? 'true' : 'false';
         obj.partialStock  = partialStock  ? 'true' : 'false';
+        obj.variantCount  = String(tracked.length);
+        obj.availableCount = String(trackedAvailable.length);
         const totalQty = tracked.reduce((acc, v) => acc + (parseInt(v.inventory_quantity, 10) || 0), 0);
         if (totalQty > 0) obj.totalInventory = String(totalQty);
       }
+
+      // Price range across ALL variants (not just tracked ones)
+      const prices = container.variants
+        .map(v => parseFloat(v.price))
+        .filter(p => p > 0);
+      if (prices.length > 0) {
+        obj.priceMin = String(Math.min(...prices));
+        obj.priceMax = String(Math.max(...prices));
+      }
+
+      // Detect item type from product_type, tags, or variant titles
+      const ptype = (container.product_type || '').toLowerCase();
+      const tagStr = (Array.isArray(container.tags) ? container.tags.join(' ') : (container.tags || '')).toLowerCase();
+      const variantTitles = container.variants.map(v => (v.title || '').toLowerCase()).join(' ');
+      const combined = `${ptype} ${tagStr} ${variantTitles}`;
+      const itemType =
+        /\bkit\b|keyboard kit|diy/i.test(combined) ? 'Kit' :
+        /\bassembled\b|pre.?built|fully built|built/i.test(combined) ? 'Pre-built' :
+        /\bbarebones?\b|case only/i.test(combined) ? 'Barebones' :
+        /\bpcb\b/i.test(combined) ? 'PCB' :
+        /\bplate\b/i.test(combined) ? 'Plate' :
+        /\bkeycap/i.test(combined) ? 'Keycaps' :
+        /\bswitch/i.test(combined) ? 'Switches' :
+        /\bdeskmats?\b|desk.?mat/i.test(combined) ? 'Deskmat' :
+        undefined;
+      if (itemType) obj.itemType = itemType;
     }
     // Build absolute product URL from handle if baseUrl provided
     if (baseUrl && obj.handle) obj.url = baseUrl + obj.handle;
