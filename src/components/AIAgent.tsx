@@ -3,7 +3,7 @@
 // Opens via: document.dispatchEvent(new CustomEvent('sd:open-ai'))
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { getToken, getUser, apiGet, apiPatch, apiPut, apiDelete, API_BASE } from '../lib/auth';
+import { getToken, getUser, isDemoAccount, apiGet, apiPatch, apiPut, apiDelete, API_BASE } from '../lib/auth';
 import GitHubConnect from './GitHubConnect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -151,8 +151,7 @@ export default function AIAgent() {
   function togglePerm(key: keyof AIPermissions) {
     setPerms(prev => {
       const next = { ...prev, [key]: !prev[key] };
-      // Persist to API and keep in sync
-      if (getToken()) apiPatch('/api/profile', { aiPerms: next }).catch(() => {});
+      if (getToken() && !isDemoAccount()) apiPatch('/api/profile', { aiPerms: next }).catch(() => {});
       return next;
     });
   }
@@ -208,8 +207,7 @@ export default function AIAgent() {
   useEffect(() => {
     if (messages.length === 0) return;
     mirrorHistoryToLS(messages);
-    if (getToken()) {
-      // Debounce: avoid a write on every keystroke — fire after short idle
+    if (getToken() && !isDemoAccount()) {
       const t = setTimeout(() => {
         apiPut('/api/ai-history', { messages }).catch(() => {});
       }, 1500);
@@ -295,6 +293,7 @@ export default function AIAgent() {
   }
 
   const user = getUser();
+  const isDemo = isDemoAccount();
 
   return (
     <>
@@ -346,7 +345,7 @@ export default function AIAgent() {
               onClick={() => {
                 setMessages([]);
                 mirrorHistoryToLS([]);
-                if (getToken()) apiDelete('/api/ai-history').catch(() => {});
+                if (getToken() && !isDemoAccount()) apiDelete('/api/ai-history').catch(() => {});
               }}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-100 transition-colors"
               title="Clear chat"
@@ -358,6 +357,17 @@ export default function AIAgent() {
             </button>
           </div>
         </div>
+
+        {/* Demo mode notice */}
+        {isDemo && (
+          <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2 shrink-0">
+            <span className="material-symbols-outlined text-[14px] text-amber-500 shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">
+              Demo mode — chat history &amp; settings aren&apos;t saved.{' '}
+              <a href="/register" className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-200">Create an account</a> to persist.
+            </p>
+          </div>
+        )}
 
         {/* Settings panel (inline) */}
         {showSettings && (
@@ -441,7 +451,7 @@ export default function AIAgent() {
             </div>
             {Object.values(perms).some(Boolean) && (
               <button
-                onClick={() => { setPerms(DEFAULT_PERMS); if (getToken()) apiPatch('/api/profile', { aiPerms: DEFAULT_PERMS }).catch(() => {}); }}
+                onClick={() => { setPerms(DEFAULT_PERMS); if (getToken() && !isDemoAccount()) apiPatch('/api/profile', { aiPerms: DEFAULT_PERMS }).catch(() => {}); }}
                 className="w-full py-1.5 rounded-lg text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 Revoke all access
