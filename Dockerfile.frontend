@@ -18,6 +18,9 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Carry the proxy target into the runtime environment so the standalone server
+# always resolves rewrites to the internal Docker service name.
+ENV API_URL=http://api:4000
 
 # Only copy what Next.js needs to serve the standalone output
 COPY --from=builder /app/public ./public

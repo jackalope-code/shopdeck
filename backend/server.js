@@ -36,6 +36,10 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Health check — used by Docker's healthcheck and load balancers
+app.get('/api/health', (req, res) => res.json({ ok: true }));
+
 app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/feed-config', feedConfigRouter);

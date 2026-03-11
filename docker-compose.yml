@@ -1,9 +1,5 @@
 version: '3.9'
 
-networks:
-  shopdeck_backend:
-    external: true
-
 services:
   api:
     build:
@@ -29,6 +25,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/api/health || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   ui:
     build:
@@ -46,10 +48,9 @@ services:
       NODE_ENV: production
       API_URL: http://api:4000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
-    networks:
-      - shopdeck_backend
 
   postgres:
     image: postgres:16-alpine

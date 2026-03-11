@@ -22,7 +22,6 @@ function generateToken(user) {
 const demoCreateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
-  keyGenerator: (req) => req.ip,
   message: { error: 'Too many demo accounts created from this IP. Try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
