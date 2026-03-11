@@ -14,6 +14,7 @@ export interface FeedItem {
   _vendor?: string;
   _sourceCategory?: string;
   anyAvailable?: string;  // 'true' | 'false' — undefined means source has no stock data
+  partialStock?: string;   // 'true' | 'false' — only set when inventory tracking is on
   lowStock?: string;       // 'true' | 'false' — only set when inventory tracking is on
   totalInventory?: string; // sum of tracked variant quantities (electronics sites)
 }

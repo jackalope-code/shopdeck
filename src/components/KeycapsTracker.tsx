@@ -241,7 +241,7 @@ export default function KeycapsTracker() {
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto p-8">
+          <main className="p-8">
             {/* Stats row */}
             <div className="grid grid-cols-4 gap-5 mb-8">
               {[

@@ -105,11 +105,11 @@ export default function MyElectronics() {
   const restockVal = outOfStock.reduce((acc, p) => acc + p.price * 50, 0).toFixed(2);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Electronics" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-8">
+      <div className="flex flex-col">
+        <main className="p-8">
           {/* Page header */}
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>

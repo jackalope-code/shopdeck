@@ -229,15 +229,6 @@ function FeedListWidget({ widgetId, linkHref, linkLabel }: { widgetId: string; l
   );
 }
 
-function classifyKeyboard(name: string, productType?: string): 'Complete' | 'Kit' {
-  const n = name.toLowerCase();
-  const t = (productType ?? '').toLowerCase();
-  if (/assembled|prebuilt|pre-built|ready[- ]to[- ]type|\brtt\b|built keyboard/.test(n) || /assembled/.test(t)) {
-    return 'Complete';
-  }
-  return 'Kit';
-}
-
 function KeyboardReleasesWidget() {
   const { loading, items, sources, error } = useFeedData('keyboard-releases');
   if (loading) return <SkeletonRows />;
@@ -264,18 +255,28 @@ function KeyboardReleasesWidget() {
         const clean = (s?: string) => parseFloat((s ?? '').replace(/[^0-9.]/g, '')) || 0;
         const currentPrice = clean(item.price);
         const price = currentPrice > 0 ? `$${currentPrice.toFixed(0)}` : '—';
-        const sub = classifyKeyboard(item.name, item.productType);
+        const stockStatus =
+          item.anyAvailable === 'false' ? 'out' :
+          item.partialStock === 'true'  ? 'partial' :
+          item.lowStock === 'true'      ? 'low' :
+          item.anyAvailable === 'true'  ? 'in' :
+          undefined;
         return (
           <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
             <div className="min-w-0 mr-2">
               <p className="text-sm font-semibold line-clamp-1">{item.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <p className="text-[10px] text-slate-500">{item._vendor}</p>
-                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                  sub === 'Complete'
-                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400'
-                    : 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400'
-                }`}>{sub}</span>
+                {stockStatus && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                    stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
+                    stockStatus === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' :
+                    stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
+                                               'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+                  }`}>
+                    {stockStatus === 'out' ? 'Out of Stock' : stockStatus === 'partial' ? 'Partial Stock' : stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
+                  </span>
+                )}
               </div>
             </div>
             <span className="text-sm font-bold text-blue-500 shrink-0">{price}</span>
@@ -334,7 +335,6 @@ function KeyboardComparisonWidget() {
   };
 
   const SPEC_ROWS = [
-    { label: 'Subcategory', key: 'sub' },
     { label: 'Layout',      key: 'layout' },
     { label: 'Mounting',    key: 'mount' },
     { label: 'PCB',         key: 'pcb' },
@@ -348,7 +348,6 @@ function KeyboardComparisonWidget() {
     return {
       item,
       values: {
-        sub: classifyKeyboard(item.name, item.productType),
         layout: specs.layout,
         mount: specs.mount,
         pcb: specs.pcb,
@@ -379,15 +378,8 @@ function KeyboardComparisonWidget() {
             <span className="text-[10px] font-medium text-slate-500 flex items-center">{row.label}</span>
             {cards.map(({ item, values }) => {
               const val = values[row.key] ?? '—';
-              const isSub = row.key === 'sub';
               return (
-                <span key={item.name} className={`text-[11px] font-semibold flex items-center ${
-                  isSub
-                    ? val === 'Complete'
-                      ? 'text-violet-500'
-                      : 'text-sky-500'
-                    : 'text-slate-700 dark:text-slate-300'
-                }`}>{val}</span>
+                <span key={item.name} className="text-[11px] font-semibold flex items-center text-slate-700 dark:text-slate-300">{val}</span>
               );
             })}
           </div>
@@ -514,7 +506,7 @@ function WidgetCard({ def, onRemove, ageIdx, editMode }: { def: WidgetDef; onRem
           </button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1">
         <WidgetContent id={def.id} />
       </div>
     </div>
@@ -853,7 +845,7 @@ export default function Dashboard() {
   const dateStr = now?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) ?? '';
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
 
       {/* ── Toolbar ── */}
       <header className="flex h-14 w-full items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-[#f5f7f8] dark:bg-[#101922] px-4 z-30 shrink-0 gap-4">
@@ -1058,7 +1050,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Widget grid ── */}
-      <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
+      <main className="flex-1 p-4 pb-20 md:pb-4">
         {activeWidgets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
             <span className="material-symbols-outlined text-8xl text-slate-300 dark:text-slate-700">dashboard_customize</span>

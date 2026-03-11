@@ -244,7 +244,7 @@ export default function KeyboardComparison() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main>
           {loading ? (
             <ComparisonSkeleton />
           ) : !kbA || !kbB ? (

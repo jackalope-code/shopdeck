@@ -162,12 +162,12 @@ export default function ActiveDealsDashboard() {
     .sort((a, b) => sort === 'discount' ? b.discount - a.discount : a.price - b.price);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Deals" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-col">
         {/* Sticky header */}
-        <header className="sticky top-0 z-20 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <header className="sticky top-14 z-20 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center px-4 py-3 justify-between max-w-2xl mx-auto w-full">
             <Link href="/dashboard" className="flex size-10 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors md:hidden">
               <span className="material-symbols-outlined">arrow_back</span>
@@ -219,7 +219,7 @@ export default function ActiveDealsDashboard() {
         </header>
 
         {/* Deals list */}
-        <main className="flex-1 overflow-y-auto pb-24 md:pb-6 px-4 py-4">
+        <main className="pb-24 md:pb-6 px-4 py-4">
           <div className="max-w-2xl mx-auto w-full space-y-4">
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (

@@ -191,7 +191,7 @@ export default function RamAvailabilityTracker() {
           )}
         </header>
 
-        <main className="flex-1 overflow-y-auto pb-24 md:pb-6">
+        <main className="pb-24 md:pb-6">
           <div className="max-w-2xl mx-auto w-full">
             {/* Stat cards */}
             <div className="flex gap-4 p-4">

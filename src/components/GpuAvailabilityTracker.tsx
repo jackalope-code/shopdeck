@@ -166,12 +166,12 @@ export default function GpuAvailabilityTracker() {
   const alerts  = items.filter(i => i.alertOn).length;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="GPU" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-col">
         {/* Sticky header */}
-        <header className="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md">
+        <header className="sticky top-14 z-20 border-b border-slate-200 dark:border-slate-800 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md">
           <div className="flex items-center gap-4 px-6 py-3">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-green-500 text-2xl">videogame_asset</span>
@@ -229,7 +229,7 @@ export default function GpuAvailabilityTracker() {
         </header>
 
         {/* GPU list */}
-        <main className="flex-1 overflow-y-auto">
+        <main>
           {loading ? (
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
               {Array.from({ length: 5 }).map((_, i) => (
