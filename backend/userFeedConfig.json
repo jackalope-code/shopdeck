@@ -22,10 +22,10 @@
     },
     "active-deals": {
       "sources": [
-        { "id": "cannonkeys-sale",    "name": "CannonKeys",    "enabled": true },
-        { "id": "novelkeys-sale",     "name": "NovelKeys",     "enabled": true },
-        { "id": "kbdfans-sale",       "name": "KBDfans",       "enabled": true },
-        { "id": "1upkeyboards-sale",  "name": "1upKeyboards",  "enabled": true }
+        { "id": "novelkeys-sale",              "name": "NovelKeys",           "enabled": true },
+        { "id": "kbdfans-sale",                "name": "KBDfans",             "enabled": true },
+        { "id": "stupidbulletstech-garage-sale","name": "Stupid Bullets Tech", "enabled": true },
+        { "id": "keeb-io-sale",                "name": "Keebio",             "enabled": true }
       ],
       "custom": []
     },

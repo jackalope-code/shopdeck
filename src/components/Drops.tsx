@@ -97,9 +97,11 @@ function DropCard({ drop }: { drop: Drop }) {
         </div>
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLE[drop.status]}`}>
-              {STATUS_LABEL[drop.status]}
-            </span>
+            {!drop.stockStatus && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLE[drop.status]}`}>
+                {STATUS_LABEL[drop.status]}
+              </span>
+            )}
             {drop.stockStatus && (
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                 drop.stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
@@ -107,7 +109,7 @@ function DropCard({ drop }: { drop: Drop }) {
                 drop.stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
                                                  'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
               }`}>
-                {drop.stockStatus === 'out' ? 'Out of Stock' : drop.stockStatus === 'partial' ? 'Partial Stock' : drop.stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
+                {drop.stockStatus === 'out' ? 'Out of Stock' : drop.stockStatus === 'partial' ? 'Limited Stock' : drop.stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
               </span>
             )}
           </div>

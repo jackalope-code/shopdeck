@@ -210,33 +210,42 @@ async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = '
       if (raw) obj[f.fieldName] = raw;
     }
     // Auto-extract Shopify inventory when variants are present.
-    // products.json omits a top-level `available` boolean. Derive availability:
-    //   - inventory_management null/'' = no tracking (made-to-order, GB, etc.) → always in stock
-    //   - inventory_policy 'continue' = oversell allowed → always in stock
+    // Only emit stock fields when Shopify is *actively tracking* inventory
+    // (inventory_management === 'shopify'). Variants with null management are
+    // group buys, made-to-order, or pre-orders — their availability is unknown
+    // and they would create false "In Stock" signals if treated as available.
+    //
+    //   - inventory_policy 'continue' = oversell allowed (backorder/pre-order) → available
     //   - otherwise: available iff inventory_quantity > 0
-    // Low stock: ALL tracked variants have a small positive qty (1–10).
+    // Low stock:     ALL tracked variants have qty 1–10 (none sold out, just low).
+    // Limited stock: SOME tracked variants available, SOME sold out (mixed).
     if (container.variants && Array.isArray(container.variants) && container.variants.length > 0) {
       const LOW_STOCK_THRESHOLD = 10;
-      const anyAvailable = container.variants.some(v => {
-        if (!v.inventory_management) return true;          // no tracking = always available
-        if (v.inventory_policy === 'continue') return true; // oversell allowed
-        return (parseInt(v.inventory_quantity, 10) || 0) > 0;
-      });
       const tracked = container.variants.filter(v => v.inventory_management === 'shopify');
-      const trackedLow = tracked.filter(v => {
-        const qty = parseInt(v.inventory_quantity, 10) || 0;
-        return v.inventory_policy !== 'continue' && qty > 0 && qty <= LOW_STOCK_THRESHOLD;
-      });
-      const lowStock = tracked.length > 0 && trackedLow.length === tracked.length;
-      const trackedAvailable = tracked.filter(v =>
-        v.inventory_policy === 'continue' || (parseInt(v.inventory_quantity, 10) || 0) > 0
-      );
-      const partialStock = tracked.length > 1 && trackedAvailable.length > 0 && trackedAvailable.length < tracked.length;
-      obj.anyAvailable = anyAvailable ? 'true' : 'false';
-      obj.lowStock = lowStock ? 'true' : 'false';
-      obj.partialStock = partialStock ? 'true' : 'false';
-      const totalQty = tracked.reduce((acc, v) => acc + (parseInt(v.inventory_quantity, 10) || 0), 0);
-      if (totalQty > 0) obj.totalInventory = String(totalQty);
+      // Without tracked variants we cannot reliably determine stock — emit nothing.
+      if (tracked.length > 0) {
+        const trackedAvailable = tracked.filter(v =>
+          v.inventory_policy === 'continue' || (parseInt(v.inventory_quantity, 10) || 0) > 0
+        );
+        const anyAvailable = trackedAvailable.length > 0;
+        const trackedLow = trackedAvailable.filter(v => {
+          const qty = parseInt(v.inventory_quantity, 10) || 0;
+          return v.inventory_policy !== 'continue' && qty > 0 && qty <= LOW_STOCK_THRESHOLD;
+        });
+        // lowStock: every tracked variant is available but at a low qty
+        const lowStock = anyAvailable &&
+          trackedAvailable.length === tracked.length &&
+          trackedLow.length === tracked.length;
+        // partialStock ("Limited Stock"): some variants available, some sold out
+        const partialStock = tracked.length > 1 &&
+          trackedAvailable.length > 0 &&
+          trackedAvailable.length < tracked.length;
+        obj.anyAvailable  = anyAvailable  ? 'true' : 'false';
+        obj.lowStock      = lowStock      ? 'true' : 'false';
+        obj.partialStock  = partialStock  ? 'true' : 'false';
+        const totalQty = tracked.reduce((acc, v) => acc + (parseInt(v.inventory_quantity, 10) || 0), 0);
+        if (totalQty > 0) obj.totalInventory = String(totalQty);
+      }
     }
     // Build absolute product URL from handle if baseUrl provided
     if (baseUrl && obj.handle) obj.url = baseUrl + obj.handle;
@@ -882,6 +891,24 @@ const BUILTIN_SOURCE_RULES = {
 
   // ─── Sale collections (active-deals widget) ────────────────────────────────
   // Shopify sale collections — same stable products.json API, discounted items only
+
+  'keeb-io-sale': {
+    url: 'https://keeb.io/collections/sale/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.variants[0].compare_at_price', fieldName: 'comparePrice' },
+      { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+    ],
+    baseUrl: 'https://keeb.io/products/',
+    label: 'Keebio — Sale',
+    category: 'Keyboards',
+    vendor: 'Keebio',
+  },
 
   'cannonkeys-sale': {
     url: 'https://cannonkeys.com/collections/sale/products.json?limit=50',

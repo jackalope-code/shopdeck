@@ -7,7 +7,8 @@
     "build": "next build",
     "lint": "next lint",
     "start": "next start",
-    "backend": "npm start --prefix backend"
+    "backend": "npm start --prefix backend",
+    "docker:frontend": "docker build -f Dockerfile.frontend -t shopdeck-frontend ."
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

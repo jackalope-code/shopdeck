@@ -1,0 +1,6 @@
+node_modules
+.next
+.git
+backend/node_modules
+shopdeck-app/node_modules
+*.local

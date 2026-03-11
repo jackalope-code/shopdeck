@@ -274,7 +274,7 @@ function KeyboardReleasesWidget() {
                     stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
                                                'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
                   }`}>
-                    {stockStatus === 'out' ? 'Out of Stock' : stockStatus === 'partial' ? 'Partial Stock' : stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
+                    {stockStatus === 'out' ? 'Out of Stock' : stockStatus === 'partial' ? 'Limited Stock' : stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
                   </span>
                 )}
               </div>
