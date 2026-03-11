@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend/.env
+      - path: ./.env.local
+        required: false
     environment:
       PORT: 4000
       PGHOST: postgres
@@ -54,6 +56,8 @@ services:
     image: postgres:16-alpine
     env_file:
       - ./backend/.env
+      - path: ./.env.local
+        required: false
     environment:
       POSTGRES_DB: ${PGDATABASE:-shopdeck}
       POSTGRES_USER: ${PGUSER:-shopdeck}
