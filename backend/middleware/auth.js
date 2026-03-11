@@ -1,7 +1,8 @@
 // backend/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'shopdeck-dev-secret-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required but not set');
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];

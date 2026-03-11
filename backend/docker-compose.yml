@@ -56,7 +56,7 @@ services:
       PGPASSWORD: shopdeck_dev
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-shopdeck-dev-secret-change-in-prod}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET environment variable is required}
       NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       postgres:
