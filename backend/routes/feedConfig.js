@@ -4,18 +4,17 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const { ipKeyGenerator } = require('express-rate-limit');
 const { verifyToken } = require('../middleware/auth');
 const { demoGuard } = require('../middleware/demoGuard');
 const scraper = require('../scraper');
 const db = require('../db');
 const redis = require('../redis');
 
-// Max 5 test-rule requests per user per minute (keyed on user ID, falls back to IP).
+// Max 5 test-rule requests per user per minute (keyed on user ID; route is auth-gated).
 const testLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
-  keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req),
+  keyGenerator: (req) => String(req.user.id),
   message: { error: 'Too many test requests — wait a minute before trying again' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -49,7 +48,7 @@ const inFlightScrapes = new Map(); // sourceId → Promise<{data, entry}>
 const dataLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
-  keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req),
+  keyGenerator: (req) => String(req.user.id),
   message: { error: 'Too many feed requests — slow down' },
   standardHeaders: true,
   legacyHeaders: false,
