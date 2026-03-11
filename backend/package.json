@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "docker:start": "docker compose -f docker-compose.yml up --build",
     "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
     "docker:services:dev": "docker compose -f docker-compose.yml -f docker-compose.services.yml up postgres redis"
   },
