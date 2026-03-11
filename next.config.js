@@ -4,8 +4,8 @@ const nextConfig = {
     if (process.env.VERCEL === '1') {
       return [
         {
-          source: '/api/:path(*)',
-          destination: '/api/proxy/:path(*)',
+          source: '/api/:path*',
+          destination: '/api/proxy/:path*',
         },
       ];
     }
