@@ -52,10 +52,12 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    env_file:
+      - ./backend/.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-shopdeck}
-      POSTGRES_USER: ${POSTGRES_USER:-shopdeck}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shopdeck_dev}
+      POSTGRES_DB: ${PGDATABASE:-shopdeck}
+      POSTGRES_USER: ${PGUSER:-shopdeck}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-shopdeck_dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
