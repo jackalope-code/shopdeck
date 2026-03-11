@@ -137,8 +137,9 @@ export default function KeycapsTracker() {
   const ALL_SETS: KeycapSet[] = feedItems.map((item, idx) => {
     const outOfStock = item.anyAvailable === 'false';
     const lowStock = item.lowStock === 'true';
-    const status: KeycapStatus = outOfStock ? 'sold-out' : (lowStock ? 'limited' : 'in-stock');
-    const statusLabel = outOfStock ? 'Sold Out' : (lowStock ? 'Low Stock' : 'In Stock');
+    const partialStock = item.partialStock === 'true';
+    const status: KeycapStatus = outOfStock ? 'sold-out' : ((lowStock || partialStock) ? 'limited' : 'in-stock');
+    const statusLabel = outOfStock ? 'Sold Out' : ((lowStock || partialStock) ? 'Low Stock' : 'In Stock');
     return {
       id: `live-${idx}`,
       name: item.name,
@@ -193,12 +194,12 @@ export default function KeycapsTracker() {
   ];
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Keycaps" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-col">
         {/* Header */}
-        <header className="h-14 sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#101922]/50 backdrop-blur-md px-8 flex items-center justify-between">
+        <header className="h-14 sticky top-14 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#101922]/50 backdrop-blur-md px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <h2 className="text-lg font-bold tracking-tight shrink-0">Keycaps Intelligence</h2>
             <div className="max-w-md w-full relative">

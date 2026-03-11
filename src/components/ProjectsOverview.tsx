@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { apiGet, apiPost, apiPatch, getToken, getUser as getAuthUser } from '../lib/auth';
+import { apiGet, apiPost, apiPatch, getToken, getUser as getAuthUser, API_BASE } from '../lib/auth';
 import { useActivity } from '../lib/ShopdataContext';
 
 // ─── Shared nav sidebar ───────────────────────────────────────────────────────
@@ -329,7 +329,7 @@ export default function ProjectsOverview() {
     setProjects(prev => prev.filter(p => p.id !== id));
     if (getToken()) {
       const token = getToken();
-      fetch(`http://localhost:4000/api/projects/${id}`, {
+      fetch(`${API_BASE}/api/projects/${id}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       }).catch(() => {});

@@ -1,7 +1,7 @@
 // src/lib/auth.ts
 // Shared auth helpers used by Login, Register, and other components
 
-export const API_BASE = '';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 export interface AuthUser {
   id: string;

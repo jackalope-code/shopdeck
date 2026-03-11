@@ -49,7 +49,18 @@ This starts:
 | `JWT_SECRET` | `shopdeck-dev-secret-change-in-prod` | JWT signing secret |
 | `NODE_ENV` | `production` | Set to `development` in dev mode |
 
-Create a `backend/.env` file to override any of these locally.
+Create a `backend/.env` file to override any of these locally (copy from `backend/.env.example`).
+
+## Scraper item fields
+
+The scraper adds computed stock fields to each Shopify-sourced item:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `anyAvailable` | `'true'` / `'false'` | At least one variant is purchasable |
+| `partialStock` | `'true'` / `'false'` | Some but not all tracked variants are available |
+| `lowStock` | `'true'` / `'false'` | All tracked variants are at or below the low-stock threshold |
+| `totalInventory` | numeric string | Sum of all tracked variant quantities |
 
 ## Files
 

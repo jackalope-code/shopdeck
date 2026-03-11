@@ -31,6 +31,10 @@ function readDefaults() {
 const FEED_DATA_CACHE_TTL_S  = 6 * 60 * 60;  // 6 hours (seconds for Redis EX)
 const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
 
+// Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
+// Old versioned keys are never written again and expire naturally via their TTL.
+const CACHE_VERSION = 'v2';
+
 // Fallback in-process Maps (used if Redis is unavailable)
 const localFeedCache   = new Map();
 const localSourceCache = new Map();
@@ -39,10 +43,12 @@ const localSourceCache = new Map();
 // triggering a separate scrape for the same source when the cache is cold.
 const inFlightScrapes = new Map(); // sourceId → Promise<{data, entry}>
 
-// Max 10 data-fetch requests per user per minute to prevent cache-bypass hammering.
+// Max 60 data-fetch requests per user per minute.
+// With 8 widgets firing on page load (plus navigation and HMR reloads),
+// a limit lower than ~30 causes spurious 429s during normal use.
 const dataLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 60,
   keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req),
   message: { error: 'Too many feed requests — slow down' },
   standardHeaders: true,
@@ -121,7 +127,7 @@ router.post('/test', verifyToken, demoGuard, testLimiter, async (req, res) => {
 // GET /api/feed-config/data/:widgetId  — scrape enabled built-in + custom sources for a widget
 router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   const { widgetId } = req.params;
-  const cacheKey = `feed:widget:${req.user.id}:${widgetId}`;
+  const cacheKey = `feed:${CACHE_VERSION}:widget:${req.user.id}:${widgetId}`;
   const localKey  = `${req.user.id}:${widgetId}`;
 
   // Serve Redis-cached result if still fresh
@@ -157,7 +163,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   for (const src of sources.filter(s => s.enabled)) {
     const rule = scraper.BUILTIN_SOURCE_RULES[src.id];
     if (!rule) continue;
-    const srcKey = `feed:source:${src.id}`;
+    const srcKey = `feed:${CACHE_VERSION}:source:${src.id}`;
 
     // Check source-level cache first
     const cachedSrc = await rGetJson(srcKey) ?? (() => {
@@ -165,7 +171,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
       return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
     })();
     if (cachedSrc) {
-      results[src.id] = { name: src.name, data: cachedSrc.data, error: null };
+      results[src.id] = { name: src.name, category: rule.category ?? null, data: cachedSrc.data, error: null };
       continue;
     }
 

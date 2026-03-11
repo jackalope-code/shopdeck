@@ -212,12 +212,12 @@ export default function KeyboardComparison() {
   const kbB: Keyboard | null = items[1] ? itemToKeyboard(items[1], 'b') : null;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Keyboards" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-col">
         {/* Header */}
-        <header className="h-14 sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#101922]/80 backdrop-blur-md px-8 flex items-center justify-between">
+        <header className="h-14 sticky top-14 z-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#101922]/80 backdrop-blur-md px-8 flex items-center justify-between">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <Link href="/dashboard" className="hover:text-blue-500 transition-colors">Library</Link>

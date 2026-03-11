@@ -228,8 +228,13 @@ async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = '
         return v.inventory_policy !== 'continue' && qty > 0 && qty <= LOW_STOCK_THRESHOLD;
       });
       const lowStock = tracked.length > 0 && trackedLow.length === tracked.length;
+      const trackedAvailable = tracked.filter(v =>
+        v.inventory_policy === 'continue' || (parseInt(v.inventory_quantity, 10) || 0) > 0
+      );
+      const partialStock = tracked.length > 1 && trackedAvailable.length > 0 && trackedAvailable.length < tracked.length;
       obj.anyAvailable = anyAvailable ? 'true' : 'false';
       obj.lowStock = lowStock ? 'true' : 'false';
+      obj.partialStock = partialStock ? 'true' : 'false';
       const totalQty = tracked.reduce((acc, v) => acc + (parseInt(v.inventory_quantity, 10) || 0), 0);
       if (totalQty > 0) obj.totalInventory = String(totalQty);
     }

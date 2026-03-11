@@ -130,6 +130,10 @@ export default function GpuAvailabilityTracker() {
     const vramMatch = item.name.match(/(\d+)\s*gb/i);
     const vram = vramMatch ? parseInt(vramMatch[1]) : 8;
     const id = `${item._vendor}-${idx}`;
+    const gpuStatus: StockStatus =
+      item.anyAvailable === 'false' ? 'OUT OF STOCK' :
+      (item.lowStock === 'true' || item.partialStock === 'true') ? 'LOW STOCK' :
+      'IN STOCK';
     return {
       id,
       name: item.name,
@@ -137,7 +141,7 @@ export default function GpuAvailabilityTracker() {
       series,
       vram,
       memType,
-      status: 'IN STOCK' as const,
+      status: gpuStatus,
       price,
       image: item.image,
       url: item.url,

@@ -13,7 +13,7 @@ A keyboard/electronics deal tracker and project manager built with Next.js, Expr
 
 ## ISSUES
  - Volume isn't loading for redis persistence
- - Scraped information -> display pipeline is not categorizing well.
+
 ---
 
 ## Development Setup (Docker — recommended)

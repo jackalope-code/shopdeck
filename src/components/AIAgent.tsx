@@ -3,7 +3,7 @@
 // Opens via: document.dispatchEvent(new CustomEvent('sd:open-ai'))
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { getToken, getUser, apiGet, apiPatch, apiPut, apiDelete } from '../lib/auth';
+import { getToken, getUser, apiGet, apiPatch, apiPut, apiDelete, API_BASE } from '../lib/auth';
 import GitHubConnect from './GitHubConnect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -255,7 +255,7 @@ export default function AIAgent() {
     try {
       let res: Response;
       try {
-        res = await fetch('http://localhost:4000/api/ai/chat', {
+        res = await fetch(`${API_BASE}/api/ai/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

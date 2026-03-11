@@ -3,7 +3,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Sidebar, TopHeader } from './ProjectsOverview';
-import { apiGet, apiPatch, getToken } from '../lib/auth';
+import { apiGet, apiPatch, getToken, API_BASE } from '../lib/auth';
 import GitHubConnect from './GitHubConnect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -298,7 +298,7 @@ function CustomSourcesTab({ config, onAdd, onDelete }: {
     setTestResult(null);
     setTestError('');
     try {
-      const res = await fetch('http://localhost:4000/api/feed-config/test', {
+      const res = await fetch(`${API_BASE}/api/feed-config/test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
