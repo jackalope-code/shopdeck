@@ -58,11 +58,12 @@ services:
       POSTGRES_DB: ${PGDATABASE:-shopdeck}
       POSTGRES_USER: ${PGUSER:-shopdeck}
       POSTGRES_PASSWORD: ${PGPASSWORD:-shopdeck_dev}
+      PGPORT: 5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U shopdeck']
+      test: ['CMD-SHELL', 'pg_isready -U ${PGUSER:-shopdeck} -p 5432']
       interval: 5s
       timeout: 5s
       retries: 10
