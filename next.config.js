@@ -1,7 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Proxy /api/* requests to the Express backend during development
   async rewrites() {
+    if (process.env.VERCEL === '1') {
+      return [
+        {
+          source: '/api/:path(*)',
+          destination: '/api/proxy/:path(*)',
+        },
+      ];
+    }
     return [
       {
         source: '/api/:path*',
