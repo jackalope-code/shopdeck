@@ -8,16 +8,16 @@ services:
     restart: unless-stopped
     ports:
       - '4000:4000'
+    env_file:
+      - ./backend/.env
     environment:
+      # These override the env_file values to use Docker service names
+      # instead of localhost addresses used in local dev.
       PORT: 4000
       PGHOST: postgres
       PGPORT: 5432
-      PGDATABASE: shopdeck
-      PGUSER: shopdeck
-      PGPASSWORD: shopdeck_dev
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET environment variable is required}
       NODE_ENV: production
     depends_on:
       postgres:
@@ -33,6 +33,9 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     ports:
       - '3000:3000'
+    env_file:
+      - path: ./.env.local
+        required: false
     environment:
       NODE_ENV: production
       API_URL: http://api:4000
