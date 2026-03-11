@@ -56,6 +56,18 @@ async function main() {
   // 3. Test GPU feed
   const gpu = await req('GET', '/api/feed-config/data/gpu-availability', null, headers);
   printSources('GPU AVAILABILITY', gpu);
+
+  // 4. Test keyboard-releases feed
+  const kr = await req('GET', '/api/feed-config/data/keyboard-releases', null, headers);
+  printSources('KEYBOARD RELEASES', kr);
+
+  // 5. Test keyboard-sales feed
+  const ks = await req('GET', '/api/feed-config/data/keyboard-sales', null, headers);
+  printSources('KEYBOARD SALES', ks);
+
+  // 6. Test drops feed
+  const drops = await req('GET', '/api/feed-config/data/drops', null, headers);
+  printSources('DROPS', drops);
 }
 
 main().catch(e => console.error('FATAL:', e));

@@ -657,6 +657,8 @@ const BUILTIN_SOURCE_RULES = {
       { path: '$.images[0].src',       fieldName: 'image' },
       { path: '$.variants[0].price',   fieldName: 'price' },
       { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+      { path: '$.tags',                fieldName: 'tags' },
     ],
     baseUrl: 'https://stupidbulletstech.com/products/',
     label: 'Stupid Bullets Tech — Keyboards & Cases',

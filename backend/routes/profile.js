@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
+const { demoGuard } = require('../middleware/demoGuard');
 const db = require('../db');
 
 // Map camelCase profile keys → snake_case PG columns
@@ -49,7 +50,7 @@ router.get('/', verifyToken, async (req, res) => {
 
 // PATCH /api/profile  (protected)
 // Accepts any subset of profile fields; unknown keys are ignored.
-router.patch('/', verifyToken, async (req, res) => {
+router.patch('/', verifyToken, demoGuard, async (req, res) => {
   const updates = req.body;
   const setClauses = [];
   const values = [];

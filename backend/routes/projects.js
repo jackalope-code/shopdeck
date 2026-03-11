@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/auth');
+const { demoGuard } = require('../middleware/demoGuard');
 
 const USERS_FILE = path.join(__dirname, '../users.json');
 
@@ -37,7 +38,7 @@ router.get('/', verifyToken, (req, res) => {
 });
 
 // POST /api/projects  — create a project
-router.post('/', verifyToken, (req, res) => {
+router.post('/', verifyToken, demoGuard, (req, res) => {
   const users = readUsers();
   const idx = users.findIndex(u => u.id === req.user.id);
   if (idx === -1) return res.status(404).json({ error: 'User not found' });
@@ -68,7 +69,7 @@ router.post('/', verifyToken, (req, res) => {
 });
 
 // PATCH /api/projects/:id  — update a project's fields
-router.patch('/:id', verifyToken, (req, res) => {
+router.patch('/:id', verifyToken, demoGuard, (req, res) => {
   const users = readUsers();
   const idx = users.findIndex(u => u.id === req.user.id);
   if (idx === -1) return res.status(404).json({ error: 'User not found' });
@@ -89,7 +90,7 @@ router.patch('/:id', verifyToken, (req, res) => {
 });
 
 // DELETE /api/projects/:id  — delete a project
-router.delete('/:id', verifyToken, (req, res) => {
+router.delete('/:id', verifyToken, demoGuard, (req, res) => {
   const users = readUsers();
   const idx = users.findIndex(u => u.id === req.user.id);
   if (idx === -1) return res.status(404).json({ error: 'User not found' });

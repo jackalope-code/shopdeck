@@ -1,6 +1,7 @@
 import type { AppProps } from 'next/app';
 import '../src/index.css';
 import AIAgent from '../src/components/AIAgent';
+import DemoWarningBanner from '../src/components/DemoWarningBanner';
 import { ShopdataProvider } from '../src/lib/ShopdataContext';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -11,6 +12,7 @@ const DevPanel = isDev ? require('../src/components/DevPanel').default : null;
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <ShopdataProvider>
+      <DemoWarningBanner />
       <Component {...pageProps} />
       {/* AIAgent is globally mounted so it works from any page (Dashboard, MyElectronics, etc.) */}
       <AIAgent />

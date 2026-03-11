@@ -167,21 +167,43 @@ function RecentActivityWidget() {
 }
 
 function FeedListWidget({ widgetId, linkHref, linkLabel }: { widgetId: string; linkHref: string; linkLabel: string }) {
-  const { loading, items } = useFeedData(widgetId);
+  const { loading, items, sources, error } = useFeedData(widgetId);
   if (loading) return <SkeletonRows />;
   const top = items.slice(0, 3);
-  if (top.length === 0) return (
-    <div className="px-4 py-6 text-center text-slate-400 text-sm">
-      No data available yet.
-      <div className="mt-2"><Link href={linkHref} className="text-xs font-bold text-blue-500 hover:underline">{linkLabel}</Link></div>
-    </div>
-  );
+  if (top.length === 0) {
+    const sourceErrors = Object.values(sources)
+      .filter(s => s.error)
+      .map(s => s.error as string);
+    const uniqueErrors = [...new Set(sourceErrors.map(e =>
+      e.startsWith('Rate limit') ? 'Rate limit — scrape cooldown active' :
+      e.startsWith('Access denied') ? 'Source blocked (403)' :
+      e.startsWith('HTTP 4') ? e.slice(0, 30) :
+      e.slice(0, 60)
+    ))];
+    return (
+      <div className="px-4 py-6 text-center text-slate-400 text-sm">
+        {error
+          ? <p className="text-red-400 text-xs mb-1">{error}</p>
+          : uniqueErrors.length > 0
+            ? <>
+                <p className="mb-1">Sources unavailable:</p>
+                {uniqueErrors.slice(0, 2).map(e => (
+                  <p key={e} className="text-[10px] text-slate-500 mb-0.5">{e}</p>
+                ))}
+              </>
+            : <p>No data available yet.</p>
+        }
+        <div className="mt-2"><Link href={linkHref} className="text-xs font-bold text-blue-500 hover:underline">{linkLabel}</Link></div>
+      </div>
+    );
+  }
   return (
     <div className="divide-y divide-slate-200 dark:divide-slate-800">
       {top.map((item, i) => {
-        const price = item.price ? `$${parseFloat(item.price).toFixed(0)}` : '—';
-        const comparePrice = item.comparePrice ? parseFloat(item.comparePrice) : 0;
-        const currentPrice = item.price ? parseFloat(item.price) : 0;
+        const clean = (s?: string) => parseFloat((s ?? '').replace(/[^0-9.]/g, '')) || 0;
+        const currentPrice = clean(item.price);
+        const price = currentPrice > 0 ? `$${currentPrice.toFixed(0)}` : '—';
+        const comparePrice = clean(item.comparePrice);
         const discount = comparePrice > currentPrice && comparePrice > 0
           ? Math.round((1 - currentPrice / comparePrice) * 100)
           : 0;
@@ -207,8 +229,68 @@ function FeedListWidget({ widgetId, linkHref, linkLabel }: { widgetId: string; l
   );
 }
 
+function classifyKeyboard(name: string, productType?: string): 'Complete' | 'Kit' {
+  const n = name.toLowerCase();
+  const t = (productType ?? '').toLowerCase();
+  if (/assembled|prebuilt|pre-built|ready[- ]to[- ]type|\brtt\b|built keyboard/.test(n) || /assembled/.test(t)) {
+    return 'Complete';
+  }
+  return 'Kit';
+}
+
+function KeyboardReleasesWidget() {
+  const { loading, items, sources, error } = useFeedData('keyboard-releases');
+  if (loading) return <SkeletonRows />;
+  const top = items.slice(0, 5);
+  if (top.length === 0) {
+    const errs = [...new Set(Object.values(sources).filter(s => s.error).map(s =>
+      (s.error as string).startsWith('Rate limit') ? 'Scrape cooldown active' :
+      (s.error as string).startsWith('Access denied') ? 'Source blocked (403)' :
+      (s.error as string).slice(0, 50)
+    ))];
+    return (
+      <div className="px-4 py-6 text-center text-slate-400 text-sm">
+        {error ? <p className="text-red-400 text-xs mb-1">{error}</p>
+          : errs.length > 0
+            ? <><p className="mb-1">Sources unavailable:</p>{errs.slice(0,2).map(e => <p key={e} className="text-[10px] text-slate-500 mb-0.5">{e}</p>)}</>
+            : <p>No keyboard data yet.</p>}
+        <div className="mt-2"><Link href="/drops" className="text-xs font-bold text-blue-500 hover:underline">Browse all drops →</Link></div>
+      </div>
+    );
+  }
+  return (
+    <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      {top.map((item, i) => {
+        const clean = (s?: string) => parseFloat((s ?? '').replace(/[^0-9.]/g, '')) || 0;
+        const currentPrice = clean(item.price);
+        const price = currentPrice > 0 ? `$${currentPrice.toFixed(0)}` : '—';
+        const sub = classifyKeyboard(item.name, item.productType);
+        return (
+          <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="min-w-0 mr-2">
+              <p className="text-sm font-semibold line-clamp-1">{item.name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-[10px] text-slate-500">{item._vendor}</p>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                  sub === 'Complete'
+                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400'
+                    : 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400'
+                }`}>{sub}</span>
+              </div>
+            </div>
+            <span className="text-sm font-bold text-blue-500 shrink-0">{price}</span>
+          </div>
+        );
+      })}
+      <div className="px-4 py-3">
+        <Link href="/drops" className="text-xs font-bold text-blue-500 hover:underline">Browse all drops →</Link>
+      </div>
+    </div>
+  );
+}
+
 function KeyboardComparisonWidget() {
-  const { loading, items } = useFeedData('keyboard-releases');
+  const { loading, items, sources, error } = useFeedData('keyboard-releases');
   if (loading) return (
     <div className="p-4 animate-pulse space-y-3">
       <div className="grid grid-cols-2 gap-3">
@@ -221,34 +303,98 @@ function KeyboardComparisonWidget() {
       </div>
     </div>
   );
-  const [a, b] = items;
-  if (!a) return (
-    <div className="px-4 py-6 text-center text-slate-400 text-sm">
-      No keyboard data yet.
-      <div className="mt-2"><Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link></div>
-    </div>
-  );
-  const tagSummary = (item: typeof a) =>
-    (item.tags ?? '').split(',').map(t => t.trim()).filter(Boolean).slice(0, 4);
+
+  const displayed = items.slice(0, 2);
+
+  if (displayed.length === 0) {
+    const errs = [...new Set(Object.values(sources).filter(s => s.error).map(s =>
+      (s.error as string).startsWith('Rate limit') ? 'Scrape cooldown active' :
+      (s.error as string).startsWith('Access denied') ? 'Source blocked (403)' :
+      (s.error as string).slice(0, 50)
+    ))];
+    return (
+      <div className="px-4 py-6 text-center text-slate-400 text-sm">
+        {error ? <p className="text-red-400 text-xs mb-1">{error}</p>
+          : errs.length > 0
+            ? <><p className="mb-1">Sources unavailable:</p>{errs.slice(0,2).map(e => <p key={e} className="text-[10px] text-slate-500 mb-0.5">{e}</p>)}</>
+            : <p>No keyboard data yet.</p>}
+        <div className="mt-2"><Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link></div>
+      </div>
+    );
+  }
+
+  const getSpecs = (item: ReturnType<typeof useFeedData>['items'][number]) => {
+    const tagList = (item.tags ?? '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    return {
+      layout:   tagList.find(t => /65%|tkl|full.?size|40%|75%|60%|96%/.test(t)) ?? item.productType ?? '—',
+      mount:    tagList.find(t => /gasket|top.?mount|tray|leaf|sandwich/.test(t)) ?? '—',
+      pcb:      tagList.find(t => /hotswap|hot.?swap|solder/.test(t)) ?? '—',
+      wireless: tagList.some(t => /wireless|bluetooth/.test(t)),
+    };
+  };
+
+  const SPEC_ROWS = [
+    { label: 'Subcategory', key: 'sub' },
+    { label: 'Layout',      key: 'layout' },
+    { label: 'Mounting',    key: 'mount' },
+    { label: 'PCB',         key: 'pcb' },
+    { label: 'Wireless',    key: 'wireless' },
+    { label: 'Price',       key: 'price' },
+  ] as const;
+
+  const cards = displayed.map(item => {
+    const specs = getSpecs(item);
+    const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+    return {
+      item,
+      values: {
+        sub: classifyKeyboard(item.name, item.productType),
+        layout: specs.layout,
+        mount: specs.mount,
+        pcb: specs.pcb,
+        wireless: specs.wireless ? 'Yes' : 'No',
+        price: price > 0 ? `$${price.toFixed(0)}` : '—',
+      } as Record<string, string>,
+    };
+  });
+
   return (
     <div className="p-4">
-      <p className="text-sm text-slate-500 mb-4">Comparing {b ? '2' : '1'} keyboard{b ? 's' : ''}</p>
-      <div className="grid grid-cols-2 gap-3">
-        {[a, b].filter(Boolean).map(kb => kb && (
-          <div key={kb.name} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-            <p className="text-sm font-bold mb-1 truncate">{kb.name}</p>
-            <p className="text-[10px] text-slate-500 mb-2">{kb._vendor}</p>
-            <ul className="space-y-1">
-              {tagSummary(kb).map(s => (
-                <li key={s} className="text-[11px] text-slate-500 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px] text-blue-500">check</span>{s}
-                </li>
-              ))}
-            </ul>
+      {/* Headers */}
+      <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: `140px repeat(${cards.length}, 1fr)` }}>
+        <div />
+        {cards.map(({ item }) => (
+          <div key={item.name} className="min-w-0">
+            <p className="text-xs font-bold truncate">{item.name}</p>
+            <p className="text-[10px] text-slate-500 truncate">{item._vendor}</p>
           </div>
         ))}
       </div>
-      <div className="mt-3">
+
+      {/* Spec rows */}
+      <div className="space-y-1">
+        {SPEC_ROWS.map(row => (
+          <div key={row.key} className="grid gap-3 py-1 border-t border-slate-100 dark:border-slate-800"
+            style={{ gridTemplateColumns: `140px repeat(${cards.length}, 1fr)` }}>
+            <span className="text-[10px] font-medium text-slate-500 flex items-center">{row.label}</span>
+            {cards.map(({ item, values }) => {
+              const val = values[row.key] ?? '—';
+              const isSub = row.key === 'sub';
+              return (
+                <span key={item.name} className={`text-[11px] font-semibold flex items-center ${
+                  isSub
+                    ? val === 'Complete'
+                      ? 'text-violet-500'
+                      : 'text-sky-500'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}>{val}</span>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
         <Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link>
       </div>
     </div>
@@ -305,7 +451,7 @@ function WidgetContent({ id }: { id: string }) {
   switch (id) {
     case 'active-projects':    return <ActiveProjectsWidget />;
     case 'recent-activity':    return <RecentActivityWidget />;
-    case 'keyboard-releases':  return <FeedListWidget widgetId="keyboard-releases" linkHref="/keyboard-comparison" linkLabel="View keyboard comparison →" />;
+    case 'keyboard-releases':  return <KeyboardReleasesWidget />;
     case 'keycaps-tracker':    return <FeedListWidget widgetId="keycap-releases" linkHref="/keycaps-tracker" linkLabel="Open keycaps tracker →" />;
     case 'keyboard-sales':     return <FeedListWidget widgetId="keyboard-sales" linkHref="/active-deals" linkLabel="View all keyboard deals →" />;
     case 'keyboard-comparison': return <KeyboardComparisonWidget />;

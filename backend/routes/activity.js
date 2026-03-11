@@ -3,6 +3,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { verifyToken } = require('../middleware/auth');
+const { demoGuard } = require('../middleware/demoGuard');
 
 const router = express.Router();
 const USERS_FILE = path.join(__dirname, '../users.json');
@@ -25,7 +26,7 @@ router.get('/', verifyToken, (req, res) => {
 });
 
 // POST /api/activity — log a new activity entry
-router.post('/', verifyToken, (req, res) => {
+router.post('/', verifyToken, demoGuard, (req, res) => {
   const { type, title } = req.body;
   if (!title || typeof title !== 'string') {
     return res.status(400).json({ error: 'title is required' });

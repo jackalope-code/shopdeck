@@ -36,6 +36,8 @@
   ],
   "exclude": [
     "node_modules",
+    "shopdeck-app",
+    "backend",
     "vite.config.ts",
     "tsconfig.app.json",
     "tsconfig.node.json"

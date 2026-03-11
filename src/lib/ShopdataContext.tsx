@@ -12,6 +12,7 @@ export interface FeedItem {
   productType?: string;
   tags?: string;
   _vendor?: string;
+  _sourceCategory?: string;
   anyAvailable?: string;  // 'true' | 'false' — undefined means source has no stock data
   lowStock?: string;       // 'true' | 'false' — only set when inventory tracking is on
   totalInventory?: string; // sum of tracked variant quantities (electronics sites)
@@ -19,6 +20,7 @@ export interface FeedItem {
 
 export interface SourceResult {
   name: string;
+  category?: string | null;
   data: FeedItem[];
   error: string | null;
 }
@@ -233,7 +235,7 @@ export function useFeedData(widgetId: string) {
   const ctx = useContext(ShopdataContext);
   const widget = ctx.getWidget(widgetId);
   const items: FeedItem[] = Object.entries(widget.sources).flatMap(([, src]) =>
-    (src.data ?? []).map(item => ({ ...item, _vendor: src.name }))
+    (src.data ?? []).map(item => ({ ...item, _vendor: src.name, _sourceCategory: src.category ?? undefined }))
   );
   return {
     loading: widget.loading,

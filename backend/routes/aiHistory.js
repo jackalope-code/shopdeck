@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
+const { demoGuard } = require('../middleware/demoGuard');
 const db = require('../db');
 
 const MAX_MESSAGES  = 50;
@@ -25,7 +26,7 @@ router.get('/', verifyToken, async (req, res) => {
 
 // PUT /api/ai-history  (protected)
 // Body: { messages: [...] }  — full replace; enforces window limits server-side
-router.put('/', verifyToken, async (req, res) => {
+router.put('/', verifyToken, demoGuard, async (req, res) => {
   let { messages } = req.body;
   if (!Array.isArray(messages))
     return res.status(400).json({ error: 'messages must be an array' });
@@ -53,7 +54,7 @@ router.put('/', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/ai-history  (protected) — clear chat history
-router.delete('/', verifyToken, async (req, res) => {
+router.delete('/', verifyToken, demoGuard, async (req, res) => {
   try {
     await db.query(
       `UPDATE ai_history SET messages='[]', char_count=0, updated_at=NOW() WHERE user_id=$1`,

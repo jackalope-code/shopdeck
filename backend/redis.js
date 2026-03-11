@@ -12,4 +12,12 @@ redis.on('error', (err) => {
   console.warn('Redis connection error (cache degraded to in-memory):', err.message);
 });
 
+redis.on('connect', () => {
+  console.log('[cache] Redis connected — feed cache is active');
+});
+
+redis.on('reconnecting', () => {
+  console.log('[cache] Redis reconnecting…');
+});
+
 module.exports = redis;

@@ -14,6 +14,7 @@ interface Drop {
   vendor: string;
   category: DropCategory;
   status: DropStatus;
+  stockStatus?: 'in' | 'partial' | 'low' | 'out';
   price: string;
   daysLeft?: number;
   discount?: number;
@@ -21,6 +22,7 @@ interface Drop {
   image?: string;
   imageIcon: string;
   gradient: string;
+  url?: string;
 }
 
 const STATUS_LABEL: Record<DropStatus, string> = {
@@ -57,8 +59,15 @@ const STATUSES: DropStatus[] = ['group-buy', 'in-stock', 'ic', 'sale', 'sold-out
 // ─── Drop card ────────────────────────────────────────────────────────────────
 function DropCard({ drop }: { drop: Drop }) {
   const [imgErr, setImgErr] = useState(false);
+  const Wrapper = drop.url
+    ? ({ children }: { children: React.ReactNode }) => (
+        <a href={drop.url} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group cursor-pointer">{children}</a>
+      )
+    : ({ children }: { children: React.ReactNode }) => (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group">{children}</div>
+      );
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group">
+    <Wrapper>
       {/* Banner */}
       <div className={`h-28 bg-linear-to-br ${drop.gradient} flex items-center justify-center relative overflow-hidden`}>
         {drop.image && !imgErr
@@ -86,16 +95,28 @@ function DropCard({ drop }: { drop: Drop }) {
           </div>
           <p className="text-sm font-bold text-blue-500 shrink-0">{drop.price}</p>
         </div>
-        <div className="flex items-center justify-between">
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLE[drop.status]}`}>
-            {STATUS_LABEL[drop.status]}
-          </span>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLE[drop.status]}`}>
+              {STATUS_LABEL[drop.status]}
+            </span>
+            {drop.stockStatus && (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                drop.stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
+                drop.stockStatus === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' :
+                drop.stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
+                                                 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+              }`}>
+                {drop.stockStatus === 'out' ? 'Out of Stock' : drop.stockStatus === 'partial' ? 'Partial Stock' : drop.stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
+              </span>
+            )}
+          </div>
           {drop.daysLeft !== undefined && (
             <span className="text-[11px] text-slate-400">{drop.daysLeft}d left</span>
           )}
         </div>
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -121,19 +142,32 @@ export default function Drops() {
   };
 
   const liveItems: Drop[] = feedItems.map(item => {
-    const sourceId = item._vendor?.toLowerCase().replace(/\s+/g, '-') ?? '';
+    const srcCat = item._sourceCategory ?? '';
     const category: DropCategory =
-      sourceId.includes('keycap') ? 'Keycaps' :
-      sourceId.includes('switch') ? 'Switches' :
+      srcCat === 'Keycaps'     ? 'Keycaps' :
+      srcCat === 'Switches'    ? 'Switches' :
+      srcCat === 'Accessories' ? 'Accessories' :
+      srcCat === 'Keyboards'   ? 'Keyboards' :
+      // fallback: vendor-name heuristic
+      (item._vendor ?? '').toLowerCase().includes('keycap') ? 'Keycaps' :
+      (item._vendor ?? '').toLowerCase().includes('switch') ? 'Switches' :
       'Keyboards';
+    const stockStatus =
+      item.anyAvailable === 'false' ? 'out' :
+      item.partialStock === 'true'  ? 'partial' :
+      item.lowStock === 'true'      ? 'low' :
+      item.anyAvailable === 'true'  ? 'in' :
+      undefined;
     return {
-      id: `live-${sourceId}-${item.handle ?? item.name}`,
+      id: `live-${(item._vendor ?? '').toLowerCase().replace(/\s+/g, '-')}-${item.handle ?? item.name}`,
       name: item.name,
       vendor: item._vendor ?? '',
       category,
+      stockStatus,
       status: 'in-stock',
       price: item.price ? `$${parseFloat(item.price).toFixed(0)}` : 'TBD',
       image: item.image,
+      url: item.url,
       imageIcon: CATEGORY_ICONS[category],
       gradient: CATEGORY_GRADIENTS[category],
     };
@@ -156,12 +190,12 @@ export default function Drops() {
   ];
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Drops" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-col">
         {/* Page header */}
-        <header className="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md px-8 py-3 flex items-center justify-between gap-4">
+        <header className="sticky top-14 z-20 border-b border-slate-200 dark:border-slate-800 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md px-8 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-blue-500 text-2xl">new_releases</span>
             <h2 className="text-lg font-bold tracking-tight">New Releases &amp; Drops</h2>
@@ -177,7 +211,7 @@ export default function Drops() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="p-8">
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {stats.map(s => (
@@ -192,42 +226,47 @@ export default function Drops() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-3 mb-6">
-            {/* Category filters */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {(['All', ...CATEGORIES] as const).map(c => (
-                <button
-                  key={c}
-                  onClick={() => setActiveCategory(c)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    activeCategory === c
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-500/50'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
+          <div className="flex flex-col gap-2 mb-6">
+            {/* Row 1: Category + Status */}
+            <div className="flex flex-wrap gap-3">
+              {/* Category filters */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(['All', ...CATEGORIES] as const).map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setActiveCategory(c)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      activeCategory === c
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-500/50'
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+
+              {/* Status filters */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(['All', ...STATUSES] as const).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setActiveStatus(s)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize ${
+                      activeStatus === s
+                        ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400'
+                    }`}
+                  >
+                    {s === 'All' ? 'All Statuses' : STATUS_LABEL[s]}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
 
-            {/* Status filters */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {(['All', ...STATUSES] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => setActiveStatus(s)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize ${
-                    activeStatus === s
-                      ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900'
-                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400'
-                  }`}
-                >
-                  {s === 'All' ? 'All Statuses' : STATUS_LABEL[s]}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Grid */}

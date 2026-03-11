@@ -4,18 +4,29 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const axios = require('axios');
+const rateLimit = require('express-rate-limit');
 const { verifyToken, JWT_SECRET } = require('../middleware/auth');
 const { validatePassword } = require('../lib/passwordValidation');
 const db = require('../db');
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, username: user.username },
+    { id: user.id, email: user.email, username: user.username, is_demo: user.is_demo ?? false },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
 }
+
+const demoCreateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => req.ip,
+  message: { error: 'Too many demo accounts created from this IP. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const DEFAULT_ACTIVE_WIDGETS = [
   'active-projects', 'recent-activity', 'inventory-stats', 'vendor-performance',
@@ -50,20 +61,21 @@ const DEFAULT_FEED_CONFIG = {
   },
   'keyboard-releases': {
     sources: [
-      { id: 'geekhack',          name: 'Geekhack',            enabled: true },
-      { id: 'kbdfans',           name: 'KBDfans',             enabled: true },
-      { id: 'novelkeys',         name: 'Novelkeys',           enabled: true },
-      { id: 'stupidbulletstech', name: 'Stupid Bullets Tech', enabled: true },
-      { id: 'customkeysco',      name: 'Custom Keys Co.',     enabled: true },
+      { id: 'novelkeys-keyboards',         name: 'NovelKeys',           enabled: true },
+      { id: 'kbdfans-keyboards',           name: 'KBDfans',             enabled: true },
+      { id: 'keeb-io-keyboards',           name: 'Keeb.io',             enabled: true },
+      { id: 'stupidbulletstech-keyboards', name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco-keyboards',      name: 'Custom Keys Co.',     enabled: true },
     ], custom: [],
   },
   'keyboard-sales': {
     sources: [
-      { id: 'geekhack',          name: 'Geekhack',            enabled: true },
-      { id: 'kbdfans',           name: 'KBDfans',             enabled: true },
-      { id: 'novelkeys',         name: 'Novelkeys',           enabled: true },
-      { id: 'stupidbulletstech', name: 'Stupid Bullets Tech', enabled: true },
-      { id: 'customkeysco',      name: 'Custom Keys Co.',     enabled: true },
+      { id: 'novelkeys-keyboards',          name: 'NovelKeys',           enabled: true },
+      { id: 'kbdfans-keyboards',            name: 'KBDfans',             enabled: true },
+      { id: 'keeb-io-keyboards',            name: 'Keeb.io',             enabled: true },
+      { id: 'stupidbulletstech-keyboards',  name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'stupidbulletstech-garage-sale',name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco-keyboards',       name: 'Custom Keys Co.',     enabled: true },
     ], custom: [],
   },
   'electronics-watchlist': {
@@ -74,10 +86,10 @@ const DEFAULT_FEED_CONFIG = {
   },
 };
 
-async function createUserWithProfile(client, { id, username, email, passwordHash, isDeveloper = false }) {
+async function createUserWithProfile(client, { id, username, email, passwordHash, isDemo = false }) {
   await client.query(
-    `INSERT INTO users (id, username, email, password_hash, is_developer) VALUES ($1,$2,$3,$4,$5)`,
-    [id, username, email, passwordHash, isDeveloper]
+    `INSERT INTO users (id, username, email, password_hash, is_demo) VALUES ($1,$2,$3,$4,$5)`,
+    [id, username, email, passwordHash, isDemo]
   );
   await client.query(
     `INSERT INTO user_profiles (user_id, active_widgets, grid_cols, feed_config, ai_config)
@@ -147,8 +159,8 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const token = generateToken({ id: user.id, email: user.email, username: user.username });
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+    const token = generateToken({ id: user.id, email: user.email, username: user.username, is_demo: user.is_demo });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, is_demo: user.is_demo } });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -171,17 +183,41 @@ router.post('/developer', async (req, res) => {
       const client = await db.connect();
       try {
         await client.query('BEGIN');
-        await createUserWithProfile(client, { id, username: 'developer', email: DEV_EMAIL, passwordHash, isDeveloper: true });
+        await createUserWithProfile(client, { id, username: 'developer', email: DEV_EMAIL, passwordHash });
         await client.query('COMMIT');
       } catch (e) { await client.query('ROLLBACK'); throw e; }
       finally { client.release(); }
       dev = { id, username: 'developer', email: DEV_EMAIL };
     }
 
-    const token = generateToken({ id: dev.id, email: dev.email, username: dev.username });
-    res.json({ token, user: { id: dev.id, username: dev.username, email: dev.email } });
+    const token = generateToken({ id: dev.id, email: dev.email, username: dev.username, is_demo: false });
+    res.json({ token, user: { id: dev.id, username: dev.username, email: dev.email, is_demo: false } });
   } catch (err) {
     console.error('Developer login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/demo  — creates a unique demo account, no credentials required
+router.post('/demo', demoCreateLimiter, async (req, res) => {
+  try {
+    const suffix = crypto.randomBytes(4).toString('hex');
+    const username = `demo_${suffix}`;
+    const email = `${username}@demo.shopdeck.internal`;
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
+    const id = uuidv4();
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      await createUserWithProfile(client, { id, username, email, passwordHash, isDemo: true });
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK'); throw e; }
+    finally { client.release(); }
+
+    const token = generateToken({ id, email, username, is_demo: true });
+    res.status(201).json({ token, user: { id, username, email, is_demo: true } });
+  } catch (err) {
+    console.error('Demo account creation error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

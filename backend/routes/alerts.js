@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
+const { demoGuard } = require('../middleware/demoGuard');
 const db = require('../db');
 
 // ─── Tracked alerts ───────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ router.get('/tracked', verifyToken, async (req, res) => {
 });
 
 // PUT /api/alerts/tracked  — full replace
-router.put('/tracked', verifyToken, async (req, res) => {
+router.put('/tracked', verifyToken, demoGuard, async (req, res) => {
   const { alerts } = req.body;
   if (!Array.isArray(alerts))
     return res.status(400).json({ error: 'alerts must be an array' });
@@ -48,7 +49,7 @@ router.get('/history', verifyToken, async (req, res) => {
 });
 
 // PUT /api/alerts/history  — full replace (client sends updated read-states etc.)
-router.put('/history', verifyToken, async (req, res) => {
+router.put('/history', verifyToken, demoGuard, async (req, res) => {
   const { entries } = req.body;
   if (!Array.isArray(entries))
     return res.status(400).json({ error: 'entries must be an array' });

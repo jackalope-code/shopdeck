@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ALL_WIDGETS } from './Dashboard';
-import { getToken, apiPatch } from '../lib/auth';
+import { getToken, apiPatch, isDemoAccount } from '../lib/auth';
 
 // ─── Category definitions ────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -388,7 +388,8 @@ export default function Onboarding() {
     localStorage.setItem(STORAGE_KEY_NOTIFS, notifEnabled ? 'true' : 'false');
     localStorage.setItem(STORAGE_KEY_ONBOARDED, 'true');
     // Sync to server so the API profile doesn't override localStorage on Dashboard load
-    if (getToken()) {
+    // Demo accounts have no backend profile — skip the write.
+    if (getToken() && !isDemoAccount()) {
       apiPatch('/api/profile', { activeWidgets: enabledWidgets }).catch(() => {});
     }
     // Dev-only: loop back to / so the always-onboarding demo flag can retrigger

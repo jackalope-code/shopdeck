@@ -11,7 +11,7 @@ function verifyToken(req, res, next) {
   const token = authHeader.slice(7);
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // { id, email, username }
+    req.user = decoded; // { id, email, username, is_demo }
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });

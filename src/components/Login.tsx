@@ -2,7 +2,7 @@
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { apiPost, setToken, setUser, AuthUser } from '../lib/auth';
+import { apiPost, setToken, setUser, AuthUser, getToken, getUser, createDemoSession } from '../lib/auth';
 
 export default function Login() {
   const router = useRouter();
@@ -43,6 +43,26 @@ export default function Login() {
   }
 
   const isDev = process.env.NODE_ENV !== 'production';
+
+  async function handleDemo() {
+    setError('');
+    setLoading(true);
+    try {
+      // Restore existing demo session if one exists on this device
+      const existingToken = getToken();
+      const existingUser = getUser();
+      if (existingToken && existingUser?.is_demo) {
+        router.replace('/dashboard');
+        return;
+      }
+      await createDemoSession();
+      router.replace('/onboarding');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to start demo');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f7f8] dark:bg-[#101922] flex items-center justify-center p-4 font-[Space_Grotesk,system-ui,sans-serif]">
@@ -109,6 +129,21 @@ export default function Login() {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+            <span className="text-xs text-slate-400">or</span>
+            <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+          </div>
+          <button
+            type="button"
+            onClick={handleDemo}
+            disabled={loading}
+            className="w-full py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-base">explore</span>
+            Try Demo
+          </button>
 
           {isDev && (
             <>
