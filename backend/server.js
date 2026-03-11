@@ -18,10 +18,19 @@ const scraper = require('./scraper');
 const db = require('./db');
 const redis = require('./redis');
 
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow any localhost origin (any port) or no-origin requests (e.g. curl)
-    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+    // No origin = server-to-server (proxy, curl) — always allow
+    if (!origin) return cb(null, true);
+    // Always allow any localhost port for local dev
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+    // Allow any origins explicitly listed in CORS_ORIGIN env var
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
