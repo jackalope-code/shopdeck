@@ -1,6 +1,25 @@
 node_modules
 .next
 .git
-backend/node_modules
-shopdeck-app/node_modules
+
+# These directories are not part of the Next.js build
+backend/
+shopdeck-app/
+stitch/
+
+# Docker / CI files don't belong in the image
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Local secrets and dev config
+.env*
 *.local
+
+# Project scaffolding / docs
+README.md
+*.md
+vite.config.ts
+tsconfig.app.json
+tsconfig.node.json
+index.html

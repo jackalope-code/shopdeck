@@ -7,11 +7,10 @@ RUN npm ci
 
 COPY . .
 
-# NEXT_PUBLIC_API_URL must be baked in at build time (Next.js embeds NEXT_PUBLIC_*
-# into the browser bundle). Pass it as a build arg; falls back to empty string
-# so that the /api/* rewrite proxy is used when no external URL is provided.
-ARG NEXT_PUBLIC_API_URL=""
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# API_URL is the backend address used by the Next.js rewrite proxy.
+# Defaults to the Docker Compose internal service name.
+ARG API_URL="http://api:4000"
+ENV API_URL=$API_URL
 
 RUN npm run build
 

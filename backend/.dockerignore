@@ -1,12 +1,30 @@
 node_modules
 npm-debug.log
+
+# Docker / CI files
 docker-compose.dev.yml
 docker-compose.services.yml
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Local secrets
 .env
 .env.*
 !.env.example
+
+# Tests
 *.test.js
 test-*.js
+
+# Dev/demo utilities — not needed in the production image
+reset-demo.js
+seed-demo.sql
+nul
+
+# Legacy flat-file data (app uses Postgres in production)
+userFeedConfig.json
+
+# Git / editor
 .gitignore
-docker-compose.yml
-Dockerfile
+README.md
