@@ -1,6 +1,30 @@
 version: '3.9'
 
 services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      PORT: 4000
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: shopdeck
+      PGUSER: shopdeck
+      PGPASSWORD: shopdeck_dev
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET environment variable is required}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   frontend:
     build:
       context: .
@@ -11,6 +35,9 @@ services:
       - '3000:3000'
     environment:
       NODE_ENV: production
+      API_URL: http://api:4000
+    depends_on:
+      - api
     restart: unless-stopped
 
   postgres:

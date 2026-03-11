@@ -1,3 +1,4 @@
+node_modules
 npm-debug.log
 docker-compose.dev.yml
 docker-compose.services.yml

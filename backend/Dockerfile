@@ -2,7 +2,9 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# Dependencies are pre-installed locally; copy everything in one step
+COPY package*.json ./
+RUN npm ci --omit=dev
+
 COPY . .
 
 EXPOSE 4000
