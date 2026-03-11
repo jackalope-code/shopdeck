@@ -24,6 +24,7 @@ export function getToken(): string | null {
 
 export function setToken(token: string): void {
   localStorage.setItem('sd-auth-token', token);
+  window.dispatchEvent(new Event('sd:login'));
 }
 
 export function clearToken(): void {
