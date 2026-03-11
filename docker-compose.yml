@@ -57,8 +57,9 @@ services:
     environment:
       POSTGRES_DB: ${PGDATABASE:-shopdeck}
       POSTGRES_USER: ${PGUSER:-shopdeck}
-      POSTGRES_PASSWORD: ${PGPASSWORD:-shopdeck_dev}
       PGPORT: 5432
+      # POSTGRES_PASSWORD comes from env_file (backend/.env) — do NOT add it here
+      # or Docker Compose will override env_file with a host-shell interpolation.
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql

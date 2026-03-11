@@ -6,7 +6,7 @@ const pool = new Pool({
   port:     Number(process.env.PGPORT ?? 5432),
   database: process.env.PGDATABASE ?? 'shopdeck',
   user:     process.env.PGUSER     ?? 'shopdeck',
-  password: process.env.PGPASSWORD ?? 'shopdeck_dev',
+  password: process.env.POSTGRES_PASSWORD ?? process.env.PGPASSWORD ?? 'shopdeck_dev',
 });
 
 pool.on('error', (err) => {
