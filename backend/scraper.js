@@ -624,6 +624,35 @@ const BUILTIN_SOURCE_RULES = {
       { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
     ],
     label: 'Microcenter — Dev Boards & Kits',
+    vendor: 'Microcenter',
+    category: 'Electronics',
+  },
+
+  // ─── Electronics / maker vendors ──────────────────────────────────────────────
+
+  'adafruit-new': {
+    url: 'https://www.adafruit.com/new/rss.xml',
+    ruleType: 'rss',
+    label: 'Adafruit — New Products',
+    vendor: 'Adafruit',
+    category: 'Electronics',
+  },
+  'adafruit-microcontrollers': {
+    url: 'https://www.adafruit.com/collections/microcontrollers/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+      { path: '$.tags',                fieldName: 'tags' },
+    ],
+    baseUrl: 'https://www.adafruit.com/product/',
+    label: 'Adafruit — Microcontrollers',
+    vendor: 'Adafruit',
+    category: 'Electronics',
   },
 
   // ─── RAM vendors ──────────────────────────────────────────────────────────────

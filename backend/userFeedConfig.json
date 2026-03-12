@@ -79,8 +79,9 @@
     },
     "electronics-watchlist": {
       "sources": [
-        { "id": "digikey-electronics", "name": "DigiKey", "enabled": true },
-        { "id": "mouser-electronics", "name": "Mouser", "enabled": true },
+        { "id": "adafruit-new", "name": "Adafruit New Products", "enabled": true },
+        { "id": "adafruit-microcontrollers", "name": "Adafruit Microcontrollers", "enabled": true },
+        { "id": "mouser-electronics", "name": "Mouser Electronics", "ruleType": "mouser-api", "keywords": "microcontroller Arduino ESP32 LED sensor development board", "enabled": true },
         { "id": "microcenter-electronics", "name": "Microcenter", "enabled": true }
       ],
       "custom": []
