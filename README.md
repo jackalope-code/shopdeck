@@ -11,83 +11,65 @@ A keyboard/electronics deal tracker and project manager built with Next.js, Expr
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7
 
-## ISSUES
- - Volume isn't loading for redis persistence
-
 ---
 
-## Development Setup (Docker — recommended)
+## Production / Full-stack Docker (recommended)
 
-The easiest way to run everything (backend + Postgres + Redis + demo account):
+Runs the full stack — frontend (port 80), backend API, PostgreSQL, and Redis — all in containers.
 
 ```bash
 git clone https://github.com/jackalope-code/shopdeck.git
 cd shopdeck
 
-# Install frontend deps
-npm install
+# Create backend/.env (copy from backend/.env.example and fill in secrets)
+cp backend/.env.example backend/.env
 
-# Start backend services (first run — creates DB + demo account)
-cd backend
-docker compose down -v   # wipe any old volume so seed runs
-npm run docker:dev
+# Optional: create .env.local to override for local dev (e.g. POSTGRES_PASSWORD)
+# cp .env.example .env.local
 
-# In a separate terminal, start the Next.js frontend
-cd ..
-npm run dev
+# First run — builds images, initialises DB
+npm run docker
 ```
 
-Open **http://localhost:3000**.
+Open **http://localhost**.
+
+> Use `docker compose down -v` to wipe volumes and reinitialise the database from `schema.sql`.
 
 ### Demo account
 
-| Field | Value |
-|---|---|
-| Username | `demo` |
-| Password | `demo1234` |
-| Email | `demo@shopdeck.local` |
-
-> **Note:** The demo account is seeded by `backend/seed-demo.sql` on first Postgres init.
-> If you already have a running Docker volume, run `docker compose down -v` first so the seed is applied.
-
-### Subsequent starts
-
-```bash
-# Backend (from backend/)
-npm run docker:dev
-
-# Frontend (from project root)
-npm run dev
-```
+Use the **Try Demo** button on the login page — no credentials needed. The backend creates a temporary demo session automatically.
 
 ---
 
-## Development Setup (local Node — no Docker)
+## Development Setup (split — frontend hot-reload)
 
-Requires a local PostgreSQL and Redis instance.
+Run the backend services in Docker and the Next.js frontend locally for fast iteration.
 
 ```bash
 git clone https://github.com/jackalope-code/shopdeck.git
 cd shopdeck
 npm install
 
+# Start Postgres + Redis only (no API container)
 cd backend
-npm install
-node server.js   # starts on port 4000
+npm run docker:services:dev
 
-# In a separate terminal
+# In a separate terminal — start the Express API directly
+npm run dev     # from backend/
+
+# In another terminal — start Next.js with hot reload
 cd ..
-npm run dev      # starts Next.js on port 3000
+npm run dev
 ```
 
-Create a `backend/.env` with:
+Create `backend/.env` (copy from `backend/.env.example`) and set at minimum:
 
 ```env
 PGHOST=localhost
 PGPORT=5432
 PGDATABASE=shopdeck
 PGUSER=shopdeck
-PGPASSWORD=shopdeck_dev
+POSTGRES_PASSWORD=shopdeck_dev
 REDIS_HOST=localhost
 REDIS_PORT=6379
 JWT_SECRET=shopdeck-dev-secret-change-in-prod
@@ -101,5 +83,5 @@ JWT_SECRET=shopdeck-dev-secret-change-in-prod
 npm run build
 ```
 
-> **Note:** `backend/users.json` and `.env` files contain sensitive data — never commit them.
+> **Note:** `backend/.env` and `.env.local` contain secrets — never commit them.
 
