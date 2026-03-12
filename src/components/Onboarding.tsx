@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ALL_WIDGETS } from './Dashboard';
-import { getToken, apiPatch, isDemoAccount } from '../lib/auth';
+import { getToken, apiPatch, isDemoAccount, clearToken } from '../lib/auth';
 
 // ─── Category definitions ────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -332,6 +332,7 @@ function StepNotifications({
 export default function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [isDemo, setIsDemo] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [enabledWidgets, setEnabledWidgets] = useState<string[]>([
     'active-projects', 'recent-activity', 'inventory-stats',
@@ -345,6 +346,7 @@ export default function Onboarding() {
 
   // Redirect if already onboarded
   useEffect(() => {
+    setIsDemo(isDemoAccount());
     if (localStorage.getItem(STORAGE_KEY_ONBOARDED) === 'true') {
       router.replace('/dashboard');
     }
@@ -383,6 +385,12 @@ export default function Onboarding() {
     }
   };
 
+  const handleCancelDemo = () => {
+    clearToken();
+    localStorage.removeItem(STORAGE_KEY_ONBOARDED);
+    router.replace('/login');
+  };
+
   const handleFinish = () => {
     localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(enabledWidgets));
     localStorage.setItem(STORAGE_KEY_NOTIFS, notifEnabled ? 'true' : 'false');
@@ -414,6 +422,15 @@ export default function Onboarding() {
           <div className="w-32">
             <ProgressBar step={step} />
           </div>
+          {isDemo && (
+            <button
+              onClick={handleCancelDemo}
+              title="Exit demo"
+              className="ml-1 flex items-center justify-center size-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          )}
         </div>
       </div>
 

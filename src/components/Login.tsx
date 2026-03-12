@@ -56,6 +56,7 @@ export default function Login() {
         return;
       }
       await createDemoSession();
+      localStorage.removeItem('sd-onboarded');
       router.replace('/onboarding');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to start demo');
