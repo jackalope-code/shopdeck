@@ -59,6 +59,32 @@ CREATE TABLE IF NOT EXISTS user_watchlists (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── Manual list items (user-curated sources) ──────────────────────────────
+CREATE TABLE IF NOT EXISTS manual_list_items (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  list_id    TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  url        TEXT,
+  price      TEXT,
+  image      TEXT,
+  notes      TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS manual_list_items_user_list_idx ON manual_list_items(user_id, list_id);
+
+-- ─── Webhooks (inbound ring-buffer sources) ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS webhooks (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label      TEXT NOT NULL,
+  secret     TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS webhooks_user_id_idx ON webhooks(user_id);
+
 -- ─── Migrations (safe to re-run) ─────────────────────────────────────────────
 -- Adds columns that were introduced after the initial schema deployment.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
@@ -70,3 +96,33 @@ ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS browser_alerts BOOLEAN NOT NU
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ai_perms JSONB NOT NULL DEFAULT '{"projects":false,"inventory":false,"watchlist":false,"deals":false}';
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ram_alert_states JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS gpu_alert_states JSONB NOT NULL DEFAULT '{}';
+
+-- Nullify any previously stored plaintext GitHub tokens.
+-- After this migration, users must re-connect GitHub. New tokens are encrypted (AES-256-GCM).
+-- This runs on every startup but is idempotent: encrypted tokens contain ':' so they won't
+-- match the simple check here. Plaintext GitHub tokens start with 'ghp_' or 'gho_'.
+UPDATE users SET github_token = NULL WHERE github_token IS NOT NULL AND github_token NOT LIKE '%:%';
+
+-- Wipe plaintext api_keys (all values before this migration are plaintext).
+-- Users must re-enter API keys in Settings after this runs.
+-- Idempotent: encrypted format is hex:hex:hex; plaintext keys don't match that pattern.
+UPDATE user_profiles SET api_keys = '{}'::jsonb
+  WHERE api_keys::text != '{}'
+    AND (
+      SELECT count(*) FROM jsonb_each_text(api_keys) WHERE value !~ '^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$'
+    ) > 0;
+
+-- Wipe plaintext AI provider API keys stored in ai_config.apiKey.
+-- Idempotent: encrypted values match hex:hex:hex; plaintext keys do not.
+UPDATE user_profiles
+  SET ai_config = jsonb_set(ai_config, '{apiKey}', '""'::jsonb)
+  WHERE (ai_config->>'apiKey') != ''
+    AND (ai_config->>'apiKey') IS NOT NULL
+    AND (ai_config->>'apiKey') !~ '^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$';
+
+-- Wipe plaintext webhook secrets.
+-- Idempotent: encrypted values match hex:hex:hex; plaintext secrets do not.
+UPDATE webhooks
+  SET secret = NULL
+  WHERE secret IS NOT NULL
+    AND secret !~ '^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$';

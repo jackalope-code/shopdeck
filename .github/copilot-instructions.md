@@ -22,14 +22,25 @@ Scraping fragile HTML is a maintenance burden. Always check for a Shopify `produ
 
 ## Scraper Rule Types (`backend/scraper.js`)
 
+All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through `runSource()`. Rules may also carry a `postFilter: { requireAny, excludeAny }` for name-based post-processing.
+
 - `css` — Cheerio multi-field CSS scraping (last resort)
 - `jsonpath` — Single-field JSONPath extraction
 - `jsonpath-multi` — Multi-field per container (preferred for Shopify `products.json`)
+- `rss` — RSS/Atom feed via fast-xml-parser
+- `amazon-api` — Amazon Product Advertising API v5 (requires keys in user `api_keys`)
+- `newegg-search-api` — Newegg public JSON search API (no key required)
+- `user-rss` — User-supplied RSS URL; SSRF-validated before fetch (Phase 3)
+- `digikey-api` — Digikey Product Search API v4; OAuth2 client credentials (Phase 4)
+- `mouser-api` — Mouser Search API v2; simple API key auth (Phase 4)
+- `webhook-buffer` — Reads a Redis ring buffer populated by inbound webhook POSTs (Phase 5)
+- `manual-list` — Reads user-curated items from `manual_list_items` Postgres table (Phase 6)
 
 ## Caching
 
 - Do **not** add query-parameter flags (e.g. `?refresh=1`, `?bust=true`) or any other mechanism that lets callers bypass or invalidate the cache from outside the server.
 - Cache TTL and invalidation are server-side concerns only. If stale data is a problem, fix the scraper or adjust the TTL — never expose a cache-bust escape hatch through the API.
+- **Mouser API — caching is contractually prohibited.** The Mouser API Terms of Service (Section 4) explicitly forbid caching, pre-fetching, or storing any Mouser data. The `mouser-api` rule type MUST bypass the Redis source cache and the in-process `localSourceCache` entirely. Every call to `runSource` for a Mouser rule must make a live API request. Do not add Mouser source IDs to the background warmer (`warmAllSources`).
 
 ## General Coding Conventions
 

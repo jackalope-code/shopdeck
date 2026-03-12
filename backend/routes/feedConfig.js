@@ -1,6 +1,7 @@
 // backend/routes/feedConfig.js
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
@@ -9,6 +10,7 @@ const { demoGuard } = require('../middleware/demoGuard');
 const scraper = require('../scraper');
 const db = require('../db');
 const redis = require('../redis');
+const { decryptMap } = require('../lib/tokenCrypto');
 
 // Max 5 test-rule requests per user per minute (keyed on user ID; route is auth-gated).
 const testLimiter = rateLimit({
@@ -41,6 +43,21 @@ const localSourceCache = new Map();
 // In-flight promise coalescing — prevents multiple concurrent requests from each
 // triggering a separate scrape for the same source when the cache is cold.
 const inFlightScrapes = new Map(); // sourceId → Promise<{data, entry}>
+
+// Custom source rate limiting — 5 scrapes per user per 60s rolling window.
+// Built-in sources are pre-warmed and never count against this.
+const customScrapeWindows = new Map(); // userId → [timestamp, ...]
+const CUSTOM_SCRAPE_MAX = 5;
+const CUSTOM_SCRAPE_WINDOW_MS = 60 * 1000;
+
+function checkCustomRateLimit(userId) {
+  const now = Date.now();
+  const hits = (customScrapeWindows.get(userId) ?? []).filter(t => now - t < CUSTOM_SCRAPE_WINDOW_MS);
+  if (hits.length >= CUSTOM_SCRAPE_MAX) return false;
+  hits.push(now);
+  customScrapeWindows.set(userId, hits);
+  return true;
+}
 
 // Max 60 data-fetch requests per user per minute.
 // With 8 widgets firing on page load (plus navigation and HMR reloads),
@@ -153,52 +170,137 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   const widgetCfg = userCfg[widgetId] ?? defaults[widgetId] ?? {};
   const sources  = widgetCfg.sources ?? [];
   const custom   = widgetCfg.custom  ?? [];
-  const apiKeys  = profile.api_keys  ?? {};
+  const apiKeys  = decryptMap(profile.api_keys  ?? {});
 
   const results = {};
 
-  // Run enabled built-in sources — coalesce concurrent cache misses for the same source
-  // so only one HTTP request is made regardless of how many users miss simultaneously.
+  // Run enabled built-in + user-rss sources — coalesce concurrent cache misses for the same
+  // source so only one HTTP request is made regardless of how many users miss simultaneously.
   for (const src of sources.filter(s => s.enabled)) {
-    const rule = scraper.BUILTIN_SOURCE_RULES[src.id];
-    if (!rule) continue;
-    const srcKey = `feed:${CACHE_VERSION}:source:${src.id}`;
+    let rule, srcKey, resultKey, localKey;
+
+    if (src.ruleType === 'user-rss') {
+      // Validate SSRF early — surface error immediately so the widget can show it
+      try { scraper.validateUserRssUrl(src.url); } catch (e) {
+        const k = `user-rss:${src.url}`;
+        results[k] = { name: src.label ?? src.url, data: [], error: e.message };
+        continue;
+      }
+      rule      = { ruleType: 'user-rss', url: src.url, label: src.label };
+      const urlHash = crypto.createHash('sha256').update(src.url).digest('hex').slice(0, 16);
+      srcKey    = `feed:${CACHE_VERSION}:source:user-rss:${urlHash}`;
+      resultKey = `user-rss:${src.url}`;
+      localKey  = srcKey;  // use the hash-based key for the in-process map too
+
+    } else if (src.ruleType === 'digikey-api') {
+      // No caching — always live request
+      const dkName = src.name ?? src.label ?? `Digikey: ${src.keywords}`;
+      const dkKey  = `digikey-api:${src.keywords ?? src.id}`;
+      if (!apiKeys.digikey_client_id || !apiKeys.digikey_client_secret) {
+        results[dkKey] = { name: dkName, data: [], error: 'Digikey API keys not configured (digikey_client_id, digikey_client_secret)' };
+        continue;
+      }
+      const dkRule = { ruleType: 'digikey-api', keywords: src.keywords, limit: src.limit };
+      try {
+        const data = await scraper.runSource(dkRule, 'scheduled', { apiKeys });
+        results[dkKey] = { name: dkName, category: null, data, error: null };
+      } catch (err) {
+        results[dkKey] = { name: dkName, category: null, data: [], error: err.message };
+      }
+      continue; // skip all caching logic below
+
+    } else if (src.ruleType === 'manual-list') {
+      // Items live in Postgres — read live, skip source cache entirely
+      const mlName = src.name ?? src.label ?? `List: ${src.listId}`;
+      const mlKey  = `manual-list:${src.listId}`;
+      const mlRule = { ruleType: 'manual-list', listId: src.listId };
+      try {
+        const data = await scraper.runSource(mlRule, 'scheduled', { apiKeys, userId: req.user.id });
+        results[mlKey] = { name: mlName, category: null, data, error: null };
+      } catch (err) {
+        results[mlKey] = { name: mlName, category: null, data: [], error: err.message };
+      }
+      continue; // skip source-level cache logic
+
+    } else if (src.ruleType === 'webhook-buffer') {
+      // Ring buffer already lives in Redis — read live, skip source cache entirely
+      const wbName = src.name ?? src.label ?? `Webhook: ${src.webhookId}`;
+      const wbKey  = `webhook-buffer:${src.webhookId}`;
+      const wbRule = { ruleType: 'webhook-buffer', webhookId: src.webhookId };
+      try {
+        const data = await scraper.runSource(wbRule, 'scheduled', { apiKeys });
+        results[wbKey] = { name: wbName, category: null, data, error: null };
+      } catch (err) {
+        results[wbKey] = { name: wbName, category: null, data: [], error: err.message };
+      }
+      continue; // skip source-level cache logic
+
+    } else if (src.ruleType === 'mouser-api') {
+      // Mouser ToS §4: no caching — always make a live request, never read or write cache
+      const mouserName = src.name ?? src.label ?? `Mouser: ${src.keywords}`;
+      const mouserKey  = `mouser-api:${src.keywords ?? src.id}`;
+      if (!apiKeys.mouser_api_key) {
+        results[mouserKey] = { name: mouserName, data: [], error: 'Mouser API key not configured (mouser_api_key)' };
+        continue;
+      }
+      const mouserRule = { ruleType: 'mouser-api', keywords: src.keywords, limit: src.limit };
+      try {
+        const data = await scraper.runSource(mouserRule, 'scheduled', { apiKeys });
+        results[mouserKey] = { name: mouserName, category: null, data, error: null };
+      } catch (err) {
+        results[mouserKey] = { name: mouserName, category: null, data: [], error: err.message };
+      }
+      continue; // skip all caching logic below
+
+    } else {
+      rule = scraper.BUILTIN_SOURCE_RULES[src.id];
+      if (!rule) continue;
+      srcKey    = `feed:${CACHE_VERSION}:source:${src.id}`;
+      resultKey = src.id;
+      localKey  = src.id;
+    }
+
+    const srcName = src.name ?? src.label ?? resultKey;
 
     // Check source-level cache first
     const cachedSrc = await rGetJson(srcKey) ?? (() => {
-      const m = localSourceCache.get(src.id);
+      const m = localSourceCache.get(localKey);
       return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
     })();
     if (cachedSrc) {
-      results[src.id] = { name: src.name, category: rule.category ?? null, data: cachedSrc.data, error: null };
+      results[resultKey] = { name: srcName, category: rule.category ?? null, data: cachedSrc.data, error: null };
       continue;
     }
 
     // Coalesce: if a scrape is already in-flight for this source, await it
-    if (!inFlightScrapes.has(src.id)) {
+    if (!inFlightScrapes.has(srcKey)) {
       const scrapePromise = (async () => {
         const data = await scraper.runSource(rule, 'scheduled', { apiKeys });
         const entry = { at: new Date().toISOString(), data };
         await rSet(srcKey, entry, FEED_DATA_CACHE_TTL_S);
-        localSourceCache.set(src.id, { at: Date.now(), data });
+        localSourceCache.set(localKey, { at: Date.now(), data });
         console.log(`[cache] SET  source ${srcKey}`);
         return { data, entry };
-      })().finally(() => inFlightScrapes.delete(src.id));
-      inFlightScrapes.set(src.id, scrapePromise);
+      })().finally(() => inFlightScrapes.delete(srcKey));
+      inFlightScrapes.set(srcKey, scrapePromise);
     } else {
-      console.log(`[cache] COALESCE source ${src.id}`);
+      console.log(`[cache] COALESCE source ${srcKey}`);
     }
 
     try {
-      const { data } = await inFlightScrapes.get(src.id);
-      results[src.id] = { name: src.name, category: rule.category ?? null, data, error: null };
+      const { data } = await inFlightScrapes.get(srcKey);
+      results[resultKey] = { name: srcName, category: rule.category ?? null, data, error: null };
     } catch (err) {
-      results[src.id] = { name: src.name, category: rule.category ?? null, data: [], error: err.message };
+      results[resultKey] = { name: srcName, category: rule.category ?? null, data: [], error: err.message };
     }
   }
 
-  // Run enabled custom rules
+  // Run enabled custom rules — rate-limited to 5 scrapes per user per minute
   for (const rule of custom) {
+    if (!checkCustomRateLimit(req.user.id)) {
+      results[`custom:${rule.name}`] = { name: rule.name, data: [], error: 'Custom source rate limit exceeded — wait a moment before refreshing again' };
+      continue;
+    }
     try {
       const data = await scraper.runSource(rule, 'scheduled');
       results[`custom:${rule.name}`] = { name: rule.name, data, error: null };
@@ -220,4 +322,58 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   res.json({ sources: results, at, cached: false });
 });
 
-module.exports = router;
+// Pre-warm all default built-in source caches so no user ever triggers a cold scrape.
+// Called on startup (after health checks) and on the 6-hour cron.
+async function warmAllSources() {
+  const defaults = readDefaults();
+  // Collect unique enabled built-in source IDs across all widgets
+  const sourceIds = [...new Set(
+    Object.values(defaults).flatMap(w =>
+      (w.sources ?? []).filter(s => s.enabled && scraper.BUILTIN_SOURCE_RULES[s.id]).map(s => s.id)
+    )
+  )];
+  console.log(`[cache] warm starting — ${sourceIds.length} built-in sources to check`);
+  let warmed = 0;
+  const hostsScrapedThisRun = new Set();
+  for (const sourceId of sourceIds) {
+    const srcKey = `feed:${CACHE_VERSION}:source:${sourceId}`;
+    const cached = await rGetJson(srcKey) ?? (() => {
+      const m = localSourceCache.get(sourceId);
+      return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
+    })();
+    if (cached) continue; // already warm
+
+    // Skip sources sharing a hostname already hit this run — scraper enforces per-host cooldown
+    const rule = scraper.BUILTIN_SOURCE_RULES[sourceId];
+    let hostname;
+    try { hostname = new URL(rule.url).hostname; } catch { hostname = null; }
+    if (hostname && hostsScrapedThisRun.has(hostname)) {
+      console.log(`[cache] warm SKIP source ${sourceId} — ${hostname} already scraped this run`);
+      continue;
+    }
+
+    if (!inFlightScrapes.has(sourceId)) {
+      const scrapePromise = (async () => {
+        const data = await scraper.runSource(rule, 'scheduled', {});
+        const entry = { at: new Date().toISOString(), data };
+        await rSet(srcKey, entry, FEED_DATA_CACHE_TTL_S);
+        localSourceCache.set(sourceId, { at: Date.now(), data });
+        console.log(`[cache] warm SET  source ${srcKey}`);
+        return { data, entry };
+      })().finally(() => inFlightScrapes.delete(sourceId));
+      inFlightScrapes.set(sourceId, scrapePromise);
+    }
+    try {
+      await inFlightScrapes.get(sourceId);
+      if (hostname) hostsScrapedThisRun.add(hostname);
+      warmed++;
+    } catch (err) {
+      console.warn(`[cache] warm FAIL source ${sourceId}: ${err.message}`);
+    }
+    // Stagger requests to avoid hammering hosts on cold start
+    await new Promise(r => setTimeout(r, 250));
+  }
+  console.log(`[cache] warm complete — ${warmed} sources refreshed`);
+}
+
+module.exports = { router, warmAllSources };

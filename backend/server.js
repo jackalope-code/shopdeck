@@ -7,12 +7,15 @@ const PORT = process.env.PORT || 4000;
 const apiRouter = require('./api');
 const authRouter = require('./routes/auth');
 const profileRouter = require('./routes/profile');
-const feedConfigRouter = require('./routes/feedConfig');
+const feedConfigRouter = require('./routes/feedConfig').router;
+const { warmAllSources } = require('./routes/feedConfig');
 const projectsRouter = require('./routes/projects');
 const activityRouter = require('./routes/activity');
 const aiRouter = require('./routes/ai');
 const aiHistoryRouter = require('./routes/aiHistory');
 const alertsRouter = require('./routes/alerts');
+const webhooksRouter = require('./routes/webhooks');
+const manualListsRouter = require('./routes/manualLists');
 const cron = require('node-cron');
 const scraper = require('./scraper');
 const db = require('./db');
@@ -35,7 +38,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+// Capture raw body bytes for webhook HMAC signature verification.
+app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
 // Health check — used by Docker's healthcheck and load balancers
 app.get('/api/health', (req, res) => res.json({ ok: true }));
@@ -48,6 +52,8 @@ app.use('/api/activity', activityRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/ai-history', aiHistoryRouter);
 app.use('/api/alerts', alertsRouter);
+app.use('/api/webhooks', webhooksRouter);
+app.use('/api/manual-lists', manualListsRouter);
 app.use('/api', apiRouter);
 
 // Catch-all for unknown API routes — always return JSON
@@ -60,10 +66,16 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Schedule daily scraping at 2:00 AM
+// Schedule daily scraping at 2:00 AM (legacy watchlist cache)
 cron.schedule('0 2 * * *', () => {
   console.log('Running daily scraping and cache update...');
   scraper.updateCache().catch(console.error);
+});
+
+// Pre-warm built-in source caches every 6 hours — aligns with FEED_DATA_CACHE_TTL_S
+cron.schedule('0 */6 * * *', () => {
+  console.log('[cache] warm scheduled run starting...');
+  warmAllSources().catch(console.error);
 });
 
 // Verify infrastructure connections before accepting traffic
@@ -82,6 +94,8 @@ async function start() {
   }
   app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);
+    // Warm source caches 5s after startup — non-blocking, runs after health checks
+    setTimeout(() => warmAllSources().catch(console.error), 5000);
   });
 }
 

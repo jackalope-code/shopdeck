@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const rateLimit = require('express-rate-limit');
 const { verifyToken, JWT_SECRET } = require('../middleware/auth');
+const { encryptToken } = require('../lib/tokenCrypto');
 const { validatePassword } = require('../lib/passwordValidation');
 const db = require('../db');
 
@@ -292,7 +293,7 @@ router.post('/github/device/poll', verifyToken, async (req, res) => {
 
     await db.query(
       'UPDATE users SET github_token=$1, github_username=$2 WHERE id=$3',
-      [access_token, githubUsername, req.user.id]
+      [encryptToken(access_token), githubUsername, req.user.id]
     );
     res.json({ status: 'success', githubUsername });
   } catch (err) {

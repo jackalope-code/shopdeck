@@ -4,6 +4,7 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { demoGuard } = require('../middleware/demoGuard');
 const db = require('../db');
+const { encryptToken, decryptToken, encryptMap, decryptMap } = require('../lib/tokenCrypto');
 
 // Map camelCase profile keys → snake_case PG columns
 const FIELD_MAP = {
@@ -22,13 +23,18 @@ const FIELD_MAP = {
 // Map PG row columns back to the camelCase profile shape the frontend expects
 function rowToProfile(row) {
   if (!row) return null;
+  // Decrypt sensitive fields before returning — at-rest values are AES-256-GCM encrypted
+  const aiConfig = row.ai_config
+    ? { ...row.ai_config, apiKey: decryptToken(row.ai_config.apiKey) ?? '' }
+    : row.ai_config;
+  const apiKeys = decryptMap(row.api_keys ?? {});
   return {
     activeWidgets:  row.active_widgets,
     widgetOrder:    row.widget_order,
     gridCols:       row.grid_cols,
     feedConfig:     row.feed_config,
-    aiConfig:       row.ai_config,
-    apiKeys:        row.api_keys,
+    aiConfig,
+    apiKeys,
     browserAlerts:  row.browser_alerts,
     aiPerms:        row.ai_perms,
     ramAlertStates: row.ram_alert_states,
@@ -51,7 +57,16 @@ router.get('/', verifyToken, async (req, res) => {
 // PATCH /api/profile  (protected)
 // Accepts any subset of profile fields; unknown keys are ignored.
 router.patch('/', verifyToken, demoGuard, async (req, res) => {
-  const updates = req.body;
+  // Encrypt sensitive fields before storing — decrypt happens in rowToProfile on read
+  const updates = { ...req.body };
+  if ('aiConfig' in updates && updates.aiConfig != null) {
+    const ak = updates.aiConfig.apiKey;
+    updates.aiConfig = { ...updates.aiConfig, apiKey: ak ? encryptToken(ak) : (ak ?? '') };
+  }
+  if ('apiKeys' in updates && updates.apiKeys != null) {
+    updates.apiKeys = encryptMap(updates.apiKeys);
+  }
+
   const setClauses = [];
   const values = [];
   let idx = 1;

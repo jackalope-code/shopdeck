@@ -5,9 +5,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { JSONPath } = require('jsonpath-plus');
+
+/** In-process OAuth2 token cache for Digikey. Keyed by sha256(clientId).slice(0,16). */
+const digikeyTokenCache = new Map(); // key → { token: string, expiresAt: number }
 
 // ─── Guard configuration ───────────────────────────────────────────────────────
 // These constants define the defensive limits. Adjust conservatively.
@@ -413,14 +417,128 @@ async function scrapeNeweggJson({ keywords, categoryId }, mode = 'scheduled') {
   })).filter(i => i.name);
 }
 
-/** Route a rule to the correct scraper by ruleType. */
+/**
+ * Validate a user-supplied URL against SSRF risks.
+ * Rejects: non-http/https schemes, localhost, loopback, link-local, and
+ * RFC-1918 private ranges (10/8, 172.16/12, 192.168/16).
+ * Throws an Error with a safe message if the URL is not allowed.
+ */
+function validateUserRssUrl(rawUrl) {
+  let parsed;
+  try { parsed = new URL(rawUrl); } catch {
+    throw new Error('Invalid URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Only http and https URLs are allowed');
+  }
+  const host = parsed.hostname.toLowerCase();
+  // Reject localhost variants
+  if (host === 'localhost' || host === '0.0.0.0' || host === '::1') {
+    throw new Error('URL resolves to a private or internal address');
+  }
+  // Reject IPv4 literals in private/loopback ranges
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [, a, b] = ipv4.map(Number);
+    if (a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254)) {
+      throw new Error('URL resolves to a private or internal address');
+    }
+  }
+  return parsed.toString();
+}
+
+
+function applyPostFilter(items, postFilter) {
+  if (!postFilter) return items;
+  const { requireAny = [], excludeAny = [] } = postFilter;
+  return items.filter(item => {
+    const name = (item.name ?? '').toLowerCase();
+    if (requireAny.length > 0 && !requireAny.some(t => name.includes(t.toLowerCase()))) return false;
+    if (excludeAny.some(t => name.includes(t.toLowerCase()))) return false;
+    return true;
+  });
+}
+
+/**
+ * Registry of ruleType → handler functions.
+ * Each handler receives (opts, mode, context) and returns a Promise<item[]>.
+ * Add new source types here without touching runSource().
+ *
+ * Built-in types:
+ *   css              — Cheerio multi-field HTML scraping (scrapeHtml)
+ *   jsonpath         — Single-field JSONPath extraction (scrapeJson)
+ *   jsonpath-multi   — Multi-field per container, preferred for Shopify products.json (scrapeJsonMulti)
+ *   rss              — RSS/Atom feeds (scrapeRss)
+ *   amazon-api       — Amazon PA API 5.0, requires context.apiKeys (scrapeAmazonApi)
+ *   newegg-search-api— Newegg public JSON search API, no key needed (scrapeNeweggJson)
+ *   user-rss         — User-supplied RSS URL; validated against SSRF before fetching (Phase 3)
+ *   digikey-api      — Digikey Product Search API v4, OAuth2 CC flow (Phase 4)
+ *   mouser-api       — Mouser Search API v2; NO caching per Mouser ToS §4 (Phase 4)
+ *   webhook-buffer   — Reads Redis ring buffer for a webhook source (Phase 5)
+ *   manual-list      — Reads user-curated items from Postgres (Phase 6)
+ */
+const RULE_TYPE_HANDLERS = {
+  'css':              (opts, mode)          => scrapeHtml(opts, mode),
+  'jsonpath':         (opts, mode)          => scrapeJson(opts, mode),
+  'jsonpath-multi':   (opts, mode)          => scrapeJsonMulti(opts, mode),
+  'rss':              (opts, mode)          => scrapeRss(opts, mode),
+  'amazon-api':       (opts, mode, context) => scrapeAmazonApi(opts, mode, context),
+  'newegg-search-api':(opts, mode)          => scrapeNeweggJson(opts, mode),
+  // user-rss: user-supplied RSS/Atom URL. SSRF-validated before fetching.
+  // Cache key in feedConfig: feed:v4:source:user-rss:{sha256(url)} — same 6h TTL.
+  'user-rss': (opts, mode) => {
+    validateUserRssUrl(opts.url); // throws if unsafe
+    return scrapeRss(opts, mode);
+  },
+  // digikey-api: OAuth2 CC flow; token cached in-process; result cached 6h in feedConfig.
+  'digikey-api': (opts, mode, context) => scrapeDigikeyApi(opts, mode, context),
+  // mouser-api: simple API key; NO source cache per Mouser ToS §4 (feedConfig bypasses cache).
+  'mouser-api':  (opts, mode, context) => scrapeMouserApi(opts, mode, context),
+  // webhook-buffer: reads the Redis ring buffer populated by inbound POST /api/webhooks/:id/ingest.
+  // No HTTP fetch — reads local Redis only. feedConfig bypasses source cache.
+  'webhook-buffer': async (opts) => {
+    if (!opts.webhookId) throw new Error('webhook-buffer requires opts.webhookId');
+    const redisClient = require('./redis');
+    const key = `webhook:buffer:${opts.webhookId}`;
+    let raw;
+    try { raw = await redisClient.lrange(key, 0, -1); } catch { raw = []; }
+    return raw.map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
+  },
+  // manual-list: reads user-curated items from the manual_list_items Postgres table.
+  // No HTTP fetch. feedConfig bypasses source cache.
+  'manual-list': async (opts, _mode, context) => {
+    if (!opts.listId) throw new Error('manual-list requires opts.listId');
+    if (!context.userId) throw new Error('manual-list requires context.userId');
+    const dbClient = require('./db');
+    const result = await dbClient.query(
+      `SELECT id, name, url, price, image, notes, sort_order, created_at, updated_at
+       FROM manual_list_items
+       WHERE user_id=$1 AND list_id=$2
+       ORDER BY sort_order ASC, created_at ASC`,
+      [context.userId, opts.listId]
+    );
+    return result.rows.map(r => ({
+      id:         r.id,
+      name:       r.name,
+      url:        r.url        ?? undefined,
+      price:      r.price      ?? undefined,
+      image:      r.image      ?? undefined,
+      notes:      r.notes      ?? undefined,
+      sortOrder:  r.sort_order,
+      createdAt:  r.created_at,
+      updatedAt:  r.updated_at,
+    }));
+  },
+};
+
+/** Route a rule to the correct scraper by ruleType. New types register in RULE_TYPE_HANDLERS. */
 async function runSource(opts, mode = 'scheduled', context = {}) {
-  if (opts.ruleType === 'css')            return scrapeHtml(opts, mode);
-  if (opts.ruleType === 'jsonpath')       return scrapeJson(opts, mode);
-  if (opts.ruleType === 'jsonpath-multi') return scrapeJsonMulti(opts, mode);
-  if (opts.ruleType === 'rss')            return scrapeRss(opts, mode);
-  if (opts.ruleType === 'amazon-api')     return scrapeAmazonApi(opts, mode, context);
-  throw new Error(`Unknown ruleType: "${opts.ruleType}". Must be css, jsonpath, jsonpath-multi, rss, or amazon-api.`);
+  const handler = RULE_TYPE_HANDLERS[opts.ruleType];
+  if (!handler) {
+    throw new Error(`Unknown ruleType: "${opts.ruleType}". Registered types: ${Object.keys(RULE_TYPE_HANDLERS).join(', ')}`);
+  }
+  const results = await handler(opts, mode, context);
+  return applyPostFilter(results, opts.postFilter);
 }
 
 /**
@@ -514,7 +632,9 @@ const BUILTIN_SOURCE_RULES = {
   // B&H uses their public search HTML. Reddit + CamelCamelCamel use public RSS feeds.
 
   'newegg-ram': {
-    url: 'https://www.newegg.com/Desktop-Memory/SubCategory/ID-147',
+    // N=100007611 restricts to the DRAM product type facet within Desktop Memory,
+    // filtering out flash storage and SD cards that Newegg co-lists in SubCategory/ID-147.
+    url: 'https://www.newegg.com/Desktop-Memory/SubCategory/ID-147?N=100007611',
     ruleType: 'css',
     containerSelector: 'div.item-cell',
     fields: [
@@ -526,6 +646,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'Newegg — RAM',
     vendor: 'Newegg',
     category: 'RAM',
+    postFilter: {
+      requireAny: ['DDR3', 'DDR4', 'DDR5', 'LPDDR', 'DIMM'],
+      excludeAny: ['SSD', 'NVMe', 'hard drive', 'hard disk', 'HDD', 'SD Card', 'microSD', 'Micro SD', 'flash drive', 'CompactFlash', 'eMMC'],
+    },
   },
   'amazon-ram': {
     ruleType: 'amazon-api',
@@ -534,6 +658,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'Amazon — RAM',
     vendor: 'Amazon',
     category: 'RAM',
+    postFilter: {
+      requireAny: ['DDR3', 'DDR4', 'DDR5', 'LPDDR', 'DIMM'],
+      excludeAny: ['SSD', 'NVMe', 'hard drive', 'hard disk', 'HDD', 'SD Card', 'microSD', 'Micro SD', 'flash drive', 'CompactFlash', 'eMMC'],
+    },
   },
   // TigerDirect removed — site retired in 2024 (tigerdirect.com redirects to notice page).
   // B&H Photo removed — returns HTTP 403 for automated requests.
@@ -543,6 +671,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'r/buildapcsales — Memory',
     vendor: 'Reddit',
     category: 'RAM',
+    postFilter: {
+      requireAny: ['DDR3', 'DDR4', 'DDR5', 'LPDDR', 'DIMM'],
+      excludeAny: ['SSD', 'NVMe', 'hard drive', 'hard disk', 'HDD', 'SD Card', 'microSD', 'Micro SD', 'flash drive', 'CompactFlash', 'eMMC'],
+    },
   },
   'camelcamel-ram': {
     url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Memory.rss',
@@ -550,6 +682,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'CamelCamelCamel — Memory Price Drops',
     vendor: 'CamelCamelCamel',
     category: 'RAM',
+    postFilter: {
+      requireAny: ['DDR3', 'DDR4', 'DDR5', 'LPDDR', 'DIMM'],
+      excludeAny: ['SSD', 'NVMe', 'hard drive', 'hard disk', 'HDD', 'SD Card', 'microSD', 'Micro SD', 'flash drive', 'CompactFlash', 'eMMC'],
+    },
   },
 
   // ─── GPU vendors ──────────────────────────────────────────────────────────────
@@ -1010,6 +1146,115 @@ async function scrapeBuiltinSource(sourceId, mode = 'scheduled') {
   return runSource(rule, mode);
 }
 
+// ─── Phase 4: Vendor API handlers ─────────────────────────────────────────────
+
+/**
+ * Digikey Product Search API v4 — OAuth2 client credentials flow.
+ * Requires context.apiKeys.digikey_client_id + digikey_client_secret.
+ * OAuth2 tokens are cached in-process until 60 s before expiry.
+ * opts: { keywords, limit? }
+ */
+async function scrapeDigikeyApi(opts, mode, context = {}) {
+  const clientId     = context.apiKeys?.digikey_client_id;
+  const clientSecret = context.apiKeys?.digikey_client_secret;
+  if (!clientId || !clientSecret) {
+    throw new Error('Digikey API keys not configured (digikey_client_id, digikey_client_secret)');
+  }
+  const keywords = opts.keywords;
+  if (!keywords) throw new Error('digikey-api requires opts.keywords');
+  const limit = opts.limit ?? 10;
+
+  // Fetch (or reuse) OAuth2 bearer token — cached until 60 s before expiry
+  const tokenCacheKey = crypto.createHash('sha256').update(clientId).digest('hex').slice(0, 16);
+  let cachedTok = digikeyTokenCache.get(tokenCacheKey);
+  if (!cachedTok || Date.now() >= cachedTok.expiresAt) {
+    const tokenRes = await axios.post(
+      'https://api.digikey.com/v1/oauth2/token',
+      new URLSearchParams({
+        grant_type:    'client_credentials',
+        client_id:     clientId,
+        client_secret: clientSecret,
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15_000 }
+    );
+    const expiresIn = tokenRes.data.expires_in ?? 1800;
+    cachedTok = {
+      token:     tokenRes.data.access_token,
+      expiresAt: Date.now() + (expiresIn - 60) * 1000,
+    };
+    digikeyTokenCache.set(tokenCacheKey, cachedTok);
+  }
+
+  const res = await axios.post(
+    'https://api.digikey.com/products/v4/search/keyword',
+    { Keywords: keywords, Limit: limit, Offset: 0 },
+    {
+      headers: {
+        'Authorization':             `Bearer ${cachedTok.token}`,
+        'X-DIGIKEY-Client-Id':       clientId,
+        'X-DIGIKEY-Locale-Site':     'US',
+        'X-DIGIKEY-Locale-Language': 'en',
+        'Content-Type':              'application/json',
+      },
+      timeout: 15_000,
+    }
+  );
+
+  const products = res.data?.Products ?? [];
+  return products.map(p => ({
+    name:         p.Description?.ProductDescription ?? p.ManufacturerProductNumber ?? '',
+    partNumber:   p.ManufacturerProductNumber  ?? undefined,
+    url:          p.ProductUrl                 ?? undefined,
+    price:        p.UnitPrice != null          ? String(p.UnitPrice)          : undefined,
+    availability: p.QuantityAvailable != null  ? String(p.QuantityAvailable)  : undefined,
+    manufacturer: p.Manufacturer?.Name         ?? undefined,
+  })).filter(i => i.name);
+}
+
+/**
+ * Mouser Search API v2 — simple API key auth.
+ * Requires context.apiKeys.mouser_api_key.
+ * IMPORTANT: Mouser ToS §4 prohibits caching. This function MUST NOT be cached
+ * at the source level in feedConfig.js — it always makes a live request.
+ * opts: { keywords, limit? }
+ */
+async function scrapeMouserApi(opts, mode, context = {}) {
+  const apiKey = context.apiKeys?.mouser_api_key;
+  if (!apiKey) throw new Error('Mouser API key not configured (mouser_api_key)');
+  const keywords = opts.keywords;
+  if (!keywords) throw new Error('mouser-api requires opts.keywords');
+  const records = opts.limit ?? 10;
+
+  const res = await axios.post(
+    `https://api.mouser.com/api/v2/search/keyword?apiKey=${encodeURIComponent(apiKey)}`,
+    {
+      SearchByKeywordRequest: {
+        keyword:                     keywords,
+        records,
+        startingRecord:              0,
+        searchOptions:               null,
+        searchWithYourSignUpLanguage: null,
+      },
+    },
+    {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      timeout: 15_000,
+    }
+  );
+
+  const products = res.data?.SearchResults?.Products ?? [];
+  return products.map(p => ({
+    name:         p.ManufacturerPartNumber ?? p.Description ?? '',
+    partNumber:   p.ManufacturerPartNumber           ?? undefined,
+    url:          p.ProductDetailUrl                 ?? undefined,
+    price:        Array.isArray(p.PriceBreaks) && p.PriceBreaks.length > 0
+                    ? p.PriceBreaks[0].Price
+                    : undefined,
+    availability: p.AvailabilityInStock != null ? String(p.AvailabilityInStock) : undefined,
+    manufacturer: p.Manufacturer                     ?? undefined,
+  })).filter(i => i.name);
+}
+
 // ─── Legacy stubs (backward-compat with existing cron wiring) ─────────────────
 
 async function scrapeAdafruit() {
@@ -1049,8 +1294,11 @@ async function updateCache() {
 
 module.exports = {
   BUILTIN_SOURCE_RULES,
+  RULE_TYPE_HANDLERS,
   runSource, testRule, scratchBatch, scrapeBuiltinSource,
   scrapeHtml, scrapeJson, scrapeJsonMulti, scrapeRss,
-  scrapeAmazonApi,
+  scrapeAmazonApi, scrapeNeweggJson,
   scrapeAdafruit, scrapeUserDigikey, scrapeUserMouser, updateCache,
+  scrapeDigikeyApi, scrapeMouserApi,
+  validateUserRssUrl,
 };

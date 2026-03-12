@@ -145,6 +145,8 @@ export default function AIAgent() {
   const [perms, setPerms] = useState<AIPermissions>(DEFAULT_PERMS);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
+  const [authUser, setAuthUser] = useState<ReturnType<typeof getUser>>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -185,6 +187,8 @@ export default function AIAgent() {
     const cfg = loadConfig();
     setConfig(cfg);
     setPendingCfg(cfg);
+    setIsDemo(isDemoAccount());
+    setAuthUser(getUser());
 
     // Load localStorage mirror immediately for fast paint
     try {
@@ -291,9 +295,6 @@ export default function AIAgent() {
     saveConfig(pendingCfg);
     setShowSettings(false);
   }
-
-  const user = getUser();
-  const isDemo = isDemoAccount();
 
   return (
     <>
@@ -494,7 +495,7 @@ export default function AIAgent() {
             <div key={i} className={`group flex gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
               <div className={`size-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${m.role === 'user' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                 {m.role === 'user'
-                  ? (user?.username?.[0]?.toUpperCase() ?? 'U')
+                  ? (authUser?.username?.[0]?.toUpperCase() ?? 'U')
                   : <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
                 }
               </div>

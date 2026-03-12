@@ -6,14 +6,9 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 const { verifyToken } = require('../middleware/auth');
-
-const USERS_FILE = path.join(__dirname, '../users.json');
-function readUsers() {
-  try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch { return []; }
-}
+const db = require('../db');
+const { decryptToken } = require('../lib/tokenCrypto');
 
 // POST /api/ai/chat
 // Body: { provider, model, apiKey, messages: [{role, content}], context? }
@@ -103,9 +98,8 @@ router.post('/chat', verifyToken, async (req, res) => {
 
     // ── GitHub Copilot (GitHub Models API — OAuth token from Device Flow) ────────
     else if (provider === 'github') {
-      const users = readUsers();
-      const user = users.find(u => u.id === req.user.id);
-      const ghToken = user?.githubToken;
+      const result = await db.query('SELECT github_token FROM users WHERE id=$1', [req.user.id]);
+      const ghToken = decryptToken(result.rows[0]?.github_token);
       if (!ghToken) {
         return res.status(401).json({
           error: 'GitHub account not connected. Go to Settings → AI Assistant to connect your GitHub account via OAuth.',
