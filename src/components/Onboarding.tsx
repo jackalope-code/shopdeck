@@ -6,7 +6,7 @@ import { getToken, apiPatch, isDemoAccount, clearToken } from '../lib/auth';
 
 // ─── Category definitions ────────────────────────────────────────────────────
 const CATEGORIES = [
-  { id: 'keyboards', label: 'Keyboard Enthusiast', icon: 'keyboard', description: 'Group buys, switches & keycaps' },
+  { id: 'keyboards', label: 'Keyboard Enthusiast', icon: 'keyboard', description: 'Full boards, parts, switches, keycaps, accessories' },
   { id: 'electronics', label: 'Electronics Maker', icon: 'memory', description: 'Components, MCUs & sensors' },
   { id: '3dprinting', label: '3D Printing', icon: 'precision_manufacturing', description: 'Filament, printers & hardware' },
   { id: 'robotics', label: 'Robotics', icon: 'smart_toy', description: 'Actuators, sensors & kits' },

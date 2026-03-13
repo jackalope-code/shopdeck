@@ -1080,6 +1080,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'Stupid Bullets Tech — Switches',
     category: 'Switches',
     vendor: 'Stupid Bullets Tech',
+    postFilter: {
+      requireAny: ['switch', 'spring', 'stabilizer', 'lube', 'film', 'stem', 'housing'],
+      excludeAny: ['keyboard', 'keycap', 'deskmat'],
+    },
   },
 
   // ─── Keycap vendors (Shopify products.json API) ────────────────────────────
@@ -1193,6 +1197,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'Custom Keys Co — Switches & Accessories',
     category: 'Switches',
     vendor: 'Custom Keys Co',
+    postFilter: {
+      requireAny: ['switch', 'spring', 'stabilizer', 'lube', 'film'],
+      excludeAny: ['keycap', 'keyboard', 'pcb', 'plate', 'deskmat'],
+    },
   },
 
   'customkeysco-keyboards': {
@@ -1210,6 +1218,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'Custom Keys Co — Keyboards & Accessories',
     category: 'Keyboards',
     vendor: 'Custom Keys Co',
+    postFilter: {
+      requireAny: ['keyboard', 'kit', 'barebone', 'barebones', 'alice', '65%', '75%', 'tkl'],
+      excludeAny: ['switch', 'spring', 'stabilizer', 'lube', 'keycap', 'deskmat'],
+    },
   },
   'customkeysco-keycaps': {
     url: 'https://www.customkeysco.com/products.json?limit=50',
@@ -1226,6 +1238,10 @@ const BUILTIN_SOURCE_RULES = {
     label: 'Custom Keys Co — Keycaps & Accessories',
     category: 'Keycaps',
     vendor: 'Custom Keys Co',
+    postFilter: {
+      requireAny: ['keycap', 'gmk', 'pbt', 'kat', 'dsa', 'sa', 'cherry profile'],
+      excludeAny: ['switch', 'spring', 'stabilizer', 'keyboard kit', 'barebone'],
+    },
   },
 
   // ─── Sale collections (active-deals widget) ────────────────────────────────

@@ -43,13 +43,99 @@ function normalizeWidgetConfig(widgetId, widgetCfg, defaults) {
   };
 }
 
+const KEYBOARD_WIDGET_IDS = new Set([
+  'keyboard-releases',
+  'keyboard-sales',
+  'keyboard-full-release',
+  'keyboard-parts-release',
+  'keyboard-switches',
+  'keyboard-accessories',
+  'keycap-releases',
+]);
+
+function classifyKeyboardItem(item = {}, sourceCategory = '') {
+  const text = [item.name, item.productType, item.tags, item.itemType]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (/keycap|gmk|pbt|kat|dsa|sa\b/.test(text)) return 'keycaps';
+  if (/switch|spring|stabilizer|lube|film|stem|housing/.test(text)) return 'switches';
+  if (/deskmat|cable|wrist\s*rest|artisan|puller|tool|storage|misc|accessor/.test(text)) return 'accessories';
+  if (/\bpcb\b|plate|daughterboard|foam|gasket|weights?\b|mounting/.test(text)) return 'parts';
+  if (/pre.?built|fully built|keyboard kit|\bkit\b|mechanical keyboard|alice|\btkl\b|\b65%\b|\b75%\b|\b60%\b/.test(text)) return 'full';
+  if (/barebone/.test(text)) return 'parts';
+
+  const source = String(sourceCategory || '').toLowerCase();
+  if (source === 'keycaps') return 'keycaps';
+  if (source === 'switches') return 'switches';
+  if (source === 'accessories') return 'accessories';
+  if (source === 'keyboards') return 'full';
+  return 'accessories';
+}
+
+function hasKeyboardPartsSignal(item = {}) {
+  const text = [item.name, item.productType, item.tags, item.itemType]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return /\bpcb\b|plate|daughterboard|foam|gasket|weights?\b|mounting|hotswap|solder|socket/.test(text);
+}
+
+function hasExplicitKeyboardPartsSignal(item = {}) {
+  const text = [item.name, item.productType, item.itemType]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return /\bpcb\b|plate|daughterboard|foam|gasket|weights?\b|mounting|hotswap|solder|socket/.test(text);
+}
+
+function looksLikeFullKeyboard(item = {}) {
+  const text = [item.name, item.productType, item.itemType]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return /pre.?built|fully built|mechanical keyboard|\bkeyboard\b|alice|\btkl\b|\b65%\b|\b75%\b|\b60%\b/.test(text);
+}
+
+function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
+  if (!KEYBOARD_WIDGET_IDS.has(widgetId)) return items;
+  return items.filter(item => {
+    const kind = classifyKeyboardItem(item, sourceCategory);
+    if (widgetId === 'keycap-releases') return kind === 'keycaps';
+    if (widgetId === 'keyboard-switches') return kind === 'switches';
+    if (widgetId === 'keyboard-accessories') return kind === 'accessories';
+    if (widgetId === 'keyboard-parts-release') {
+      if (kind !== 'parts') return false;
+      const hasParts = hasKeyboardPartsSignal(item);
+      const hasExplicitParts = hasExplicitKeyboardPartsSignal(item);
+      const fullLike = looksLikeFullKeyboard(item);
+      if (!(hasParts && !(fullLike && !hasExplicitParts))) return false;
+
+      const title = String(item.name || '').toLowerCase();
+      const denylist = [
+        /random warehouse keyboards?/,
+        /keycult\s+no\.?1\s*\/\s*tkl\s*series/,
+        /\bbox\s*75\b(?!.*\bpcb\b)/,
+      ];
+      if (denylist.some(rx => rx.test(title))) return false;
+
+      return true;
+    }
+    if (widgetId === 'keyboard-full-release') return kind === 'full';
+    if (widgetId === 'keyboard-releases') return kind === 'full';
+    if (widgetId === 'keyboard-sales') return kind === 'full';
+    return true;
+  });
+}
+
 // Redis TTL for scrape cache — matches scheduled cooldown in scraper.js
 const FEED_DATA_CACHE_TTL_S  = 6 * 60 * 60;  // 6 hours (seconds for Redis EX)
 const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
 // Old versioned keys are never written again and expire naturally via their TTL.
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v6';
 
 // Fallback in-process Maps (used if Redis is unavailable)
 const localFeedCache   = new Map();
@@ -224,7 +310,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
       const dkRule = { ruleType: 'digikey-api', keywords: src.keywords, limit: src.limit };
       try {
         const data = await scraper.runSource(dkRule, 'scheduled', { apiKeys });
-        results[dkKey] = { name: dkName, category: null, data, error: null };
+        results[dkKey] = { name: dkName, category: null, data: filterItemsForWidget(widgetId, data, null), error: null };
       } catch (err) {
         results[dkKey] = { name: dkName, category: null, data: [], error: err.message };
       }
@@ -237,7 +323,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
       const mlRule = { ruleType: 'manual-list', listId: src.listId };
       try {
         const data = await scraper.runSource(mlRule, 'scheduled', { apiKeys, userId: req.user.id });
-        results[mlKey] = { name: mlName, category: null, data, error: null };
+        results[mlKey] = { name: mlName, category: null, data: filterItemsForWidget(widgetId, data, null), error: null };
       } catch (err) {
         results[mlKey] = { name: mlName, category: null, data: [], error: err.message };
       }
@@ -250,7 +336,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
       const wbRule = { ruleType: 'webhook-buffer', webhookId: src.webhookId };
       try {
         const data = await scraper.runSource(wbRule, 'scheduled', { apiKeys });
-        results[wbKey] = { name: wbName, category: null, data, error: null };
+        results[wbKey] = { name: wbName, category: null, data: filterItemsForWidget(widgetId, data, null), error: null };
       } catch (err) {
         results[wbKey] = { name: wbName, category: null, data: [], error: err.message };
       }
@@ -267,7 +353,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
       const mouserRule = { ruleType: 'mouser-api', keywords: src.keywords, limit: src.limit };
       try {
         const data = await scraper.runSource(mouserRule, 'scheduled', { apiKeys });
-        results[mouserKey] = { name: mouserName, category: null, data, error: null };
+        results[mouserKey] = { name: mouserName, category: null, data: filterItemsForWidget(widgetId, data, null), error: null };
       } catch (err) {
         results[mouserKey] = { name: mouserName, category: null, data: [], error: err.message };
       }
@@ -289,7 +375,8 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
       return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
     })();
     if (cachedSrc) {
-      results[resultKey] = { name: srcName, category: rule.category ?? null, data: cachedSrc.data, error: null };
+      const filteredCachedData = filterItemsForWidget(widgetId, cachedSrc.data, rule.category ?? null);
+      results[resultKey] = { name: srcName, category: rule.category ?? null, data: filteredCachedData, error: null };
       continue;
     }
 
@@ -310,7 +397,8 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
 
     try {
       const { data } = await inFlightScrapes.get(srcKey);
-      results[resultKey] = { name: srcName, category: rule.category ?? null, data, error: null };
+      const filteredData = filterItemsForWidget(widgetId, data, rule.category ?? null);
+      results[resultKey] = { name: srcName, category: rule.category ?? null, data: filteredData, error: null };
     } catch (err) {
       results[resultKey] = { name: srcName, category: rule.category ?? null, data: [], error: err.message };
     }
@@ -324,7 +412,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
     }
     try {
       const data = await scraper.runSource(rule, 'scheduled');
-      results[`custom:${rule.name}`] = { name: rule.name, data, error: null };
+      results[`custom:${rule.name}`] = { name: rule.name, data: filterItemsForWidget(widgetId, data, null), error: null };
     } catch (err) {
       results[`custom:${rule.name}`] = { name: rule.name, data: [], error: err.message };
     }

@@ -78,6 +78,40 @@ const DEFAULT_FEED_CONFIG = {
       { id: 'customkeysco-keyboards',       name: 'Custom Keys Co.',     enabled: true },
     ], custom: [],
   },
+  'keyboard-full-release': {
+    sources: [
+      { id: 'novelkeys-keyboards',         name: 'NovelKeys',           enabled: true },
+      { id: 'kbdfans-keyboards',           name: 'KBDfans',             enabled: true },
+      { id: 'keeb-io-keyboards',           name: 'Keeb.io',             enabled: true },
+      { id: 'stupidbulletstech-keyboards', name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco-keyboards',      name: 'Custom Keys Co.',     enabled: true },
+    ], custom: [],
+  },
+  'keyboard-parts-release': {
+    sources: [
+      { id: 'novelkeys-keyboards',          name: 'NovelKeys',           enabled: true },
+      { id: 'kbdfans-keyboards',            name: 'KBDfans',             enabled: true },
+      { id: 'keeb-io-keyboards',            name: 'Keeb.io',             enabled: true },
+      { id: 'stupidbulletstech-keyboards',  name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'stupidbulletstech-accessories',name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco-keyboards',       name: 'Custom Keys Co.',     enabled: true },
+    ], custom: [],
+  },
+  'keyboard-switches': {
+    sources: [
+      { id: 'novelkeys-switches',          name: 'NovelKeys',           enabled: true },
+      { id: 'cannonkeys-switches',         name: 'CannonKeys',          enabled: true },
+      { id: 'stupidbulletstech-switches',  name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco-switches',       name: 'Custom Keys Co.',     enabled: true },
+    ], custom: [],
+  },
+  'keyboard-accessories': {
+    sources: [
+      { id: 'stupidbulletstech-accessories', name: 'Stupid Bullets Tech', enabled: true },
+      { id: 'customkeysco-switches',         name: 'Custom Keys Co.',     enabled: true },
+      { id: 'customkeysco-keyboards',        name: 'Custom Keys Co.',     enabled: true },
+    ], custom: [],
+  },
   'electronics-watchlist': {
     sources: [
       { id: 'adafruit-new',              name: 'Adafruit New Products',    enabled: true },

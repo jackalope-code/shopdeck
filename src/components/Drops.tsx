@@ -167,12 +167,17 @@ export default function Drops() {
 
   const liveItems: Drop[] = feedItems.map(item => {
     const srcCat = item._sourceCategory ?? '';
+    const typeText = `${item.itemType ?? ''} ${item.productType ?? ''} ${item.tags ?? ''} ${item.name}`.toLowerCase();
     const category: DropCategory =
       srcCat === 'Keycaps'     ? 'Keycaps' :
       srcCat === 'Switches'    ? 'Switches' :
       srcCat === 'Accessories' ? 'Accessories' :
       srcCat === 'Keyboards'   ? 'Keyboards' :
-      // fallback: vendor-name heuristic
+      /keycap|gmk|pbt|kat|dsa|sa\b/.test(typeText) ? 'Keycaps' :
+      /switch|spring|stabilizer|lube|film/.test(typeText) ? 'Switches' :
+      /deskmat|cable|wrist\s*rest|artisan|tool|accessor|misc/.test(typeText) ? 'Accessories' :
+      /\bpcb\b|plate|foam|gasket|daughterboard/.test(typeText) ? 'Accessories' :
+      // final fallback: vendor-name heuristic
       (item._vendor ?? '').toLowerCase().includes('keycap') ? 'Keycaps' :
       (item._vendor ?? '').toLowerCase().includes('switch') ? 'Switches' :
       'Keyboards';

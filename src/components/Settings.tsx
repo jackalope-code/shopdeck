@@ -92,6 +92,10 @@ const WIDGET_LABELS: Record<string, string> = {
   'gpu-availability':   'GPU Availability',
   'active-deals':       'Active Deals',
   'keyboard-releases':  'Keyboard Releases',
+  'keyboard-full-release': 'Keyboard Full Releases',
+  'keyboard-parts-release': 'Keyboard Parts Releases',
+  'keyboard-switches': 'Keyboard Switches',
+  'keyboard-accessories': 'Keyboard Accessories / Misc',
   'keyboard-sales':     'Keyboard Sales',
   'electronics-watchlist': 'Electronics Watchlist',
 };

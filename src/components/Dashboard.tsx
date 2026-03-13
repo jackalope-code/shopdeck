@@ -34,6 +34,10 @@ export const ALL_WIDGETS: WidgetDef[] = [
   { id: 'recent-activity', title: 'Recently Viewed', category: 'Projects', icon: 'history', color: 'text-slate-400', description: 'Products you recently opened in vendor stores.' },
   { id: 'favorite-products', title: 'Favorites', category: 'Projects', icon: 'favorite', color: 'text-red-500', description: 'Saved products from all trackers.' },
   { id: 'keyboard-releases', title: 'Keyboard New Releases', category: 'Keyboards', icon: 'keyboard', color: 'text-emerald-500', description: 'Latest keyboard launches and group buys.' },
+  { id: 'keyboard-full-release', title: 'Keyboard Full Releases', category: 'Keyboards', icon: 'keyboard', color: 'text-emerald-500', description: 'Complete keyboard kits and fully built keyboards.' },
+  { id: 'keyboard-parts-release', title: 'Keyboard Parts Releases', category: 'Keyboards', icon: 'memory_alt', color: 'text-blue-500', description: 'PCBs, plates, and core keyboard parts (non-switch/keycap).' },
+  { id: 'keyboard-switches', title: 'Keyboard Switches', category: 'Keyboards', icon: 'tune', color: 'text-cyan-500', description: 'Switches, springs, and switch accessories.' },
+  { id: 'keyboard-accessories', title: 'Keyboard Accessories / Misc', category: 'Keyboards', icon: 'cable', color: 'text-slate-400', description: 'Oddball and miscellaneous keyboard accessories.' },
   { id: 'keycaps-tracker', title: 'Keycaps Sales Tracker', category: 'Keyboards', icon: 'format_color_text', color: 'text-emerald-500', description: 'GMK, PBT and designer keycap set alerts.' },
   { id: 'keyboard-sales', title: 'Keyboard Sales', category: 'Keyboards', icon: 'sell', color: 'text-amber-500', description: 'Live keyboard discounts and clearance deals.' },
   { id: 'keyboard-comparison', title: 'Keyboard Comparison', category: 'Keyboards', icon: 'compare', color: 'text-emerald-400', description: 'Side-by-side keyboard spec comparison.' },
@@ -512,6 +516,10 @@ function WidgetContent({ id }: { id: string }) {
     case 'recent-activity':    return <RecentActivityWidget />;
     case 'favorite-products':  return <FavoritesWidget />;
     case 'keyboard-releases':  return <KeyboardReleasesWidget />;
+    case 'keyboard-full-release': return <FeedListWidget widgetId="keyboard-full-release" linkHref="/drops" linkLabel="View full keyboard releases →" />;
+    case 'keyboard-parts-release': return <FeedListWidget widgetId="keyboard-parts-release" linkHref="/drops" linkLabel="View keyboard parts →" />;
+    case 'keyboard-switches': return <FeedListWidget widgetId="keyboard-switches" linkHref="/drops" linkLabel="View keyboard switches →" />;
+    case 'keyboard-accessories': return <FeedListWidget widgetId="keyboard-accessories" linkHref="/drops" linkLabel="View keyboard accessories →" />;
     case 'keycaps-tracker':    return <FeedListWidget widgetId="keycap-releases" linkHref="/keycaps-tracker" linkLabel="Open keycaps tracker →" />;
     case 'keyboard-sales':     return <FeedListWidget widgetId="keyboard-sales" linkHref="/active-deals" linkLabel="View all keyboard deals →" />;
     case 'keyboard-comparison': return <KeyboardComparisonWidget />;
