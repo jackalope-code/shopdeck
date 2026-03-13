@@ -70,6 +70,17 @@ export interface ActivityEntry {
   timestamp: string;
 }
 
+export interface ViewHistoryEntry {
+  url: string;
+  name: string;
+  vendor?: string;
+  image?: string;
+  price?: string;
+  category?: string;
+  viewedAt: string;
+  viewCount: number;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 const EMPTY_WIDGET: WidgetFeedState = { loading: true, sources: {}, error: null, fetchedAt: null };
 
@@ -102,6 +113,10 @@ interface ShopdataContextValue {
   activity: ActivityEntry[];
   activityLoading: boolean;
   logActivity: (entry: Omit<ActivityEntry, 'timestamp'>) => void;
+  viewHistory: ViewHistoryEntry[];
+  viewHistoryLoading: boolean;
+  logView: (entry: Omit<ViewHistoryEntry, 'viewedAt' | 'viewCount'>) => void;
+  clearViewHistory: () => void;
 }
 
 const ShopdataContext = createContext<ShopdataContextValue>({
@@ -113,6 +128,10 @@ const ShopdataContext = createContext<ShopdataContextValue>({
   activity: [],
   activityLoading: true,
   logActivity: () => {},
+  viewHistory: [],
+  viewHistoryLoading: true,
+  logView: () => {},
+  clearViewHistory: () => {},
 });
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -124,6 +143,8 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [viewHistory, setViewHistory] = useState<ViewHistoryEntry[]>([]);
+  const [viewHistoryLoading, setViewHistoryLoading] = useState(true);
 
   const fetchWidget = useCallback(async (widgetId: string) => {
     const token = getToken();
@@ -199,6 +220,29 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchViewHistory = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      setViewHistory([]);
+      setViewHistoryLoading(false);
+      return;
+    }
+    setViewHistoryLoading(true);
+    try {
+      const res = await fetch('/api/view-history', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setViewHistory(json.entries ?? []);
+      }
+    } catch {
+      setViewHistory([]);
+    } finally {
+      setViewHistoryLoading(false);
+    }
+  }, []);
+
   const logActivity = useCallback((entry: Omit<ActivityEntry, 'timestamp'>) => {
     const token = getToken();
     if (!token) return;
@@ -214,14 +258,56 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
+  const logView = useCallback((entry: Omit<ViewHistoryEntry, 'viewedAt' | 'viewCount'>) => {
+    const token = getToken();
+    if (!token || !entry.url || !entry.name) return;
+
+    const full: ViewHistoryEntry = {
+      ...entry,
+      viewedAt: new Date().toISOString(),
+      viewCount: 1,
+    };
+
+    setViewHistory(prev => {
+      const existing = prev.find(item => item.url === entry.url);
+      const rest = prev.filter(item => item.url !== entry.url);
+      return [
+        existing ? { ...existing, ...full, viewCount: existing.viewCount + 1 } : full,
+        ...rest,
+      ].slice(0, 100);
+    });
+
+    fetch('/api/view-history', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(entry),
+    }).catch(() => {});
+  }, []);
+
+  const clearViewHistory = useCallback(() => {
+    const token = getToken();
+    if (!token) return;
+    setViewHistory([]);
+    fetch('/api/view-history', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {
+      fetchViewHistory();
+    });
+  }, [fetchViewHistory]);
+
   const fetchAll = useCallback(() => {
     fetchProjects();
     fetchActivity();
+    fetchViewHistory();
     // Stagger widget fetches so the backend source-level cache can warm up
     FEED_WIDGET_IDS.forEach((id, i) => {
       setTimeout(() => fetchWidget(id), i * 250);
     });
-  }, [fetchWidget, fetchProjects, fetchActivity]);
+  }, [fetchWidget, fetchProjects, fetchActivity, fetchViewHistory]);
 
   useEffect(() => {
     fetchAll();
@@ -246,6 +332,10 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
         activity,
         activityLoading,
         logActivity,
+        viewHistory,
+        viewHistoryLoading,
+        logView,
+        clearViewHistory,
       }}
     >
       {children}
@@ -282,4 +372,9 @@ export function useProjects() {
 export function useActivity() {
   const { activity, activityLoading, logActivity } = useContext(ShopdataContext);
   return { activity, loading: activityLoading, logActivity };
+}
+
+export function useViewHistory() {
+  const { viewHistory, viewHistoryLoading, logView, clearViewHistory } = useContext(ShopdataContext);
+  return { viewHistory, loading: viewHistoryLoading, logView, clearViewHistory };
 }

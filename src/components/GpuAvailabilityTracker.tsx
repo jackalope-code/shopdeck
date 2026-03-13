@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData } from '../lib/ShopdataContext';
 import { getToken, apiGet, apiPatch } from '../lib/auth';
+import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
@@ -270,7 +271,7 @@ export default function GpuAvailabilityTracker() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold truncate">
                         {item.url
-                          ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-green-500 transition-colors">{item.name}</a>
+                          ? <HistoryAwareLink href={item.url} item={{ url: item.url, name: item.name, image: item.image, price: String(item.price), vendor: item.vendor, category: 'GPU' }} className="hover:underline hover:text-green-500 transition-colors">{item.name}</HistoryAwareLink>
                           : item.name}
                       </p>
                       {item.deal && (
@@ -280,7 +281,7 @@ export default function GpuAvailabilityTracker() {
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       <span className="text-[11px] text-slate-500">
                         {item.url
-                          ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-green-500 transition-colors">{item.vendor}</a>
+                          ? <HistoryAwareLink href={item.url} item={{ url: item.url, name: item.name, image: item.image, price: String(item.price), vendor: item.vendor, category: 'GPU' }} className="hover:underline hover:text-green-500 transition-colors">{item.vendor}</HistoryAwareLink>
                           : item.vendor}
                       </span>
                       <span className="text-[11px] font-medium text-slate-500">{item.series} · {item.vram}GB {item.memType}</span>

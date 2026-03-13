@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, FeedItem, VariantDetail } from '../lib/ShopdataContext';
+import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Keyboard {
@@ -9,6 +10,7 @@ interface Keyboard {
   name: string;
   maker: string;
   price: number;
+  url?: string;
   availability: 'in-stock' | 'out-of-stock' | 'pre-order' | 'restocking' | 'low-stock';
   tier: string;
   tierColor: string;
@@ -121,13 +123,17 @@ function ProductHeader({ kb }: { kb: Keyboard }) {
 function ProductActions({ kb }: { kb: Keyboard }) {
   return (
     <div className="flex gap-3 mt-2">
-      {kb.ctaVariant === 'primary'
-        ? <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+      {kb.url
+        ? <HistoryAwareLink href={kb.url} item={{ url: kb.url, name: kb.name, image: kb.image, price: kb.price > 0 ? String(kb.price) : undefined, vendor: kb.maker, category: 'Keyboards' }} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
             <span className="material-symbols-outlined text-sm">shopping_cart</span>{kb.ctaLabel}
-          </button>
-        : <button className="flex-1 border-2 border-blue-500 text-blue-500 hover:bg-blue-500/5 font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
-            <span className="material-symbols-outlined text-sm">notifications</span>{kb.ctaLabel}
-          </button>
+          </HistoryAwareLink>
+        : kb.ctaVariant === 'primary'
+          ? <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+              <span className="material-symbols-outlined text-sm">shopping_cart</span>{kb.ctaLabel}
+            </button>
+          : <button className="flex-1 border-2 border-blue-500 text-blue-500 hover:bg-blue-500/5 font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+              <span className="material-symbols-outlined text-sm">notifications</span>{kb.ctaLabel}
+            </button>
       }
       <button className="w-12 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center">
         <span className="material-symbols-outlined">visibility</span>
@@ -167,6 +173,7 @@ function itemToKeyboard(item: FeedItem, id: 'a' | 'b'): Keyboard {
     name: item.name,
     maker: item._vendor ?? '',
     price,
+    url: item.url,
     availability,
     tier: 'Live Data',
     tierColor: 'bg-blue-500 text-white',

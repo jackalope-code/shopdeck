@@ -1425,17 +1425,38 @@ async function scrapeMouserApi(opts, mode, context = {}) {
     }
   );
 
-  const products = res.data?.SearchResults?.Products ?? [];
-  return products.map(p => ({
-    name:         p.ManufacturerPartNumber ?? p.Description ?? '',
+  const parts = res.data?.SearchResults?.Parts ?? res.data?.SearchResults?.Products ?? [];
+  function parseMouserInventory(part) {
+    const numeric = part.AvailabilityInStock ?? part.QuantityAvailable ?? part.InStock ?? null;
+    if (numeric != null) {
+      const parsed = parseInt(String(numeric).replace(/[^0-9]/g, ''), 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    const availabilityText = String(part.Availability ?? part.AvailabilityMessage ?? '');
+    const textParsed = parseInt(availabilityText.replace(/[^0-9]/g, ''), 10);
+    return Number.isFinite(textParsed) ? textParsed : null;
+  }
+
+  return parts.map(p => {
+    const inventory = parseMouserInventory(p);
+    return ({
+    name:         p.ManufacturerPartNumber ?? p.Description ?? p.DescriptionShort ?? '',
     partNumber:   p.ManufacturerPartNumber           ?? undefined,
     url:          p.ProductDetailUrl                 ?? undefined,
+    image:        p.ImagePath                        ?? p.ImageURL ?? p.Image ?? undefined,
     price:        Array.isArray(p.PriceBreaks) && p.PriceBreaks.length > 0
                     ? p.PriceBreaks[0].Price
-                    : undefined,
-    availability: p.AvailabilityInStock != null ? String(p.AvailabilityInStock) : undefined,
-    manufacturer: p.Manufacturer                     ?? undefined,
-  })).filter(i => i.name);
+                    : p.Price ?? undefined,
+    availability: inventory != null ? String(inventory) : (p.Availability ?? undefined),
+    manufacturer: p.Manufacturer                     ?? p.ManufacturerName ?? undefined,
+    productType:  p.Category                         ?? p.CategoryName ?? undefined,
+    totalInventory: inventory != null ? String(inventory) : undefined,
+    anyAvailable: inventory != null ? (inventory > 0 ? 'true' : 'false') : undefined,
+    lowStock:     inventory != null ? (inventory > 0 && inventory <= 10 ? 'true' : 'false') : undefined,
+    availableCount: inventory != null ? (inventory > 0 ? '1' : '0') : undefined,
+    variantCount: inventory != null ? '1' : undefined,
+  });
+  }).filter(i => i.name);
 }
 
 // ─── Legacy stubs (backward-compat with existing cron wiring) ─────────────────

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFeedRefresh, FeedItem } from '../lib/ShopdataContext';
 import { apiGet, apiPatch } from '../lib/auth';
+import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PartStatus = 'in-stock' | 'low-stock' | 'out-of-stock';
@@ -41,6 +42,10 @@ function itemPrice(item: FeedItem): string | null {
   return n < 0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(2)}`;
 }
 
+function itemVendor(item: FeedItem): string {
+  return item._vendor ?? item._sourceCategory ?? '';
+}
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'electronics-watchlist',        label: 'All',        icon: 'devices' },
@@ -51,7 +56,7 @@ const TABS = [
   { id: 'electronics-sensors',          label: 'Sensors',    icon: 'sensors' },
   { id: 'electronics-motors',           label: 'Motors',     icon: 'settings_motion_mode' },
   { id: 'electronics-ics',              label: 'ICs',        icon: 'memory_alt' },
-  { id: 'electronics-encoders',         label: 'Encoders',   icon: 'rotate_right' },
+  { id: 'electronics-encoders',         label: 'Encoders / Pots',   icon: 'rotate_right' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -82,7 +87,7 @@ function PartCard({ item }: { item: FeedItem }) {
   const status = itemStatus(item);
   const label  = statusLabel(item, status);
   const price  = itemPrice(item);
-  const vendor = item._vendor ?? item._sourceCategory ?? '';
+  const vendor = itemVendor(item);
 
   return (
     <div className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-all shadow-sm h-full">
@@ -109,15 +114,15 @@ function PartCard({ item }: { item: FeedItem }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+        {item.url
+          ? <HistoryAwareLink href={item.url} item={{ url: item.url, name: item.name, image: item.image, price: price ?? undefined, vendor, category: item.productType }} className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center">Details</HistoryAwareLink>
+          : <button className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
+        }
         {status === 'out-of-stock'
           ? <button className="py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs font-bold cursor-not-allowed opacity-60">Notify Me</button>
-          : <button
-              className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all"
-              onClick={() => item.url && window.open(item.url, '_blank', 'noopener,noreferrer')}
-            >
-              Buy Now
-            </button>
+          : item.url
+            ? <HistoryAwareLink href={item.url} item={{ url: item.url, name: item.name, image: item.image, price: price ?? undefined, vendor, category: item.productType }} className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all text-center">Buy Now</HistoryAwareLink>
+            : <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">Buy Now</button>
         }
       </div>
     </div>
@@ -458,7 +463,7 @@ export default function MyElectronics() {
                       <p className="font-medium">No parts found</p>
                       <p className="text-sm mt-1">
                         {feedItems.length === 0
-                          ? 'No data available yet — configure API keys in Settings to enable Mouser and DigiKey sources.'
+                          ? 'No data available yet — make sure the backend is running and at least one live source key is available.'
                           : 'Adjust your filters or search term.'
                         }
                       </p>

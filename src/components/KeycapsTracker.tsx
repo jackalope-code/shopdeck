@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, VariantDetail } from '../lib/ShopdataContext';
+import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out';
@@ -105,17 +106,17 @@ function KeycapCard({ set }: { set: KeycapSet }) {
       {/* Actions */}
       <div className="mt-4 grid grid-cols-2 gap-2">
         {set.url
-          ? <a href={set.url} target="_blank" rel="noopener noreferrer" className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center">Details</a>
+          ? <HistoryAwareLink href={set.url} item={{ url: set.url, name: set.name, image: set.image, price: String(set.price), vendor: set.vendor, category: 'Keycaps' }} className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center">Details</HistoryAwareLink>
           : <button className="py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Details</button>
         }
         {set.status === 'sold-out'
           ? <button className="py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 text-xs font-bold cursor-not-allowed opacity-60">Notify Me</button>
           : set.status === 'group-buy' || set.status === 'ic'
           ? (set.url
-              ? <a href={set.url} target="_blank" rel="noopener noreferrer" className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all text-center">{set.status === 'ic' ? 'Express Interest' : 'Join GB'}</a>
+              ? <HistoryAwareLink href={set.url} item={{ url: set.url, name: set.name, image: set.image, price: String(set.price), vendor: set.vendor, category: 'Keycaps' }} className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all text-center">{set.status === 'ic' ? 'Express Interest' : 'Join GB'}</HistoryAwareLink>
               : <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">{set.status === 'ic' ? 'Express Interest' : 'Join GB'}</button>)
           : (set.url
-              ? <a href={set.url} target="_blank" rel="noopener noreferrer" className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all text-center">Buy Now</a>
+              ? <HistoryAwareLink href={set.url} item={{ url: set.url, name: set.name, image: set.image, price: String(set.price), vendor: set.vendor, category: 'Keycaps' }} className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all text-center">Buy Now</HistoryAwareLink>
               : <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">Buy Now</button>)
         }
       </div>

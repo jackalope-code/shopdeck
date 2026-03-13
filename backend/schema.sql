@@ -52,6 +52,21 @@ CREATE TABLE IF NOT EXISTS alert_history (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── Product view history ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS view_history (
+  user_id    TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  url        TEXT        NOT NULL,
+  name       TEXT        NOT NULL,
+  vendor     TEXT,
+  image      TEXT,
+  price      TEXT,
+  category   TEXT,
+  view_count INTEGER     NOT NULL DEFAULT 1,
+  viewed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, url)
+);
+CREATE INDEX IF NOT EXISTS view_history_user_viewed_idx ON view_history(user_id, viewed_at DESC);
+
 -- ─── Electronics watchlists ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_watchlists (
   user_id   TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,

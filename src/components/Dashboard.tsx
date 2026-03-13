@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
-import { useFeedData, useProjects, useActivity } from '../lib/ShopdataContext';
+import { useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
 export interface WidgetDef {
@@ -31,7 +31,7 @@ export interface WidgetDef {
 
 export const ALL_WIDGETS: WidgetDef[] = [
   { id: 'active-projects', title: 'Active Projects', category: 'Projects', icon: 'rocket_launch', color: 'text-blue-500', description: 'Track all in-progress builds and flips.' },
-  { id: 'recent-activity', title: 'Recent Activity', category: 'Projects', icon: 'history', color: 'text-slate-400', description: 'Latest changes across all projects.' },
+  { id: 'recent-activity', title: 'Recently Viewed', category: 'Projects', icon: 'history', color: 'text-slate-400', description: 'Products you recently opened in vendor stores.' },
   { id: 'keyboard-releases', title: 'Keyboard New Releases', category: 'Keyboards', icon: 'keyboard', color: 'text-emerald-500', description: 'Latest keyboard launches and group buys.' },
   { id: 'keycaps-tracker', title: 'Keycaps Sales Tracker', category: 'Keyboards', icon: 'format_color_text', color: 'text-emerald-500', description: 'GMK, PBT and designer keycap set alerts.' },
   { id: 'keyboard-sales', title: 'Keyboard Sales', category: 'Keyboards', icon: 'sell', color: 'text-amber-500', description: 'Live keyboard discounts and clearance deals.' },
@@ -133,7 +133,7 @@ function ActiveProjectsWidget() {
 }
 
 function RecentActivityWidget() {
-  const { activity, loading } = useActivity();
+  const { viewHistory, loading } = useViewHistory();
   if (loading) return (
     <div className="p-4 space-y-4">
       {Array.from({ length: 4 }).map((_, i) => (
@@ -147,29 +147,38 @@ function RecentActivityWidget() {
       ))}
     </div>
   );
-  if (activity.length === 0) return (
+  if (viewHistory.length === 0) return (
     <div className="p-6 text-center text-slate-400 text-sm">
       <span className="material-symbols-outlined block text-3xl mb-2">history</span>
-      No activity yet. Actions you take will appear here.
+      No recently viewed products yet.
     </div>
   );
-  const TYPE_DOT: Record<string, string> = {
-    create: 'bg-emerald-500 ring-emerald-500/20',
-    update: 'bg-blue-500 ring-blue-500/20',
-    delete: 'bg-red-500 ring-red-500/20',
-    sale: 'bg-orange-500 ring-orange-500/20',
-  };
   return (
-    <div className="p-4 space-y-4">
-      {activity.slice(0, 5).map((a, i) => (
-        <div key={i} className="flex gap-3 items-start">
-          <div className={`size-2 mt-1.5 rounded-full shrink-0 ring-4 ${TYPE_DOT[a.type] ?? 'bg-slate-400 ring-transparent'}`} />
-          <div>
-            <p className="text-sm font-medium">{a.title}</p>
-            <p className="text-[10px] text-slate-500">{relativeTime(a.timestamp)}</p>
+    <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      {viewHistory.slice(0, 5).map((item) => (
+        <div key={item.url} className="flex gap-3 items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+          <div className="h-10 w-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
+            {item.image
+              ? <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+              : <span className="material-symbols-outlined text-slate-400 text-lg">open_in_new</span>}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{item.name}</p>
+            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+              {item.vendor && <span>{item.vendor}</span>}
+              {item.category && <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase">{item.category}</span>}
+              <span>{relativeTime(item.viewedAt)}</span>
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            {item.price && <p className="text-sm font-bold text-blue-500">{item.price.startsWith('$') ? item.price : `$${item.price}`}</p>}
+            <p className="text-[10px] text-slate-500">{item.viewCount}x</p>
           </div>
         </div>
       ))}
+      <div className="px-4 py-3">
+        <Link href="/recently-viewed" className="text-xs font-bold text-blue-500 hover:underline">View recently viewed →</Link>
+      </div>
     </div>
   );
 }

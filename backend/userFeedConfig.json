@@ -85,7 +85,7 @@
         { "id": "adafruit-motors",           "name": "Adafruit Motors",             "enabled": true },
         { "id": "adafruit-passives",         "name": "Adafruit Passives",           "enabled": true },
         { "id": "adafruit-breakout-boards",  "name": "Adafruit Breakout Boards",    "enabled": true },
-        { "id": "mouser-electronics", "name": "Mouser Electronics", "ruleType": "mouser-api", "keywords": "microcontroller Arduino ESP32 LED sensor development board", "enabled": true },
+        { "id": "mouser-electronics", "name": "Mouser Electronics", "ruleType": "mouser-api", "keywords": "development board", "enabled": true },
         { "id": "microcenter-electronics",   "name": "Microcenter",                 "enabled": true }
       ],
       "custom": []
@@ -93,7 +93,7 @@
     "electronics-new-drops": {
       "sources": [
         { "id": "adafruit-new", "name": "Adafruit New Products", "enabled": true },
-        { "id": "mouser-new-drops",  "name": "Mouser New Drops",  "ruleType": "mouser-api",  "keywords": "new products microcontroller sensor development board module", "enabled": true },
+        { "id": "mouser-new-drops",  "name": "Mouser New Drops",  "ruleType": "mouser-api",  "keywords": "development board", "enabled": true },
         { "id": "digikey-new-drops", "name": "DigiKey New Drops", "ruleType": "digikey-api", "keywords": "new microcontroller sensor development board module",        "enabled": true }
       ],
       "custom": []
@@ -101,7 +101,7 @@
     "electronics-sales": {
       "sources": [
         { "id": "adafruit-sales",  "name": "Adafruit Sales",  "enabled": true },
-        { "id": "mouser-sales",  "name": "Mouser Deals",  "ruleType": "mouser-api",  "keywords": "sale discount microcontroller sensor LED", "enabled": true },
+        { "id": "mouser-sales",  "name": "Mouser Deals",  "ruleType": "mouser-api",  "keywords": "sensor module", "enabled": true },
         { "id": "digikey-sales", "name": "DigiKey Deals", "ruleType": "digikey-api", "keywords": "sale discount microcontroller sensor LED", "enabled": true }
       ],
       "custom": []
@@ -109,7 +109,7 @@
     "electronics-microcontrollers": {
       "sources": [
         { "id": "adafruit-microcontrollers", "name": "Adafruit Microcontrollers", "enabled": true },
-        { "id": "mouser-mcus",  "name": "Mouser MCUs",  "ruleType": "mouser-api",  "keywords": "microcontroller ESP32 Arduino RP2040 STM32 ATmega PIC AVR", "enabled": true },
+        { "id": "mouser-mcus",  "name": "Mouser MCUs",  "ruleType": "mouser-api",  "keywords": "STM32", "enabled": true },
         { "id": "digikey-mcus", "name": "DigiKey MCUs", "ruleType": "digikey-api", "keywords": "microcontroller ESP32 Arduino RP2040 STM32 ATmega",          "enabled": true }
       ],
       "custom": []
@@ -117,7 +117,7 @@
     "electronics-passives": {
       "sources": [
         { "id": "adafruit-passives", "name": "Adafruit Passives", "enabled": true },
-        { "id": "mouser-passives",  "name": "Mouser Passives",  "ruleType": "mouser-api",  "keywords": "resistor capacitor inductor passive component 0603 0402 0805", "enabled": true },
+        { "id": "mouser-passives",  "name": "Mouser Passives",  "ruleType": "mouser-api",  "keywords": "resistor", "enabled": true },
         { "id": "digikey-passives", "name": "DigiKey Passives", "ruleType": "digikey-api", "keywords": "resistor capacitor inductor passive component 0603 0402",      "enabled": true }
       ],
       "custom": []
@@ -125,7 +125,7 @@
     "electronics-sensors": {
       "sources": [
         { "id": "adafruit-sensors", "name": "Adafruit Sensors", "enabled": true },
-        { "id": "mouser-sensors",  "name": "Mouser Sensors",  "ruleType": "mouser-api",  "keywords": "temperature humidity motion accelerometer gyroscope sensor module breakout", "enabled": true },
+        { "id": "mouser-sensors",  "name": "Mouser Sensors",  "ruleType": "mouser-api",  "keywords": "temperature sensor", "enabled": true },
         { "id": "digikey-sensors", "name": "DigiKey Sensors", "ruleType": "digikey-api", "keywords": "temperature humidity motion accelerometer gyroscope sensor module",        "enabled": true }
       ],
       "custom": []
@@ -133,7 +133,7 @@
     "electronics-motors": {
       "sources": [
         { "id": "adafruit-motors", "name": "Adafruit Motors", "enabled": true },
-        { "id": "mouser-motors",  "name": "Mouser Motors",  "ruleType": "mouser-api",  "keywords": "stepper servo DC motor brushless actuator motor driver", "enabled": true },
+        { "id": "mouser-motors",  "name": "Mouser Motors",  "ruleType": "mouser-api",  "keywords": "servo motor", "enabled": true },
         { "id": "digikey-motors", "name": "DigiKey Motors", "ruleType": "digikey-api", "keywords": "stepper servo DC motor brushless actuator",           "enabled": true }
       ],
       "custom": []
@@ -141,14 +141,14 @@
     "electronics-ics": {
       "sources": [
         { "id": "adafruit-breakout-boards", "name": "Adafruit Breakout Boards", "enabled": true },
-        { "id": "mouser-ics",  "name": "Mouser ICs",  "ruleType": "mouser-api",  "keywords": "IC integrated circuit op-amp logic gate timer 555 comparator", "enabled": true },
+        { "id": "mouser-ics",  "name": "Mouser ICs",  "ruleType": "mouser-api",  "keywords": "555 timer", "enabled": true },
         { "id": "digikey-ics", "name": "DigiKey ICs", "ruleType": "digikey-api", "keywords": "IC integrated circuit op-amp logic gate timer 555",        "enabled": true }
       ],
       "custom": []
     },
     "electronics-encoders": {
       "sources": [
-        { "id": "mouser-encoders",  "name": "Mouser Encoders",  "ruleType": "mouser-api",  "keywords": "rotary encoder potentiometer electromechanical panel control", "enabled": true },
+        { "id": "mouser-encoders",  "name": "Mouser Encoders",  "ruleType": "mouser-api",  "keywords": "rotary encoder", "enabled": true },
         { "id": "digikey-encoders", "name": "DigiKey Encoders", "ruleType": "digikey-api", "keywords": "rotary encoder potentiometer electromechanical panel",          "enabled": true }
       ],
       "custom": []

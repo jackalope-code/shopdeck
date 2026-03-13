@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData } from '../lib/ShopdataContext';
+import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DropStatus = 'group-buy' | 'in-stock' | 'ic' | 'sold-out' | 'sale';
@@ -61,7 +62,7 @@ function DropCard({ drop }: { drop: Drop }) {
   const [imgErr, setImgErr] = useState(false);
   const Wrapper = drop.url
     ? ({ children }: { children: React.ReactNode }) => (
-        <a href={drop.url} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group cursor-pointer">{children}</a>
+        <HistoryAwareLink href={drop.url} item={{ url: drop.url, name: drop.name, image: drop.image, price: drop.price, vendor: drop.vendor, category: drop.category }} className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group cursor-pointer">{children}</HistoryAwareLink>
       )
     : ({ children }: { children: React.ReactNode }) => (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group">{children}</div>

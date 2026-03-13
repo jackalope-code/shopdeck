@@ -28,6 +28,21 @@ function readDefaults() {
   try { return JSON.parse(fs.readFileSync(DEFAULTS_FILE, 'utf8')).defaults; } catch { return {}; }
 }
 
+function normalizeWidgetConfig(widgetId, widgetCfg, defaults) {
+  const fallbackCfg = defaults[widgetId] ?? {};
+  const defaultSourcesById = new Map((fallbackCfg.sources ?? []).map(src => [src.id, src]));
+  const mergedSources = (widgetCfg.sources ?? fallbackCfg.sources ?? []).map(src => {
+    const fallback = src?.id ? defaultSourcesById.get(src.id) : null;
+    return fallback ? { ...fallback, ...src } : src;
+  });
+  return {
+    ...fallbackCfg,
+    ...widgetCfg,
+    sources: mergedSources,
+    custom: widgetCfg.custom ?? fallbackCfg.custom ?? [],
+  };
+}
+
 // Redis TTL for scrape cache — matches scheduled cooldown in scraper.js
 const FEED_DATA_CACHE_TTL_S  = 6 * 60 * 60;  // 6 hours (seconds for Redis EX)
 const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
@@ -91,10 +106,10 @@ router.get('/', verifyToken, async (req, res) => {
     const defaults = readDefaults();
     const merged = {};
     for (const widgetId of Object.keys(defaults)) {
-      merged[widgetId] = userCfg[widgetId] ?? defaults[widgetId];
+      merged[widgetId] = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? defaults[widgetId] ?? {}, defaults);
     }
     for (const widgetId of Object.keys(userCfg)) {
-      if (!merged[widgetId]) merged[widgetId] = userCfg[widgetId];
+      if (!merged[widgetId]) merged[widgetId] = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? {}, defaults);
     }
     res.json({ config: merged });
   } catch (err) {
@@ -167,10 +182,16 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   const profile = profileResult.rows[0] ?? {};
   const defaults = readDefaults();
   const userCfg  = profile.feed_config ?? {};
-  const widgetCfg = userCfg[widgetId] ?? defaults[widgetId] ?? {};
+  const widgetCfg = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? defaults[widgetId] ?? {}, defaults);
   const sources  = widgetCfg.sources ?? [];
   const custom   = widgetCfg.custom  ?? [];
-  const apiKeys  = decryptMap(profile.api_keys  ?? {});
+  const decryptedApiKeys = decryptMap(profile.api_keys ?? {});
+  const apiKeys  = {
+    ...decryptedApiKeys,
+    mouser_api_key: decryptedApiKeys.mouser_api_key ?? process.env.MOUSER_API_KEY ?? undefined,
+    digikey_client_id: decryptedApiKeys.digikey_client_id ?? process.env.DIGIKEY_CLIENT_ID ?? undefined,
+    digikey_client_secret: decryptedApiKeys.digikey_client_secret ?? process.env.DIGIKEY_CLIENT_SECRET ?? undefined,
+  };
 
   const results = {};
 

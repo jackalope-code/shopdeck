@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData } from '../lib/ShopdataContext';
 import { getToken, apiGet, apiPatch } from '../lib/auth';
+import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
@@ -264,7 +265,7 @@ export default function RamAvailabilityTracker() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-bold text-sm leading-tight">
                             {item.url
-                              ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-blue-500 transition-colors">{item.name}</a>
+                              ? <HistoryAwareLink href={item.url} item={{ url: item.url, name: item.name, image: item.image, price: String(item.price), vendor: item.vendor, category: 'RAM' }} className="hover:underline hover:text-blue-500 transition-colors">{item.name}</HistoryAwareLink>
                               : item.name}
                           </h3>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -272,7 +273,7 @@ export default function RamAvailabilityTracker() {
                             <span className="text-xs text-slate-500">
                               at{' '}
                               {item.url
-                                ? <a href={item.url} target="_blank" rel="noreferrer noopener" className="hover:underline hover:text-blue-500 transition-colors">{item.vendor}</a>
+                                ? <HistoryAwareLink href={item.url} item={{ url: item.url, name: item.name, image: item.image, price: String(item.price), vendor: item.vendor, category: 'RAM' }} className="hover:underline hover:text-blue-500 transition-colors">{item.vendor}</HistoryAwareLink>
                                 : item.vendor}
                             </span>
                             <div className="flex gap-1">

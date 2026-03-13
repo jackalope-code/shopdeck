@@ -80,8 +80,14 @@ const DEFAULT_FEED_CONFIG = {
   },
   'electronics-watchlist': {
     sources: [
-      { id: 'digikey-electronics', name: 'DigiKey', enabled: true },
-      { id: 'mouser-electronics',  name: 'Mouser',  enabled: true },
+      { id: 'adafruit-new',              name: 'Adafruit New Products',    enabled: true },
+      { id: 'adafruit-microcontrollers', name: 'Adafruit Microcontrollers', enabled: true },
+      { id: 'adafruit-sensors',          name: 'Adafruit Sensors',          enabled: true },
+      { id: 'adafruit-motors',           name: 'Adafruit Motors',           enabled: true },
+      { id: 'adafruit-passives',         name: 'Adafruit Passives',         enabled: true },
+      { id: 'adafruit-breakout-boards',  name: 'Adafruit Breakout Boards',  enabled: true },
+      { id: 'mouser-electronics',        name: 'Mouser Electronics',        ruleType: 'mouser-api',  keywords: 'development board', enabled: true },
+      { id: 'microcenter-electronics',   name: 'Microcenter',               enabled: true },
     ], custom: [],
   },
 };
