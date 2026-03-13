@@ -39,7 +39,15 @@ export const ALL_WIDGETS: WidgetDef[] = [
   { id: 'ram-availability', title: 'RAM Availability', category: 'Electronics', icon: 'memory', color: 'text-purple-500', description: 'DDR4/DDR5 stock level monitor.' },
   { id: 'gpu-availability', title: 'GPU Availability', category: 'Electronics', icon: 'videogame_asset', color: 'text-green-500', description: 'RTX/RX GPU stock level monitor across retailers.' },
   { id: 'active-deals', title: 'Active Deals', category: 'Electronics', icon: 'sell', color: 'text-orange-500', description: 'Live price drops and limited-time offers.' },
-  { id: 'electronics-watchlist', title: 'Electronics Watchlist', category: 'Electronics', icon: 'devices', color: 'text-blue-400', description: 'DigiKey / Mouser tracked parts.' },
+  { id: 'electronics-watchlist',       title: 'Electronics Watchlist',       category: 'Electronics', icon: 'devices',               color: 'text-blue-400',   description: 'DigiKey / Mouser tracked parts.' },
+  { id: 'electronics-new-drops',       title: 'Electronics New Drops',       category: 'Electronics', icon: 'new_releases',          color: 'text-green-500',  description: 'Latest component and maker releases.' },
+  { id: 'electronics-sales',           title: 'Electronics Sales',           category: 'Electronics', icon: 'sell',                  color: 'text-amber-500',  description: 'Discounted electronics and components.' },
+  { id: 'electronics-microcontrollers',title: 'Microcontrollers',            category: 'Electronics', icon: 'developer_board',       color: 'text-blue-500',   description: 'MCU availability: Adafruit, Mouser, DigiKey.' },
+  { id: 'electronics-passives',        title: 'Passives',                    category: 'Electronics', icon: 'electric_bolt',         color: 'text-slate-400',  description: 'Resistors, capacitors, and inductors in stock.' },
+  { id: 'electronics-sensors',         title: 'Sensors',                     category: 'Electronics', icon: 'sensors',               color: 'text-purple-500', description: 'Temperature, motion, and environmental sensors.' },
+  { id: 'electronics-motors',          title: 'Motors & Actuators',          category: 'Electronics', icon: 'settings_motion_mode',  color: 'text-orange-500', description: 'Steppers, servos, and DC motors.' },
+  { id: 'electronics-ics',             title: 'ICs & Breakout Boards',       category: 'Electronics', icon: 'memory_alt',            color: 'text-cyan-500',   description: 'Op-amps, logic gates and breakout boards.' },
+  { id: 'electronics-encoders',        title: 'Encoders & Potentiometers',   category: 'Electronics', icon: 'rotate_right',          color: 'text-pink-500',   description: 'Rotary encoders and potentiometers.' },
   { id: 'inventory-stats', title: 'Inventory Stats', category: 'Overview', icon: 'inventory_2', color: 'text-blue-500', description: 'High-level stock and project counts.' },
   { id: 'vendor-performance', title: 'Vendor Performance', category: 'Overview', icon: 'storefront', color: 'text-yellow-500', description: 'Fulfillment rates across top vendors.' },
 ];
@@ -450,7 +458,15 @@ function WidgetContent({ id }: { id: string }) {
     case 'ram-availability':   return <FeedListWidget widgetId="ram-availability" linkHref="/ram-availability-tracker" linkLabel="Open RAM tracker →" />;
     case 'gpu-availability':   return <FeedListWidget widgetId="gpu-availability" linkHref="/gpu-availability-tracker" linkLabel="Open GPU tracker →" />;
     case 'active-deals':       return <FeedListWidget widgetId="active-deals" linkHref="/active-deals" linkLabel="View all deals →" />;
-    case 'electronics-watchlist': return <FeedListWidget widgetId="electronics-watchlist" linkHref="/my-electronics" linkLabel="Manage watchlist →" />;
+    case 'electronics-watchlist':        return <FeedListWidget widgetId="electronics-watchlist"        linkHref="/my-electronics" linkLabel="Manage watchlist →" />;
+    case 'electronics-new-drops':        return <FeedListWidget widgetId="electronics-new-drops"        linkHref="/my-electronics" linkLabel="View all new drops →" />;
+    case 'electronics-sales':            return <FeedListWidget widgetId="electronics-sales"            linkHref="/my-electronics" linkLabel="View electronics deals →" />;
+    case 'electronics-microcontrollers': return <FeedListWidget widgetId="electronics-microcontrollers" linkHref="/my-electronics" linkLabel="View MCUs →" />;
+    case 'electronics-passives':         return <FeedListWidget widgetId="electronics-passives"         linkHref="/my-electronics" linkLabel="View passives →" />;
+    case 'electronics-sensors':          return <FeedListWidget widgetId="electronics-sensors"          linkHref="/my-electronics" linkLabel="View sensors →" />;
+    case 'electronics-motors':           return <FeedListWidget widgetId="electronics-motors"           linkHref="/my-electronics" linkLabel="View motors →" />;
+    case 'electronics-ics':              return <FeedListWidget widgetId="electronics-ics"              linkHref="/my-electronics" linkLabel="View ICs →" />;
+    case 'electronics-encoders':         return <FeedListWidget widgetId="electronics-encoders"         linkHref="/my-electronics" linkLabel="View encoders →" />;
     case 'inventory-stats':    return <InventoryStatsWidget />;
     case 'vendor-performance':
       return (

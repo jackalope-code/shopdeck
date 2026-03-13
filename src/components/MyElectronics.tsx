@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData, FeedItem } from '../lib/ShopdataContext';
+import { useFeedData, useFeedRefresh, FeedItem } from '../lib/ShopdataContext';
+import { apiGet, apiPatch } from '../lib/auth';
 
-// ─── Types ──────────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 type PartStatus = 'in-stock' | 'low-stock' | 'out-of-stock';
 
 const STATUS_BADGE: Record<PartStatus, string> = {
@@ -40,7 +41,27 @@ function itemPrice(item: FeedItem): string | null {
   return n < 0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(2)}`;
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────────────
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+const TABS = [
+  { id: 'electronics-watchlist',        label: 'All',        icon: 'devices' },
+  { id: 'electronics-new-drops',        label: 'New Drops',  icon: 'new_releases' },
+  { id: 'electronics-sales',            label: 'Sales',      icon: 'sell' },
+  { id: 'electronics-microcontrollers', label: 'MCUs',       icon: 'developer_board' },
+  { id: 'electronics-passives',         label: 'Passives',   icon: 'electric_bolt' },
+  { id: 'electronics-sensors',          label: 'Sensors',    icon: 'sensors' },
+  { id: 'electronics-motors',           label: 'Motors',     icon: 'settings_motion_mode' },
+  { id: 'electronics-ics',              label: 'ICs',        icon: 'memory_alt' },
+  { id: 'electronics-encoders',         label: 'Encoders',   icon: 'rotate_right' },
+] as const;
+
+type TabId = typeof TABS[number]['id'];
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const CATEGORIES = ['All Categories', 'Microcontrollers', 'LED Modules', 'Sensors', 'Connectors', 'Passives', 'Development Boards', 'Motors', 'ICs'];
+const VENDORS    = ['All Vendors', 'Adafruit', 'Mouser', 'DigiKey', 'Microcenter'];
+const PER_PAGE   = 24;
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 function CardSkeleton() {
   return (
     <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 h-full animate-pulse">
@@ -56,7 +77,7 @@ function CardSkeleton() {
   );
 }
 
-// ─── Card ───────────────────────────────────────────────────────────────────────────
+// ─── Card ─────────────────────────────────────────────────────────────────────
 function PartCard({ item }: { item: FeedItem }) {
   const status = itemStatus(item);
   const label  = statusLabel(item, status);
@@ -65,7 +86,6 @@ function PartCard({ item }: { item: FeedItem }) {
 
   return (
     <div className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-all shadow-sm h-full">
-      {/* Thumbnail */}
       <div className="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
         <div className={`absolute top-2 left-2 z-10 ${STATUS_BADGE[status]} text-[10px] font-black px-2 py-1 rounded-full uppercase`}>
           {status === 'in-stock' ? 'In Stock' : status === 'low-stock' ? 'Low Stock' : 'Out of Stock'}
@@ -104,18 +124,166 @@ function PartCard({ item }: { item: FeedItem }) {
   );
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────────────
-const CATEGORIES = ['All Categories', 'Microcontrollers', 'LED Modules', 'Sensors', 'Connectors', 'Passives', 'Development Boards'];
-const VENDORS    = ['All Vendors', 'Adafruit', 'Mouser', 'Microcenter'];
-const PER_PAGE   = 24;
+// ─── Custom Source Modal ───────────────────────────────────────────────────────
+interface AddSourceModalProps {
+  defaultTab: TabId;
+  onClose: () => void;
+  onAdded: (widgetId: string) => void;
+}
 
-// ─── Page ───────────────────────────────────────────────────────────────────────────
+function AddSourceModal({ defaultTab, onClose, onAdded }: AddSourceModalProps) {
+  const [name,         setName]         = useState('');
+  const [targetWidget, setTargetWidget] = useState<TabId>(defaultTab);
+  const [sourceType,   setSourceType]   = useState<'mouser-api' | 'digikey-api' | 'user-rss'>('mouser-api');
+  const [keywords,     setKeywords]     = useState('');
+  const [url,          setUrl]          = useState('');
+  const [submitting,   setSubmitting]   = useState(false);
+  const [error,        setError]        = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) { setError('Name is required'); return; }
+    if (sourceType === 'user-rss' && !url.trim()) { setError('RSS URL is required'); return; }
+    if (sourceType !== 'user-rss' && !keywords.trim()) { setError('Keywords are required'); return; }
+    setSubmitting(true);
+    setError('');
+    try {
+      const cfg = await apiGet<{ config: Record<string, { sources: unknown[] }> }>('/api/feed-config');
+      const existing = cfg.config[targetWidget]?.sources ?? [];
+      const newSource = sourceType === 'user-rss'
+        ? { id: `custom-${Date.now()}`, name: name.trim(), ruleType: 'user-rss', url: url.trim(), enabled: true }
+        : { id: `custom-${Date.now()}`, name: name.trim(), ruleType: sourceType, keywords: keywords.trim(), enabled: true };
+      await apiPatch(`/api/feed-config/${targetWidget}`, { sources: [...existing, newSource] });
+      onAdded(targetWidget);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to add source');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
+          <h3 className="text-lg font-bold">Track Custom Source</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">Source Name</label>
+            <input
+              type="text"
+              placeholder="e.g. My ESP32 Search"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-blue-500/5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">Add To Feed</label>
+            <select
+              value={targetWidget}
+              onChange={e => setTargetWidget(e.target.value as TabId)}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-blue-500/5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {TABS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">Source Type</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['mouser-api', 'digikey-api', 'user-rss'] as const).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setSourceType(type)}
+                  className={`py-2 rounded-lg text-xs font-bold border transition-colors ${sourceType === type ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                >
+                  {type === 'mouser-api' ? 'Mouser API' : type === 'digikey-api' ? 'DigiKey API' : 'Custom RSS'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {sourceType === 'user-rss' ? (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">RSS Feed URL</label>
+              <input
+                type="url"
+                placeholder="https://example.com/feed.rss"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-blue-500/5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">Search Keywords</label>
+              <input
+                type="text"
+                placeholder={sourceType === 'mouser-api' ? 'e.g. ESP32 WROOM development board' : 'e.g. RP2040 microcontroller'}
+                value={keywords}
+                onChange={e => setKeywords(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-blue-500/5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                {sourceType === 'mouser-api' ? 'Requires a Mouser API key configured in Settings.' : 'Requires DigiKey API credentials configured in Settings.'}
+              </p>
+            </div>
+          )}
+          {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white text-sm font-bold transition-colors"
+            >
+              {submitting ? 'Adding...' : 'Add Source'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
 export default function MyElectronics() {
-  const { loading, items: feedItems } = useFeedData('electronics-watchlist');
-  const [search,   setSearch]   = useState('');
-  const [category, setCategory] = useState('All Categories');
-  const [vendor,   setVendor]   = useState('All Vendors');
-  const [page,     setPage]     = useState(1);
+  const [activeTab,  setActiveTab]  = useState<TabId>('electronics-watchlist');
+  const [search,     setSearch]     = useState('');
+  const [category,   setCategory]   = useState('All Categories');
+  const [vendor,     setVendor]     = useState('All Vendors');
+  const [page,       setPage]       = useState(1);
+  const [modalOpen,  setModalOpen]  = useState(false);
+
+  const { loading, items: feedItems } = useFeedData(activeTab);
+  const refreshWidget = useFeedRefresh();
+
+  function handleTabChange(id: TabId) {
+    setActiveTab(id);
+    setSearch('');
+    setCategory('All Categories');
+    setVendor('All Vendors');
+    setPage(1);
+  }
+
+  function handleSourceAdded(widgetId: string) {
+    setModalOpen(false);
+    refreshWidget(widgetId);
+    if (widgetId !== activeTab) handleTabChange(widgetId as TabId);
+  }
 
   const filtered = feedItems.filter(item => {
     const vendorStr = (item._vendor ?? item._sourceCategory ?? '').toLowerCase();
@@ -128,20 +296,28 @@ export default function MyElectronics() {
     return matchSearch && matchVendor && matchCategory;
   });
 
-  const totalParts     = feedItems.length;
-  const lowStockCount  = feedItems.filter(i => i.lowStock === 'true').length;
+  const totalParts      = feedItems.length;
+  const lowStockCount   = feedItems.filter(i => i.lowStock === 'true').length;
   const outOfStockCount = feedItems.filter(i => i.anyAvailable === 'false').length;
-  const pageCount      = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const pageItems      = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const pageCount       = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const pageItems       = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Electronics" />
 
+      {modalOpen && (
+        <AddSourceModal
+          defaultTab={activeTab}
+          onClose={() => setModalOpen(false)}
+          onAdded={handleSourceAdded}
+        />
+      )}
+
       <div className="flex flex-col">
         <main className="p-8">
           {/* Page header */}
-          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
                 <span>Inventory</span>
@@ -151,14 +327,35 @@ export default function MyElectronics() {
               <h2 className="text-3xl font-bold tracking-tight uppercase">My Electronics Parts</h2>
             </div>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-all">
-                <span className="material-symbols-outlined text-sm">add</span>Add New Part
+              <button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-500/40 text-blue-500 text-sm font-bold hover:bg-blue-500/10 transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">rss_feed</span>Track Custom Source
               </button>
               <button className="p-2 border border-slate-200 dark:border-blue-500/20 rounded-lg hover:bg-slate-100 dark:hover:bg-blue-500/10 transition-colors">
                 <span className="material-symbols-outlined">cloud_download</span>
               </button>
             </div>
           </header>
+
+          {/* Tab bar */}
+          <div className="flex gap-1 overflow-x-auto pb-1 mb-6 scrollbar-none">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
+                  activeTab === tab.id
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
           {/* Stats row */}
           <section className="grid grid-cols-3 gap-6 mb-8">
@@ -202,11 +399,11 @@ export default function MyElectronics() {
             </div>
           </section>
 
-          {/* Table / card section */}
+          {/* Card section */}
           <section className="bg-white dark:bg-[#101922]/50 border border-slate-200 dark:border-blue-500/20 rounded-xl overflow-hidden">
             {/* Controls */}
             <div className="p-4 border-b border-slate-200 dark:border-blue-500/20 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+              <div className="flex items-center gap-4 flex-1 min-w-75">
                 <div className="relative flex-1">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
                   <input
@@ -233,8 +430,11 @@ export default function MyElectronics() {
                   </select>
                 </div>
               </div>
-              <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-blue-500/20 hover:bg-slate-100 dark:hover:bg-blue-500/10 transition-colors">
-                <span className="material-symbols-outlined text-sm">filter_list</span>More Filters
+              <button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-blue-500/20 hover:bg-slate-100 dark:hover:bg-blue-500/10 transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">add_circle</span>Add Source
               </button>
             </div>
 
@@ -256,7 +456,12 @@ export default function MyElectronics() {
                     <div className="text-center py-16 text-slate-400">
                       <span className="material-symbols-outlined text-5xl mb-3 block">search_off</span>
                       <p className="font-medium">No parts found</p>
-                      <p className="text-sm mt-1">Adjust your filters or search term.</p>
+                      <p className="text-sm mt-1">
+                        {feedItems.length === 0
+                          ? 'No data available yet — configure API keys in Settings to enable Mouser and DigiKey sources.'
+                          : 'Adjust your filters or search term.'
+                        }
+                      </p>
                     </div>
                   )
               }
@@ -266,17 +471,36 @@ export default function MyElectronics() {
             <div className="px-6 py-4 border-t border-slate-200 dark:border-blue-500/10 flex items-center justify-between">
               <span className="text-xs text-slate-500">Showing {pageItems.length} of {filtered.length} entries</span>
               <div className="flex items-center gap-1">
-                <button disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-blue-500/10 disabled:opacity-30 transition-colors">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className="p-1 rounded hover:bg-slate-100 dark:hover:bg-blue-500/10 disabled:opacity-30 transition-colors"
+                >
                   <span className="material-symbols-outlined text-base">chevron_left</span>
                 </button>
                 {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => i + 1).map(n => (
-                  <button key={n} onClick={() => setPage(n)} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${page === n ? 'bg-blue-500 text-white' : 'hover:bg-slate-100 dark:hover:bg-blue-500/10'}`}>{n}</button>
+                  <button
+                    key={n}
+                    onClick={() => setPage(n)}
+                    className={`px-2 py-1 text-xs font-bold rounded transition-colors ${page === n ? 'bg-blue-500 text-white' : 'hover:bg-slate-100 dark:hover:bg-blue-500/10'}`}
+                  >
+                    {n}
+                  </button>
                 ))}
                 {pageCount > 5 && <span className="text-xs mx-1">...</span>}
                 {pageCount > 5 && (
-                  <button onClick={() => setPage(pageCount)} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${page === pageCount ? 'bg-blue-500 text-white' : 'hover:bg-slate-100 dark:hover:bg-blue-500/10'}`}>{pageCount}</button>
+                  <button
+                    onClick={() => setPage(pageCount)}
+                    className={`px-2 py-1 text-xs font-bold rounded transition-colors ${page === pageCount ? 'bg-blue-500 text-white' : 'hover:bg-slate-100 dark:hover:bg-blue-500/10'}`}
+                  >
+                    {pageCount}
+                  </button>
                 )}
-                <button disabled={page === pageCount} onClick={() => setPage(p => Math.min(pageCount, p + 1))} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-blue-500/10 disabled:opacity-30 transition-colors">
+                <button
+                  disabled={page === pageCount}
+                  onClick={() => setPage(p => Math.min(pageCount, p + 1))}
+                  className="p-1 rounded hover:bg-slate-100 dark:hover:bg-blue-500/10 disabled:opacity-30 transition-colors"
+                >
                   <span className="material-symbols-outlined text-base">chevron_right</span>
                 </button>
               </div>

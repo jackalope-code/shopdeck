@@ -73,6 +73,14 @@ export const FEED_WIDGET_IDS = [
   'gpu-availability',
   'active-deals',
   'electronics-watchlist',
+  'electronics-new-drops',
+  'electronics-sales',
+  'electronics-microcontrollers',
+  'electronics-passives',
+  'electronics-sensors',
+  'electronics-motors',
+  'electronics-ics',
+  'electronics-encoders',
 ] as const;
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -250,6 +258,11 @@ export function useFeedData(widgetId: string) {
     error: widget.error,
     refresh: () => ctx.refresh(widgetId),
   };
+}
+
+export function useFeedRefresh() {
+  const ctx = useContext(ShopdataContext);
+  return ctx.refresh;
 }
 
 export function useProjects() {
