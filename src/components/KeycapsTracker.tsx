@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData, VariantDetail } from '../lib/ShopdataContext';
+import { useFeedData, useFavorites, VariantDetail } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,7 +56,8 @@ const SETS: KeycapSet[] = [
 const ALL_BRANDS: BrandFilter[] = ['All Sets', 'GMK', 'PBTFans', 'KAT', 'DCX', 'Drop'];
 
 function KeycapCard({ set }: { set: KeycapSet }) {
-  const [faved, setFaved] = useState(set.favorited || false);
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const faved = isFavorite(set.url);
   const [imgErr, setImgErr] = useState(false);
   const [variantsOpen, setVariantsOpen] = useState(false);
 
@@ -80,7 +81,17 @@ function KeycapCard({ set }: { set: KeycapSet }) {
         </div>
         {/* Favorite button */}
         <button
-          onClick={() => setFaved(f => !f)}
+          onClick={() => {
+            if (!set.url) return;
+            toggleFavorite({
+              url: set.url,
+              name: set.name,
+              image: set.image,
+              price: String(set.price),
+              vendor: set.vendor,
+              category: 'Keycaps',
+            });
+          }}
           className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center transition-colors ${faved ? 'bg-red-500 text-white' : 'bg-white/10 text-white hover:bg-blue-500'}`}
         >
           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: faved ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>

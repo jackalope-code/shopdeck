@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData, useFeedRefresh, FeedItem } from '../lib/ShopdataContext';
+import { useFeedData, useFeedRefresh, useFavorites, FeedItem } from '../lib/ShopdataContext';
 import { apiGet, apiPatch } from '../lib/auth';
 import HistoryAwareLink from './HistoryAwareLink';
 
@@ -89,10 +89,12 @@ function CardSkeleton() {
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 function PartCard({ item }: { item: FeedItem }) {
+  const { isFavorite, toggleFavorite } = useFavorites();
   const status = itemStatus(item);
   const label  = statusLabel(item, status);
   const price  = itemPrice(item);
   const vendor = itemVendor(item);
+  const favorited = isFavorite(item.url);
 
   return (
     <div className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-all shadow-sm h-full">
@@ -100,6 +102,23 @@ function PartCard({ item }: { item: FeedItem }) {
         <div className={`absolute top-2 left-2 z-10 ${STATUS_BADGE[status]} text-[10px] font-black px-2 py-1 rounded-full uppercase`}>
           {status === 'in-stock' ? 'In Stock' : status === 'low-stock' ? 'Low Stock' : 'Out of Stock'}
         </div>
+        <button
+          onClick={() => {
+            if (!item.url) return;
+            toggleFavorite({
+              url: item.url,
+              name: item.name,
+              image: item.image,
+              price: price ?? undefined,
+              vendor,
+              category: item.productType,
+            });
+          }}
+          className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center transition-colors ${favorited ? 'bg-red-500 text-white' : 'bg-white/10 text-white hover:bg-blue-500'}`}
+          title={favorited ? 'Remove favorite' : 'Save favorite'}
+        >
+          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: favorited ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+        </button>
         {item.image
           ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
           : <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700">developer_board</span>

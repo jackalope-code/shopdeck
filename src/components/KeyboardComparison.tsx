@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData, FeedItem, VariantDetail } from '../lib/ShopdataContext';
+import { useFeedData, useFavorites, FeedItem, VariantDetail } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -121,6 +121,8 @@ function ProductHeader({ kb }: { kb: Keyboard }) {
 }
 
 function ProductActions({ kb }: { kb: Keyboard }) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favorited = isFavorite(kb.url);
   return (
     <div className="flex gap-3 mt-2">
       {kb.url
@@ -135,8 +137,24 @@ function ProductActions({ kb }: { kb: Keyboard }) {
               <span className="material-symbols-outlined text-sm">notifications</span>{kb.ctaLabel}
             </button>
       }
-      <button className="w-12 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center">
-        <span className="material-symbols-outlined">visibility</span>
+      <button
+        onClick={() => {
+          if (!kb.url) return;
+          toggleFavorite({
+            url: kb.url,
+            name: kb.name,
+            image: kb.image,
+            price: kb.price > 0 ? String(kb.price) : undefined,
+            vendor: kb.maker,
+            category: 'Keyboards',
+          });
+        }}
+        className={`w-12 border rounded-lg transition-colors flex items-center justify-center ${favorited ? 'text-red-500 border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'} ${!kb.url ? 'opacity-40 cursor-not-allowed' : ''}`}
+      >
+        <span
+          className="material-symbols-outlined"
+          style={{ fontVariationSettings: favorited ? "'FILL' 1" : "'FILL' 0" }}
+        >favorite</span>
       </button>
     </div>
   );

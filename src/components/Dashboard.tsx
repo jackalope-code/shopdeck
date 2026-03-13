@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
-import { useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
+import { useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
 export interface WidgetDef {
@@ -32,6 +32,7 @@ export interface WidgetDef {
 export const ALL_WIDGETS: WidgetDef[] = [
   { id: 'active-projects', title: 'Active Projects', category: 'Projects', icon: 'rocket_launch', color: 'text-blue-500', description: 'Track all in-progress builds and flips.' },
   { id: 'recent-activity', title: 'Recently Viewed', category: 'Projects', icon: 'history', color: 'text-slate-400', description: 'Products you recently opened in vendor stores.' },
+  { id: 'favorite-products', title: 'Favorites', category: 'Projects', icon: 'favorite', color: 'text-red-500', description: 'Saved products from all trackers.' },
   { id: 'keyboard-releases', title: 'Keyboard New Releases', category: 'Keyboards', icon: 'keyboard', color: 'text-emerald-500', description: 'Latest keyboard launches and group buys.' },
   { id: 'keycaps-tracker', title: 'Keycaps Sales Tracker', category: 'Keyboards', icon: 'format_color_text', color: 'text-emerald-500', description: 'GMK, PBT and designer keycap set alerts.' },
   { id: 'keyboard-sales', title: 'Keyboard Sales', category: 'Keyboards', icon: 'sell', color: 'text-amber-500', description: 'Live keyboard discounts and clearance deals.' },
@@ -178,6 +179,55 @@ function RecentActivityWidget() {
       ))}
       <div className="px-4 py-3">
         <Link href="/recently-viewed" className="text-xs font-bold text-blue-500 hover:underline">View recently viewed →</Link>
+      </div>
+    </div>
+  );
+}
+
+function FavoritesWidget() {
+  const { favorites, loading } = useFavorites();
+  if (loading) return (
+    <div className="p-4 space-y-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex gap-3 animate-pulse">
+          <div className="h-9 w-9 rounded bg-slate-200 dark:bg-slate-700 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+            <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+  if (favorites.length === 0) return (
+    <div className="p-6 text-center text-slate-400 text-sm">
+      <span className="material-symbols-outlined block text-3xl mb-2">favorite</span>
+      No favorites yet.
+    </div>
+  );
+  return (
+    <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      {favorites.slice(0, 5).map((item) => (
+        <div key={item.url} className="flex gap-3 items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+          <div className="h-10 w-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
+            {item.image
+              ? <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+              : <span className="material-symbols-outlined text-slate-400 text-lg">favorite</span>}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{item.name}</p>
+            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+              {item.vendor && <span>{item.vendor}</span>}
+              {item.category && <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase">{item.category}</span>}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            {item.price && <p className="text-sm font-bold text-blue-500">{item.price.startsWith('$') ? item.price : `$${item.price}`}</p>}
+          </div>
+        </div>
+      ))}
+      <div className="px-4 py-3">
+        <Link href="/favorites" className="text-xs font-bold text-blue-500 hover:underline">View favorites →</Link>
       </div>
     </div>
   );
@@ -460,6 +510,7 @@ function WidgetContent({ id }: { id: string }) {
   switch (id) {
     case 'active-projects':    return <ActiveProjectsWidget />;
     case 'recent-activity':    return <RecentActivityWidget />;
+    case 'favorite-products':  return <FavoritesWidget />;
     case 'keyboard-releases':  return <KeyboardReleasesWidget />;
     case 'keycaps-tracker':    return <FeedListWidget widgetId="keycap-releases" linkHref="/keycaps-tracker" linkLabel="Open keycaps tracker →" />;
     case 'keyboard-sales':     return <FeedListWidget widgetId="keyboard-sales" linkHref="/active-deals" linkLabel="View all keyboard deals →" />;
@@ -731,7 +782,7 @@ function DataPanel() {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 const STORAGE_KEY_WIDGETS = 'sd-active-widgets';
 const STORAGE_KEY_COLS = 'sd-grid-cols';
-const DEFAULT_WIDGETS = ['inventory-stats', 'active-projects', 'recent-activity', 'keyboard-releases', 'ram-availability', 'active-deals'];
+const DEFAULT_WIDGETS = ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products', 'keyboard-releases', 'ram-availability', 'active-deals'];
 
 export default function Dashboard() {
   const router = useRouter();
@@ -744,6 +795,8 @@ export default function Dashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const DASH_DRAWER_LINKS = [
+    { href: '/recently-viewed',         label: 'Recently Viewed', icon: 'history' },
+    { href: '/favorites',               label: 'Favorites', icon: 'favorite' },
     { href: '/my-electronics',           label: 'Electronics', icon: 'inventory_2' },
     { href: '/ram-availability-tracker', label: 'RAM',         icon: 'memory' },
     { href: '/gpu-availability-tracker', label: 'GPU',         icon: 'videogame_asset' },

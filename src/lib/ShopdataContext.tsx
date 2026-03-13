@@ -81,8 +81,19 @@ export interface ViewHistoryEntry {
   viewCount: number;
 }
 
+export interface FavoriteEntry {
+  url: string;
+  name: string;
+  vendor?: string;
+  image?: string;
+  price?: string;
+  category?: string;
+  favoritedAt: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 const EMPTY_WIDGET: WidgetFeedState = { loading: true, sources: {}, error: null, fetchedAt: null };
+const FAVORITES_STORAGE_KEY = 'sd:favorites';
 
 export const FEED_WIDGET_IDS = [
   'drops',
@@ -122,6 +133,11 @@ interface ShopdataContextValue {
   viewHistoryLoading: boolean;
   logView: (entry: Omit<ViewHistoryEntry, 'viewedAt' | 'viewCount'>) => void;
   clearViewHistory: () => void;
+  favorites: FavoriteEntry[];
+  favoritesLoading: boolean;
+  toggleFavorite: (entry: Omit<FavoriteEntry, 'favoritedAt'>) => void;
+  clearFavorites: () => void;
+  isFavorite: (url?: string) => boolean;
 }
 
 const ShopdataContext = createContext<ShopdataContextValue>({
@@ -137,6 +153,11 @@ const ShopdataContext = createContext<ShopdataContextValue>({
   viewHistoryLoading: true,
   logView: () => {},
   clearViewHistory: () => {},
+  favorites: [],
+  favoritesLoading: true,
+  toggleFavorite: () => {},
+  clearFavorites: () => {},
+  isFavorite: () => false,
 });
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -150,6 +171,25 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
   const [activityLoading, setActivityLoading] = useState(true);
   const [viewHistory, setViewHistory] = useState<ViewHistoryEntry[]>([]);
   const [viewHistoryLoading, setViewHistoryLoading] = useState(true);
+  const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(true);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
+      if (raw) setFavorites(JSON.parse(raw));
+    } catch {
+      setFavorites([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+    } catch {
+      // ignore localStorage write failures
+    }
+  }, [favorites]);
 
   const fetchWidget = useCallback(async (widgetId: string) => {
     const token = getToken();
@@ -248,6 +288,28 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchFavorites = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      setFavoritesLoading(false);
+      return;
+    }
+    setFavoritesLoading(true);
+    try {
+      const res = await fetch('/api/favorites', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setFavorites(json.entries ?? []);
+      }
+    } catch {
+      // keep local cache on network errors
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }, []);
+
   const logActivity = useCallback((entry: Omit<ActivityEntry, 'timestamp'>) => {
     const token = getToken();
     if (!token) return;
@@ -304,15 +366,74 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
     });
   }, [fetchViewHistory]);
 
+  const toggleFavorite = useCallback((entry: Omit<FavoriteEntry, 'favoritedAt'>) => {
+    const token = getToken();
+    if (!entry.url || !entry.name) return;
+
+    setFavorites(prev => {
+      const exists = prev.some(item => item.url === entry.url);
+      if (exists) {
+        return prev.filter(item => item.url !== entry.url);
+      }
+      return [{ ...entry, favoritedAt: new Date().toISOString() }, ...prev].slice(0, 200);
+    });
+
+    if (!token) return;
+
+    const exists = favorites.some(item => item.url === entry.url);
+    if (exists) {
+      fetch('/api/favorites/item', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ url: entry.url }),
+      }).catch(() => {
+        fetchFavorites();
+      });
+      return;
+    }
+
+    fetch('/api/favorites', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(entry),
+    }).catch(() => {
+      fetchFavorites();
+    });
+  }, [favorites, fetchFavorites]);
+
+  const clearFavorites = useCallback(() => {
+    const token = getToken();
+    setFavorites([]);
+    if (!token) return;
+    fetch('/api/favorites', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {
+      fetchFavorites();
+    });
+  }, [fetchFavorites]);
+
+  const isFavorite = useCallback((url?: string) => {
+    if (!url) return false;
+    return favorites.some(item => item.url === url);
+  }, [favorites]);
+
   const fetchAll = useCallback(() => {
     fetchProjects();
     fetchActivity();
     fetchViewHistory();
+    fetchFavorites();
     // Stagger widget fetches so the backend source-level cache can warm up
     FEED_WIDGET_IDS.forEach((id, i) => {
       setTimeout(() => fetchWidget(id), i * 250);
     });
-  }, [fetchWidget, fetchProjects, fetchActivity, fetchViewHistory]);
+  }, [fetchWidget, fetchProjects, fetchActivity, fetchViewHistory, fetchFavorites]);
 
   useEffect(() => {
     fetchAll();
@@ -341,6 +462,11 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
         viewHistoryLoading,
         logView,
         clearViewHistory,
+        favorites,
+        favoritesLoading,
+        toggleFavorite,
+        clearFavorites,
+        isFavorite,
       }}
     >
       {children}
@@ -382,4 +508,9 @@ export function useActivity() {
 export function useViewHistory() {
   const { viewHistory, viewHistoryLoading, logView, clearViewHistory } = useContext(ShopdataContext);
   return { viewHistory, loading: viewHistoryLoading, logView, clearViewHistory };
+}
+
+export function useFavorites() {
+  const { favorites, favoritesLoading, toggleFavorite, clearFavorites, isFavorite } = useContext(ShopdataContext);
+  return { favorites, loading: favoritesLoading, toggleFavorite, clearFavorites, isFavorite };
 }

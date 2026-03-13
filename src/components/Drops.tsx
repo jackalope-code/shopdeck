@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData } from '../lib/ShopdataContext';
+import { useFeedData, useFavorites } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -59,11 +59,14 @@ const STATUSES: DropStatus[] = ['group-buy', 'in-stock', 'ic', 'sale', 'sold-out
 
 // ─── Drop card ────────────────────────────────────────────────────────────────
 function DropCard({ drop }: { drop: Drop }) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favorited = isFavorite(drop.url);
   const [imgErr, setImgErr] = useState(false);
   const Wrapper = drop.url
-    ? ({ children }: { children: React.ReactNode }) => (
-        <HistoryAwareLink href={drop.url} item={{ url: drop.url, name: drop.name, image: drop.image, price: drop.price, vendor: drop.vendor, category: drop.category }} className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group cursor-pointer">{children}</HistoryAwareLink>
-      )
+    ? ({ children }: { children: React.ReactNode }) => {
+        const url = drop.url as string;
+        return <HistoryAwareLink href={url} item={{ url, name: drop.name, image: drop.image, price: drop.price, vendor: drop.vendor, category: drop.category }} className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group cursor-pointer">{children}</HistoryAwareLink>;
+      }
     : ({ children }: { children: React.ReactNode }) => (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all group">{children}</div>
       );
@@ -85,6 +88,24 @@ function DropCard({ drop }: { drop: Drop }) {
             -{drop.discount}%
           </span>
         )}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            if (!drop.url) return;
+            toggleFavorite({
+              url: drop.url,
+              name: drop.name,
+              image: drop.image,
+              price: drop.price,
+              vendor: drop.vendor,
+              category: drop.category,
+            });
+          }}
+          className={`absolute bottom-2 right-2 z-10 w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center transition-colors ${favorited ? 'bg-red-500 text-white' : 'bg-white/10 text-white hover:bg-blue-500'} ${!drop.url ? 'opacity-40 cursor-not-allowed' : ''}`}
+          title={favorited ? 'Remove favorite' : 'Save favorite'}
+        >
+          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: favorited ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+        </button>
       </div>
 
       {/* Body */}

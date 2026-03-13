@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData } from '../lib/ShopdataContext';
+import { useFeedData, useFavorites } from '../lib/ShopdataContext';
+import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DealCategory = 'Keyboards' | 'Electronics' | 'Audio' | 'Components';
@@ -24,6 +25,7 @@ interface Deal {
   gradient: string;
   discountIcon: string;
   image?: string;
+  url?: string;
 }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -53,6 +55,8 @@ type FilterChip = 'All' | DealCategory;
 
 // ─── Deal card ────────────────────────────────────────────────────────────────
 function DealCard({ deal }: { deal: Deal }) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favorited = isFavorite(deal.url);
   const [imgErr, setImgErr] = useState(false);
   return (
     <div className="group relative flex flex-col bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:ring-1 hover:ring-blue-500/50 transition-all">
@@ -86,7 +90,11 @@ function DealCard({ deal }: { deal: Deal }) {
         </div>
 
         {/* Name */}
-        <h3 className="text-sm font-bold mb-2 line-clamp-1">{deal.name}</h3>
+        <h3 className="text-sm font-bold mb-2 line-clamp-1">
+          {deal.url
+            ? <HistoryAwareLink href={deal.url} item={{ url: deal.url, name: deal.name, image: deal.image, price: String(deal.price), vendor: deal.vendor, category: deal.category }} className="hover:text-blue-500 transition-colors">{deal.name}</HistoryAwareLink>
+            : deal.name}
+        </h3>
 
         {/* Price */}
         <div className="flex items-end gap-2 mb-3">
@@ -109,9 +117,29 @@ function DealCard({ deal }: { deal: Deal }) {
               </div>
             )}
           </div>
-          <button className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
-            View Deal
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (!deal.url) return;
+                toggleFavorite({
+                  url: deal.url,
+                  name: deal.name,
+                  image: deal.image,
+                  price: String(deal.price),
+                  vendor: deal.vendor,
+                  category: deal.category,
+                });
+              }}
+              disabled={!deal.url}
+              className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${favorited ? 'text-red-500 border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10' : 'text-slate-400 border-slate-200 dark:border-slate-700 hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/40'} ${!deal.url ? 'opacity-40 cursor-not-allowed' : ''}`}
+              title={favorited ? 'Remove favorite' : 'Save favorite'}
+            >
+              <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: favorited ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+            </button>
+            {deal.url
+              ? <HistoryAwareLink href={deal.url} item={{ url: deal.url, name: deal.name, image: deal.image, price: String(deal.price), vendor: deal.vendor, category: deal.category }} className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">View Deal</HistoryAwareLink>
+              : <button className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">View Deal</button>}
+          </div>
         </div>
       </div>
     </div>
@@ -148,6 +176,7 @@ export default function ActiveDealsDashboard() {
         gradient: 'from-blue-900 to-blue-600',
         discountIcon: discount >= 20 ? 'local_fire_department' : 'trending_down',
         image: item.image,
+        url: item.url,
       }];
     });
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData } from '../lib/ShopdataContext';
+import { useFeedData, useFavorites } from '../lib/ShopdataContext';
 import { getToken, apiGet, apiPatch } from '../lib/auth';
 import HistoryAwareLink from './HistoryAwareLink';
 
@@ -103,6 +103,7 @@ function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconCl
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function RamAvailabilityTracker() {
   const [alertStates, setAlertStates] = useState<Record<string, boolean>>({});
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [filter, setFilter] = useState<Filter>('All');
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -283,7 +284,27 @@ export default function RamAvailabilityTracker() {
                             </div>
                           </div>
                         </div>
-                        <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.name)} />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (!item.url) return;
+                              toggleFavorite({
+                                url: item.url,
+                                name: item.name,
+                                image: item.image,
+                                price: String(item.price),
+                                vendor: item.vendor,
+                                category: 'RAM',
+                              });
+                            }}
+                            disabled={!item.url}
+                            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${isFavorite(item.url) ? 'text-red-500 border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10' : 'text-slate-400 border-slate-200 dark:border-slate-700 hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/40'} ${!item.url ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            title={isFavorite(item.url) ? 'Remove favorite' : 'Save favorite'}
+                          >
+                            <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: isFavorite(item.url) ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+                          </button>
+                          <AlertToggle on={item.alertOn} onToggle={() => toggleAlert(item.name)} />
+                        </div>
                       </div>
                     </div>
 

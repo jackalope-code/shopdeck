@@ -9,6 +9,7 @@ export function Sidebar({ active }: { active: string }) {
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: 'grid_view' },
     { href: '/recently-viewed', label: 'Recently Viewed', icon: 'history' },
+    { href: '/favorites', label: 'Favorites', icon: 'favorite' },
     { href: '/projects', label: 'Projects', icon: 'workspaces' },
     { href: '/my-electronics', label: 'Electronics', icon: 'inventory_2' },
     { href: '/active-deals', label: 'Active Deals', icon: 'sell' },
@@ -93,6 +94,7 @@ const TOP_NAV_LINKS = [
 
 const DRAWER_LINKS = [
   { href: '/recently-viewed',          label: 'Recently Viewed', icon: 'history' },
+  { href: '/favorites',                label: 'Favorites', icon: 'favorite' },
   { href: '/my-electronics',           label: 'Electronics', icon: 'inventory_2' },
   { href: '/ram-availability-tracker', label: 'RAM',         icon: 'memory' },
   { href: '/gpu-availability-tracker', label: 'GPU',         icon: 'videogame_asset' },
