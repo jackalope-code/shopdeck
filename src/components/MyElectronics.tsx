@@ -56,13 +56,18 @@ const TABS = [
   { id: 'electronics-sensors',          label: 'Sensors',    icon: 'sensors' },
   { id: 'electronics-motors',           label: 'Motors',     icon: 'settings_motion_mode' },
   { id: 'electronics-ics',              label: 'ICs',        icon: 'memory_alt' },
-  { id: 'electronics-encoders',         label: 'Encoders / Pots',   icon: 'rotate_right' },
+  { id: 'electronics-encoders',         label: 'Encoders / Pots', icon: 'rotate_right' },
+  { id: 'electronics-power',            label: 'Power',      icon: 'battery_charging_full' },
+  { id: 'electronics-connectors',       label: 'Connectors', icon: 'cable' },
+  { id: 'electronics-displays',         label: 'Displays',   icon: 'tv' },
+  { id: 'electronics-wireless',         label: 'Wireless',   icon: 'rss_feed' },
+  { id: 'electronics-audio',            label: 'Audio',      icon: 'graphic_eq' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const CATEGORIES = ['All Categories', 'Microcontrollers', 'LED Modules', 'Sensors', 'Connectors', 'Passives', 'Development Boards', 'Motors', 'ICs'];
+const CATEGORIES = ['All Categories', 'Microcontrollers', 'Passives', 'Sensors', 'Motors', 'ICs', 'Connectors', 'Displays', 'Wireless', 'Audio', 'Power', 'Development Boards'];
 const VENDORS    = ['All Vendors', 'Adafruit', 'Mouser', 'DigiKey', 'Microcenter'];
 const PER_PAGE   = 24;
 

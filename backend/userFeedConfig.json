@@ -152,6 +152,36 @@
         { "id": "digikey-encoders", "name": "DigiKey Encoders", "ruleType": "digikey-api", "keywords": "rotary encoder potentiometer electromechanical panel",          "enabled": true }
       ],
       "custom": []
+    },
+    "electronics-power": {
+      "sources": [
+        { "id": "mouser-power", "name": "Mouser Power", "ruleType": "mouser-api", "keywords": "buck converter", "enabled": true }
+      ],
+      "custom": []
+    },
+    "electronics-connectors": {
+      "sources": [
+        { "id": "mouser-connectors", "name": "Mouser Connectors", "ruleType": "mouser-api", "keywords": "usb-c connector", "enabled": true }
+      ],
+      "custom": []
+    },
+    "electronics-displays": {
+      "sources": [
+        { "id": "mouser-displays", "name": "Mouser Displays", "ruleType": "mouser-api", "keywords": "oled display", "enabled": true }
+      ],
+      "custom": []
+    },
+    "electronics-wireless": {
+      "sources": [
+        { "id": "mouser-wireless", "name": "Mouser Wireless", "ruleType": "mouser-api", "keywords": "wifi module", "enabled": true }
+      ],
+      "custom": []
+    },
+    "electronics-audio": {
+      "sources": [
+        { "id": "mouser-audio", "name": "Mouser Audio", "ruleType": "mouser-api", "keywords": "mems microphone", "enabled": true }
+      ],
+      "custom": []
     }
   }
 }

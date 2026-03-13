@@ -101,6 +101,11 @@ export const FEED_WIDGET_IDS = [
   'electronics-motors',
   'electronics-ics',
   'electronics-encoders',
+  'electronics-power',
+  'electronics-connectors',
+  'electronics-displays',
+  'electronics-wireless',
+  'electronics-audio',
 ] as const;
 
 // ─── Context ──────────────────────────────────────────────────────────────────
