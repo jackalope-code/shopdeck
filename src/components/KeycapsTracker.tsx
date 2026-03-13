@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData } from '../lib/ShopdataContext';
+import { useFeedData, VariantDetail } from '../lib/ShopdataContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out';
@@ -21,6 +21,7 @@ interface KeycapSet {
   image?: string;
   url?: string;
   favorited?: boolean;
+  variants?: VariantDetail[];
 }
 
 const STATUS_BADGE: Record<KeycapStatus, string> = {
@@ -56,6 +57,7 @@ const ALL_BRANDS: BrandFilter[] = ['All Sets', 'GMK', 'PBTFans', 'KAT', 'DCX', '
 function KeycapCard({ set }: { set: KeycapSet }) {
   const [faved, setFaved] = useState(set.favorited || false);
   const [imgErr, setImgErr] = useState(false);
+  const [variantsOpen, setVariantsOpen] = useState(false);
 
   return (
     <div className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-all shadow-sm h-full">
@@ -117,9 +119,32 @@ function KeycapCard({ set }: { set: KeycapSet }) {
               : <button className="py-2 rounded-lg bg-blue-500 hover:brightness-110 text-white text-xs font-bold transition-all">Buy Now</button>)
         }
       </div>
-    </div>
-  );
-}
+
+      {/* Variant breakdown */}
+      {set.variants && set.variants.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setVariantsOpen(o => !o)}
+            className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[10px] font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <span>Variants ({set.variants.length})</span>
+            <span className="material-symbols-outlined text-sm">{variantsOpen ? 'expand_less' : 'expand_more'}</span>
+          </button>
+          {variantsOpen && (
+            <ul className="mt-1 space-y-1 px-1">
+              {set.variants.map((v, i) => (
+                <li key={i} className="flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-400">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${v.available ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                  <span className="flex-1 truncate" title={v.title}>{v.title}</span>
+                  {v.qty != null && <span className="shrink-0 text-slate-400">×{v.qty}</span>}
+                  {v.price && <span className="shrink-0 text-slate-400">${parseFloat(v.price).toFixed(2)}</span>}
+                  {v.source === 'text' && <span className="shrink-0 text-slate-400" title="Inferred from title">~</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
 export default function KeycapsTracker() {
   const [search, setSearch] = useState('');
@@ -153,6 +178,7 @@ export default function KeycapsTracker() {
       gradient: 'from-indigo-900 to-slate-700',
       image: item.image,
       url: item.url,
+      variants: item._variants,
     };
   });
 

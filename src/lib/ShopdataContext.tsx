@@ -2,6 +2,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { getToken } from './auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export interface VariantDetail {
+  title: string;
+  available: boolean;
+  price?: string;
+  qty?: number;
+  source: 'shopify' | 'text';
+}
+
 export interface FeedItem {
   name: string;
   image?: string;
@@ -22,6 +30,7 @@ export interface FeedItem {
   priceMin?: string;       // lowest variant price
   priceMax?: string;       // highest variant price
   itemType?: string;       // 'Kit' | 'Pre-built' | 'Barebones' | 'PCB' | 'Plate' | 'Keycaps' | 'Switches' | 'Deskmat'
+  _variants?: VariantDetail[]; // per-variant breakdown (shopify-tracked or text-classified)
 }
 
 export interface SourceResult {

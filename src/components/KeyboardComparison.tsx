@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData, FeedItem } from '../lib/ShopdataContext';
+import { useFeedData, FeedItem, VariantDetail } from '../lib/ShopdataContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Keyboard {
@@ -20,6 +20,7 @@ interface Keyboard {
   verdictColor: string;
   ctaLabel: string;
   ctaVariant: 'primary' | 'outline';
+  variants?: VariantDetail[];
 }
 
 interface SpecRow {
@@ -157,9 +158,10 @@ function buildSpecsFromItem(item: FeedItem): SpecRow[] {
 function itemToKeyboard(item: FeedItem, id: 'a' | 'b'): Keyboard {
   const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
   const outOfStock = item.anyAvailable === 'false';
+  const lowStockOrPartial = item.lowStock === 'true' || item.partialStock === 'true';
   const availability: Keyboard['availability'] = outOfStock
     ? 'out-of-stock'
-    : (item.lowStock === 'true' ? 'low-stock' : 'in-stock');
+    : (lowStockOrPartial ? 'low-stock' : 'in-stock');
   return {
     id,
     name: item.name,
@@ -176,6 +178,7 @@ function itemToKeyboard(item: FeedItem, id: 'a' | 'b'): Keyboard {
     verdictColor: 'text-blue-500',
     ctaLabel: 'View Product',
     ctaVariant: 'primary',
+    variants: item._variants,
   };
 }
 
@@ -289,6 +292,28 @@ export default function KeyboardComparison() {
                       <td className={`p-4 text-sm ${kbB.specs[i]?.highlight ? 'text-blue-500 font-medium' : ''}`}>{kbB.specs[i]?.value ?? '—'}</td>
                     </tr>
                   ))}
+                  {(kbA.variants || kbB.variants) && (
+                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors align-top">
+                      <td className="p-4 text-sm font-medium text-slate-500 bg-slate-50/50 dark:bg-slate-800/20">Variants</td>
+                      {([kbA, kbB] as Keyboard[]).map(kb => (
+                        <td key={kb.id} className="p-4">
+                          {kb.variants && kb.variants.length > 0 ? (
+                            <ul className="space-y-1">
+                              {kb.variants.map((v, vi) => (
+                                <li key={vi} className="flex items-center gap-2 text-xs">
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${v.available ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                  <span className="truncate max-w-40" title={v.title}>{v.title}</span>
+                                  {v.qty != null && <span className="text-slate-400 shrink-0">×{v.qty}</span>}
+                                  {v.price && <span className="text-slate-400 shrink-0">${parseFloat(v.price).toFixed(2)}</span>}
+                                  {v.source === 'text' && <span className="text-[9px] text-slate-400 shrink-0" title="Inferred from title">~</span>}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : <span className="text-xs text-slate-400">—</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

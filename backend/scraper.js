@@ -31,6 +31,25 @@ const REQUEST_TIMEOUT_MS = 10_000;
 /** Max concurrent in-flight requests to the same hostname at once. Default: 1. */
 const MAX_CONCURRENT_PER_HOST = 1;
 
+/**
+ * Text signals used as a fallback to infer stock status from variant/product titles.
+ * These patterns are checked when Shopify is NOT actively tracking inventory
+ * (inventory_management is null/absent — typical in group buys, MTO, pre-orders).
+ * OOS_TITLE_PATTERNS wins over IN_STOCK_TITLE_PATTERNS if both hypothetically match.
+ */
+const OOS_TITLE_PATTERNS = /\b(?:group\s*buy\s*ended?|gb\s*ended?|sale\s*ended?|ic\s*ended?|interest\s*check\s*ended?|sold\s*out|out\s*of\s*stock|no\s*longer\s*available|discontinued|closed|ended)\b/i;
+const IN_STOCK_TITLE_PATTERNS = /\b(?:in\s*stock|available\s*now|ships?\s*now|ready\s*to\s*ship|rts|buy\s*now)\b/i;
+
+/**
+ * Classify a variant title using text signals.
+ * @returns {'available'|'unavailable'|'unknown'}
+ */
+function classifyVariantByText(title = '') {
+  if (OOS_TITLE_PATTERNS.test(title)) return 'unavailable';
+  if (IN_STOCK_TITLE_PATTERNS.test(title)) return 'available';
+  return 'unknown';
+}
+
 /** Rotate realistic browser UA strings to avoid trivial bot detection. */
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
@@ -214,36 +233,85 @@ async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = '
       if (raw) obj[f.fieldName] = raw;
     }
     // Auto-extract Shopify inventory when variants are present.
-    // Only emit stock fields when Shopify is *actively tracking* inventory
-    // (inventory_management === 'shopify'). Variants with null management are
-    // group buys, made-to-order, or pre-orders — their availability is unknown.
     //
-    // Stock tiers (based on % of tracked variants that are available):
+    // Priority chain for stock status:
+    //   1. Shopify-managed variants (inventory_management === 'shopify') — authoritative
+    //   2. Text-signal fallback — classify unmanaged variant titles for group-buy/MTO items
+    //   3. Product-level OOS title check — last resort when no classifiable variants exist
+    //
+    // Stock tiers (based on % of deterministic variants that are available):
     //   anyAvailable=false           → Out of Stock  (0% available)
-    //   lowStock=true                → Low Stock     (<25% available, including just 1 variant)
+    //   lowStock=true                → Low Stock     (<25% available)
     //   partialStock=true            → Limited Stock  (25–50% available)
     //   else                         → In Stock      (>50% available)
     if (container.variants && Array.isArray(container.variants) && container.variants.length > 0) {
-      const tracked = container.variants.filter(v => v.inventory_management === 'shopify');
-      if (tracked.length > 0) {
-        const trackedAvailable = tracked.filter(v =>
+      const shopifyTracked = container.variants.filter(v => v.inventory_management === 'shopify');
+      const variantDetails = [];
+
+      if (shopifyTracked.length > 0) {
+        // ── 1. Shopify managed — uses quantity/policy data ─────────────────────
+        const shopifyAvailable = shopifyTracked.filter(v =>
           v.inventory_policy === 'continue' || (parseInt(v.inventory_quantity, 10) || 0) > 0
         );
-        const availRatio = trackedAvailable.length / tracked.length;
-        const anyAvailable = trackedAvailable.length > 0;
-        // Low stock: <25% of variants available (or only 1 variant left when multiple exist)
+        const availRatio = shopifyAvailable.length / shopifyTracked.length;
+        const anyAvailable = shopifyAvailable.length > 0;
         const lowStock = anyAvailable && availRatio < 0.25;
-        // Limited stock: 25–50% of variants available
         const partialStock = anyAvailable && !lowStock && availRatio <= 0.5;
 
-        obj.anyAvailable  = anyAvailable  ? 'true' : 'false';
-        obj.lowStock      = lowStock      ? 'true' : 'false';
-        obj.partialStock  = partialStock  ? 'true' : 'false';
-        obj.variantCount  = String(tracked.length);
-        obj.availableCount = String(trackedAvailable.length);
-        const totalQty = tracked.reduce((acc, v) => acc + (parseInt(v.inventory_quantity, 10) || 0), 0);
+        obj.anyAvailable   = anyAvailable  ? 'true' : 'false';
+        obj.lowStock       = lowStock      ? 'true' : 'false';
+        obj.partialStock   = partialStock  ? 'true' : 'false';
+        obj.variantCount   = String(shopifyTracked.length);
+        obj.availableCount = String(shopifyAvailable.length);
+        const totalQty = shopifyTracked.reduce((acc, v) => acc + (parseInt(v.inventory_quantity, 10) || 0), 0);
         if (totalQty > 0) obj.totalInventory = String(totalQty);
+
+        for (const v of shopifyTracked) {
+          const qty = parseInt(v.inventory_quantity, 10) || 0;
+          const available = v.inventory_policy === 'continue' || qty > 0;
+          const detail = { title: v.title || 'Default', available, source: 'shopify' };
+          if (v.price) detail.price = v.price;
+          if (qty > 0) detail.qty = qty;
+          variantDetails.push(detail);
+        }
+      } else {
+        // ── 2. Text-signal fallback for unmanaged variants ─────────────────────
+        const textTracked = [];
+        for (const v of container.variants) {
+          const classification = classifyVariantByText(v.title);
+          if (classification === 'unknown') continue;
+          const available = classification === 'available';
+          const detail = { title: v.title || 'Default', available, source: 'text' };
+          if (v.price) detail.price = v.price;
+          textTracked.push(detail);
+          variantDetails.push(detail);
+        }
+
+        if (textTracked.length > 0) {
+          const availCount = textTracked.filter(d => d.available).length;
+          const availRatio = availCount / textTracked.length;
+          const anyAvailable = availCount > 0;
+          const lowStock = anyAvailable && availRatio < 0.25;
+          const partialStock = anyAvailable && !lowStock && availRatio <= 0.5;
+
+          obj.anyAvailable   = anyAvailable ? 'true' : 'false';
+          obj.lowStock       = lowStock     ? 'true' : 'false';
+          obj.partialStock   = partialStock ? 'true' : 'false';
+          obj.variantCount   = String(textTracked.length);
+          obj.availableCount = String(availCount);
+        } else {
+          // ── 3. Product title/tags OOS check (last resort) ──────────────────
+          const productText = [
+            container.title || '',
+            Array.isArray(container.tags) ? container.tags.join(' ') : (container.tags || ''),
+          ].join(' ');
+          if (OOS_TITLE_PATTERNS.test(productText)) {
+            obj.anyAvailable = 'false';
+          }
+        }
       }
+
+      if (variantDetails.length > 0) obj._variants = variantDetails;
 
       // Price range across ALL variants (not just tracked ones)
       const prices = container.variants
