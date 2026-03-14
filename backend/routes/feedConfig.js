@@ -140,6 +140,130 @@ function checkCustomRateLimit(userId) {
   return true;
 }
 
+const DEFAULT_AGGREGATED_DEALS_WIDGET_IDS = [
+  'active-deals',
+  'keyboard-sales',
+  'electronics-sales',
+  'electronics-microcontrollers',
+  'electronics-passives',
+  'electronics-sensors',
+  'electronics-motors',
+  'electronics-ics',
+  'electronics-encoders',
+  'electronics-power',
+  'electronics-connectors',
+  'electronics-displays',
+  'electronics-wireless',
+  'electronics-audio',
+];
+
+function parseMoney(value) {
+  if (value == null) return 0;
+  const parsed = parseFloat(String(value).replace(/[^0-9.]/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+// Returns true if the source is a dedicated sale/clearance page rather than a
+// general catalog, so items without a comparePrice can still be trusted as on-sale.
+function isKnownSaleSource(src) {
+  const id = String(src?.id ?? '');
+  const rule = scraper.BUILTIN_SOURCE_RULES[id];
+  const url = String(rule?.url ?? '');
+  return (
+    id.endsWith('-sale') ||
+    id.endsWith('-sales') ||
+    id.includes('garage-sale') ||
+    url.includes('/collections/sale/') ||
+    url.includes('/collections/garage-sale')
+  );
+}
+
+function inferDealCategory(widgetId, item = {}) {
+  if (widgetId.startsWith('electronics-')) return 'Electronics';
+  if (widgetId.startsWith('keyboard-') || widgetId === 'active-deals') return 'Keyboards';
+  const type = String(item.productType ?? '').toLowerCase();
+  if (/headphone|speaker|audio|mic/.test(type)) return 'Audio';
+  if (/switch|pcb|plate|controller|module|sensor|ic|resistor|capacitor|inductor/.test(type)) return 'Components';
+  if (/keyboard|keycap/.test(type)) return 'Keyboards';
+  if (/electronics|board|mcu|microcontroller/.test(type)) return 'Electronics';
+  return null;
+}
+
+function inferDealSubcategory(widgetId) {
+  if (widgetId === 'active-deals') return 'active-deals';
+  const [prefix, ...rest] = String(widgetId).split('-');
+  if (prefix === 'electronics' || prefix === 'keyboard') {
+    return rest.length > 0 ? rest.join('-') : widgetId;
+  }
+  return widgetId;
+}
+
+async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
+  let data = [];
+  let error = null;
+  let sourceName = src.name ?? src.label ?? src.id ?? 'source';
+  let sourceCategory = null;
+
+  try {
+    if (src.ruleType === 'user-rss') {
+      scraper.validateUserRssUrl(src.url);
+      data = await scraper.runSource({ ruleType: 'user-rss', url: src.url, label: src.label }, 'scheduled', { apiKeys });
+    } else if (src.ruleType === 'digikey-api') {
+      if (!apiKeys.digikey_client_id || !apiKeys.digikey_client_secret) {
+        throw new Error('Digikey API keys not configured (digikey_client_id, digikey_client_secret)');
+      }
+      data = await scraper.runSource(
+        { ruleType: 'digikey-api', keywords: src.keywords, limit: src.limit },
+        'scheduled',
+        { apiKeys }
+      );
+    } else if (src.ruleType === 'mouser-api') {
+      if (!apiKeys.mouser_api_key) {
+        throw new Error('Mouser API key not configured (mouser_api_key)');
+      }
+      data = await scraper.runSource(
+        {
+          ruleType: 'mouser-api',
+          keywords: src.keywords,
+          limit: src.limit,
+          ...(src.imageSize ? { imageSize: src.imageSize } : {}),
+        },
+        'scheduled',
+        { apiKeys }
+      );
+    } else if (src.ruleType === 'manual-list') {
+      data = await scraper.runSource(
+        { ruleType: 'manual-list', listId: src.listId },
+        'scheduled',
+        { apiKeys, userId }
+      );
+    } else if (src.ruleType === 'webhook-buffer') {
+      data = await scraper.runSource(
+        { ruleType: 'webhook-buffer', webhookId: src.webhookId },
+        'scheduled',
+        { apiKeys }
+      );
+    } else {
+      const rule = scraper.BUILTIN_SOURCE_RULES[src.id];
+      if (!rule) return null;
+      sourceCategory = rule.category ?? null;
+      sourceName = src.name ?? src.label ?? src.id;
+      data = await scraper.runSource(rule, 'scheduled', { apiKeys });
+    }
+  } catch (err) {
+    error = err.message;
+  }
+
+  const filtered = filterItemsForWidget(widgetId, data, sourceCategory);
+  return {
+    sourceId: src.id ?? `${src.ruleType}:${src.keywords ?? src.url ?? ''}`,
+    sourceName,
+    sourceCategory,
+    data: filtered,
+    error,
+  };
+}
+
 // Max 60 data-fetch requests per user per minute.
 // With 8 widgets firing on page load (plus navigation and HMR reloads),
 // a limit lower than ~30 causes spurious 429s during normal use.
@@ -218,6 +342,110 @@ router.post('/test', verifyToken, demoGuard, testLimiter, async (req, res) => {
     res.json({ results: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/feed-config/data-aggregated/deals  — merge sales-like feeds across categories/subcategories
+router.get('/data-aggregated/deals', verifyToken, dataLimiter, async (req, res) => {
+  try {
+    const widgetsFromQuery = String(req.query.widgets ?? '')
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean);
+    const targetWidgetIds = widgetsFromQuery.length > 0
+      ? widgetsFromQuery
+      : DEFAULT_AGGREGATED_DEALS_WIDGET_IDS;
+
+    const profileResult = await db.query('SELECT feed_config, api_keys FROM user_profiles WHERE user_id=$1', [req.user.id]);
+    const profile = profileResult.rows[0] ?? {};
+    const defaults = readDefaults();
+    const userCfg = profile.feed_config ?? {};
+    const decryptedApiKeys = decryptMap(profile.api_keys ?? {});
+    const apiKeys = {
+      ...decryptedApiKeys,
+      mouser_api_key: decryptedApiKeys.mouser_api_key ?? process.env.MOUSER_API_KEY ?? undefined,
+      digikey_client_id: decryptedApiKeys.digikey_client_id ?? process.env.DIGIKEY_CLIENT_ID ?? undefined,
+      digikey_client_secret: decryptedApiKeys.digikey_client_secret ?? process.env.DIGIKEY_CLIENT_SECRET ?? undefined,
+    };
+
+    const sourceSummaries = [];
+    const deals = [];
+    const seen = new Set();
+
+    for (const widgetId of targetWidgetIds) {
+      const widgetCfg = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? defaults[widgetId] ?? {}, defaults);
+      const enabledSources = (widgetCfg.sources ?? []).filter(src => src.enabled);
+
+      for (const src of enabledSources) {
+        const scraped = await scrapeSourceForWidget({ src, widgetId, apiKeys, userId: req.user.id });
+        if (!scraped) continue;
+
+        const skipCounts = { outOfStock: 0, noPrice: 0, belowThreshold: 0, noDiscount: 0 };
+        let accepted = 0;
+
+        for (const item of scraped.data) {
+          // 1. Stock gate — hide out-of-stock items
+          if (item.anyAvailable === 'false') { skipCounts.outOfStock++; continue; }
+
+          const price = parseMoney(item.price);
+          const comparePrice = parseMoney(item.comparePrice);
+
+          // 2. Price gate — must have a real sale price
+          if (price <= 0) { skipCounts.noPrice++; continue; }
+
+          // 3. Sale gate
+          if (comparePrice > 0) {
+            // Explicit compare price present — require at least 2% discount
+            const discount = (comparePrice - price) / comparePrice;
+            if (discount < 0.02) { skipCounts.belowThreshold++; continue; }
+          } else if (!isKnownSaleSource(src)) {
+            // No compare price and not a trusted sale page — skip
+            skipCounts.noDiscount++; continue;
+          }
+
+          const dedupeKey = String(item.url || `${item._vendor || scraped.sourceName}:${item.name}:${price}`).toLowerCase();
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
+          accepted++;
+
+          deals.push({
+            id: crypto.createHash('sha1').update(dedupeKey).digest('hex').slice(0, 16),
+            name: item.name,
+            url: item.url ?? undefined,
+            image: item.image ?? undefined,
+            vendor: item._vendor ?? scraped.sourceName,
+            productType: item.productType ?? null,
+            price,
+            comparePrice: comparePrice > 0 ? comparePrice : null,
+            category: inferDealCategory(widgetId, item),
+            subcategory: inferDealSubcategory(widgetId),
+            sourceWidgetId: widgetId,
+            sourceId: scraped.sourceId,
+            sourceName: scraped.sourceName,
+          });
+        }
+
+        sourceSummaries.push({
+          widgetId,
+          sourceId: scraped.sourceId,
+          name: scraped.sourceName,
+          count: scraped.data.length,
+          accepted,
+          skipped: skipCounts,
+          error: scraped.error,
+        });
+      }
+    }
+
+    res.json({
+      at: new Date().toISOString(),
+      widgetIds: targetWidgetIds,
+      items: deals,
+      sources: sourceSummaries,
+    });
+  } catch (err) {
+    console.error('GET /feed-config/data-aggregated/deals error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
