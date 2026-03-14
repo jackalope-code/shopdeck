@@ -335,9 +335,11 @@ async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = '
       const variantTitles = container.variants.map(v => (v.title || '').toLowerCase()).join(' ');
       const combined = `${ptype} ${tagStr} ${variantTitles}`;
       const itemType =
-        /\bkit\b|keyboard kit|diy/i.test(combined) ? 'Kit' :
-        /\bassembled\b|pre.?built|fully built|built/i.test(combined) ? 'Pre-built' :
+        /pre.?built|fully built|\bassembled\b|ready.?to.?type/i.test(combined) ? 'Pre-built' :
         /\bbarebones?\b|case only/i.test(combined) ? 'Barebones' :
+        /\bmodular\b|hot[\s-]?swap|swappable|interchangeable\s+module/i.test(combined) ? 'Modular-Kit' :
+        /\bdiy\b|solder(?:ing)?|unassembled|build\s+it\s+yourself|assembly\s+required/i.test(combined) ? 'DIY-Kit' :
+        /\bkit\b|keyboard kit/i.test(combined) ? 'Kit' :
         /\bpcb\b/i.test(combined) ? 'PCB' :
         /\bplate\b/i.test(combined) ? 'Plate' :
         /\bkeycap/i.test(combined) ? 'Keycaps' :

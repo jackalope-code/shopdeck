@@ -1,33 +1,59 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFavorites, FeedItem } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type KeyboardSubkind = 'kit' | 'barebones' | 'prebuilt';
-type SubkindFilter = 'all' | KeyboardSubkind;
+type KeyboardSubkind = 'modular-kit' | 'diy-kit' | 'barebones' | 'prebuilt';
+
+const SUBKIND_ORDER: KeyboardSubkind[] = ['modular-kit', 'diy-kit', 'barebones', 'prebuilt'];
+
+function isKeyboardSubkind(value: string): value is KeyboardSubkind {
+  return SUBKIND_ORDER.includes(value as KeyboardSubkind);
+}
+
+function normalizeSubkindToken(value: string): KeyboardSubkind | null {
+  const token = String(value || '').trim().toLowerCase();
+  if (!token) return null;
+
+  if (token === 'prebuilt' || token === 'pre-built') return 'prebuilt';
+  if (token === 'barebones' || token === 'barebone') return 'barebones';
+  if (token === 'modular-kit' || token === 'modular' || token === 'hotswap' || token === 'hot-swap') return 'modular-kit';
+  if (token === 'diy-kit' || token === 'diy' || token === 'kit') return 'diy-kit';
+  if (isKeyboardSubkind(token)) return token;
+  return null;
+}
+
+function uniqueOrderedSubkinds(values: KeyboardSubkind[]): KeyboardSubkind[] {
+  const unique = Array.from(new Set(values));
+  return SUBKIND_ORDER.filter(kind => unique.includes(kind));
+}
 
 function getKeyboardSubkind(item: FeedItem): KeyboardSubkind | null {
-  const itype = item.itemType ?? '';
-  if (itype === 'Pre-built') return 'prebuilt';
-  if (itype === 'Barebones') return 'barebones';
-  if (itype === 'Kit') return 'kit';
+  const explicit = normalizeSubkindToken(String((item as FeedItem & { keyboardSubkind?: string }).keyboardSubkind ?? ''));
+  if (explicit) return explicit;
+
+  const itype = normalizeSubkindToken(item.itemType ?? '');
+  if (itype) return itype;
 
   const text = [item.name, item.productType, item.tags].filter(Boolean).join(' ').toLowerCase();
-  if (/pre.?built|fully.?built|assembled|ready.?to.?type/.test(text)) return 'prebuilt';
+  if (/pre.?built|fully.?built|\bassembled\b|ready.?to.?type/.test(text)) return 'prebuilt';
   if (/\bbarebones?\b|case.?only/.test(text)) return 'barebones';
-  if (/\bkit\b|keyboard kit|\bdiy\b/.test(text)) return 'kit';
+  if (/\bmodular\b|hot[\s-]?swap|swappable|interchangeable\s+module/.test(text)) return 'modular-kit';
+  if (/\bdiy\b|solder(?:ing)?|unassembled|build\s+it\s+yourself|assembly\s+required/.test(text)) return 'diy-kit';
+  if (/\bkit\b|keyboard kit/.test(text)) return 'diy-kit';
 
   const ptype = (item.productType ?? '').toLowerCase();
-  if (/^keyboard/.test(ptype)) return 'kit';
+  if (/^keyboard/.test(ptype)) return 'diy-kit';
 
   return null;
 }
 
-const SUBKIND_LABEL: Record<SubkindFilter, string> = {
-  all: 'All',
-  kit: 'Kit',
+const SUBKIND_LABEL: Record<KeyboardSubkind, string> = {
+  'modular-kit': 'Modular Kit',
+  'diy-kit': 'DIY Kit',
   barebones: 'Barebones',
   prebuilt: 'Pre-built',
 };
@@ -118,9 +144,59 @@ function KeyboardCard({ item }: { item: FeedItem & { _subkind: KeyboardSubkind |
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function KeyboardsCatalog() {
+  const router = useRouter();
+  const hydratedFromQueryRef = useRef(false);
   const { loading, sources } = useFeedData('keyboard-releases');
-  const [subkind, setSubkind] = useState<SubkindFilter>('all');
+  const [selectedSubkinds, setSelectedSubkinds] = useState<KeyboardSubkind[]>([]);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (!router.isReady || hydratedFromQueryRef.current) return;
+
+    const rawSubkinds = router.query.subkinds;
+    const rawSubkind = router.query.subkind;
+    const mergedQuery = [rawSubkinds, rawSubkind]
+      .flatMap(value => (Array.isArray(value) ? value : [value]))
+      .filter(Boolean)
+      .join(',');
+
+    const parsed = mergedQuery
+      .split(',')
+      .map(token => normalizeSubkindToken(token))
+      .filter((value): value is KeyboardSubkind => value !== null);
+
+    setSelectedSubkinds(uniqueOrderedSubkinds(parsed));
+    hydratedFromQueryRef.current = true;
+  }, [router.isReady, router.query.subkinds, router.query.subkind]);
+
+  useEffect(() => {
+    if (!router.isReady || !hydratedFromQueryRef.current) return;
+
+    const normalizedSelection = uniqueOrderedSubkinds(selectedSubkinds);
+    const currentQueryValue = [router.query.subkinds]
+      .flatMap(value => (Array.isArray(value) ? value : [value]))
+      .filter(Boolean)
+      .join(',');
+
+    const normalizedCurrent = uniqueOrderedSubkinds(
+      currentQueryValue
+        .split(',')
+        .map(token => normalizeSubkindToken(token))
+        .filter((value): value is KeyboardSubkind => value !== null)
+    );
+
+    if (normalizedCurrent.join(',') === normalizedSelection.join(',')) return;
+
+    const nextQuery: Record<string, string | string[] | undefined> = { ...router.query };
+    delete nextQuery.subkind;
+    if (normalizedSelection.length > 0) {
+      nextQuery.subkinds = normalizedSelection.join(',');
+    } else {
+      delete nextQuery.subkinds;
+    }
+
+    router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+  }, [selectedSubkinds, router]);
 
   // Flatten and annotate items from all sources
   const items = useMemo(() => {
@@ -133,18 +209,20 @@ export default function KeyboardsCatalog() {
     );
   }, [sources]);
 
-  const availableSubkinds = useMemo(
-    () => (['kit', 'barebones', 'prebuilt'] as KeyboardSubkind[]).filter(sk => items.some(i => i._subkind === sk)),
-    [items]
-  );
+  const availableSubkinds = useMemo(() => {
+    const fromData = SUBKIND_ORDER.filter(kind => items.some(item => item._subkind === kind));
+    return uniqueOrderedSubkinds([...fromData, ...selectedSubkinds]);
+  }, [items, selectedSubkinds]);
+
+  const selectedSubkindSet = useMemo(() => new Set(selectedSubkinds), [selectedSubkinds]);
 
   const filtered = useMemo(() => {
     return items.filter(item => {
-      const matchSubkind = subkind === 'all' || item._subkind === subkind;
+      const matchSubkind = selectedSubkindSet.size === 0 || (item._subkind ? selectedSubkindSet.has(item._subkind) : false);
       const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase()) || (item._vendor ?? '').toLowerCase().includes(search.toLowerCase());
       return matchSubkind && matchSearch;
     });
-  }, [items, subkind, search]);
+  }, [items, selectedSubkindSet, search]);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
@@ -176,13 +254,28 @@ export default function KeyboardsCatalog() {
           {/* Subkind filter chips */}
           {availableSubkinds.length > 0 && (
             <div className="flex gap-2 px-4 pb-3 overflow-x-auto max-w-5xl mx-auto w-full" style={{ scrollbarWidth: 'none' }}>
-              {(['all', ...availableSubkinds] as SubkindFilter[]).map(sk => {
-                const count = sk === 'all' ? items.length : items.filter(i => i._subkind === sk).length;
+              <button
+                onClick={() => setSelectedSubkinds([])}
+                className={`flex h-9 shrink-0 items-center justify-center rounded-full px-5 text-sm font-semibold transition-colors ${selectedSubkinds.length === 0 ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+              >
+                All <span className="ml-1.5 opacity-70 text-xs">({items.length})</span>
+              </button>
+
+              {availableSubkinds.map(sk => {
+                const count = items.filter(i => i._subkind === sk).length;
+                const selected = selectedSubkindSet.has(sk);
                 return (
                   <button
                     key={sk}
-                    onClick={() => setSubkind(sk)}
-                    className={`flex h-9 shrink-0 items-center justify-center rounded-full px-5 text-sm font-semibold transition-colors ${subkind === sk ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    onClick={() => {
+                      setSelectedSubkinds(prev => {
+                        if (prev.includes(sk)) {
+                          return prev.filter(kind => kind !== sk);
+                        }
+                        return uniqueOrderedSubkinds([...prev, sk]);
+                      });
+                    }}
+                    className={`flex h-9 shrink-0 items-center justify-center rounded-full px-5 text-sm font-semibold transition-colors ${selected ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                   >
                     {SUBKIND_LABEL[sk]} <span className="ml-1.5 opacity-70 text-xs">({count})</span>
                   </button>

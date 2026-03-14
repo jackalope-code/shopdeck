@@ -104,9 +104,17 @@ function classifyProductTaxonomy(input = {}) {
 }
 
 function inferKeyboardSubkind(item = {}) {
+  const explicitSubkind = String(item.keyboardSubkind || '').toLowerCase();
+  if (explicitSubkind === 'prebuilt') return 'prebuilt';
+  if (explicitSubkind === 'barebones') return 'barebones';
+  if (explicitSubkind === 'modular-kit') return 'modular-kit';
+  if (explicitSubkind === 'diy-kit') return 'diy-kit';
+
   const itype = String(item.itemType || '');
   if (itype === 'Pre-built') return 'prebuilt';
   if (itype === 'Barebones') return 'barebones';
+  if (itype === 'Modular-Kit') return 'modular-kit';
+  if (itype === 'DIY-Kit') return 'diy-kit';
   if (itype === 'Kit') return 'kit';
 
   const text = [item.name, item.productType, item.tags]
@@ -114,8 +122,10 @@ function inferKeyboardSubkind(item = {}) {
     .join(' ')
     .toLowerCase();
 
-  if (/pre.?built|fully.?built|assembled|ready.?to.?type/.test(text)) return 'prebuilt';
+  if (/pre.?built|fully.?built|\bassembled\b|ready.?to.?type/.test(text)) return 'prebuilt';
   if (/\bbarebones?\b|case.?only/.test(text)) return 'barebones';
+  if (/\bmodular\b|hot[\s-]?swap|swappable|interchangeable\s+module/.test(text)) return 'modular-kit';
+  if (/\bdiy\b|solder(?:ing)?|unassembled|build\s+it\s+yourself|assembly\s+required/.test(text)) return 'diy-kit';
   if (/\bkit\b|keyboard kit|\bdiy\b/.test(text)) return 'kit';
 
   // Enthusiast boutiques list keyboards without explicit "kit" tags; productType "Keyboard"

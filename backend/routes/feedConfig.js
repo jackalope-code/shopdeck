@@ -80,7 +80,13 @@ function looksLikeFullKeyboard(item = {}) {
 
 function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
   if (!KEYBOARD_WIDGET_IDS.has(widgetId)) return items;
-  return items.filter(item => {
+  const normalizedKeyboardItems = items.map(item => {
+    const keyboardSubkind = inferKeyboardSubkind(item);
+    if (!keyboardSubkind) return item;
+    return { ...item, keyboardSubkind };
+  });
+
+  return normalizedKeyboardItems.filter(item => {
     const kind = classifyKeyboardItem(item, sourceCategory);
     if (widgetId === 'keycap-releases') return kind === 'keycaps';
     if (widgetId === 'keyboard-switches') return kind === 'switches';
@@ -115,7 +121,7 @@ const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
 // Old versioned keys are never written again and expire naturally via their TTL.
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 
 // Fallback in-process Maps (used if Redis is unavailable)
 const localFeedCache   = new Map();
