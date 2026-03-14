@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "test:feed": "vitest run --config vitest.config.ts",
+    "test:feed:watch": "vitest --config vitest.config.ts",
     "docker:start": "docker compose -f docker-compose.yml up --build",
     "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
     "docker:services:dev": "docker compose -f docker-compose.yml -f docker-compose.services.yml up postgres redis"
@@ -25,6 +27,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "vitest": "^3.2.4"
   }
 }

@@ -1,5 +1,7 @@
 # ShopDeck
 
+[![Tests](https://github.com/jackalope-code/shopdeck/actions/workflows/test-pipeline.yml/badge.svg)](https://github.com/jackalope-code/shopdeck/actions/workflows/test-pipeline.yml)
+
 A keyboard/electronics deal tracker and project manager built with Next.js, Express, PostgreSQL, and Redis.
 
 <img width="3822" height="1795" alt="Screenshot 2026-03-09 180716" src="https://github.com/user-attachments/assets/35489334-648e-4e08-a8dc-6bf93b806799" />
@@ -10,6 +12,21 @@ A keyboard/electronics deal tracker and project manager built with Next.js, Expr
 - **Backend**: Express.js — port 4000
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7
+
+## Branch protection (`main`)
+
+Enable branch protection on `main` so merges require the test pipeline to pass:
+
+1. Go to **GitHub → Settings → Branches → Add branch protection rule**.
+2. Set **Branch name pattern** to `main`.
+3. Enable **Require a pull request before merging**.
+4. Enable **Require status checks to pass before merging** and select these checks:
+	- `Lint Typecheck Unit`
+	- `Feed Tests`
+	- `Smoke Tests`
+5. Save the rule.
+
+These checks are produced by `.github/workflows/test-pipeline.yml`.
 
 ---
 

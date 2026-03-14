@@ -6,6 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:smoke": "playwright test --config=playwright.config.ts",
+    "test:feed": "vitest run --config backend/vitest.config.ts",
+    "test:regression": "npm run lint && npm run typecheck && npm run test && npm run test:feed",
     "start": "next start",
     "backend": "npm start --prefix backend",
     "docker:ui": "docker build -f Dockerfile.frontend -t shopdeck-frontend .",
@@ -21,11 +27,16 @@
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "@tailwindcss/postcss": "^4.2.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "jsdom": "^27.2.0",
     "postcss": "^8.5.8",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
   }
 }

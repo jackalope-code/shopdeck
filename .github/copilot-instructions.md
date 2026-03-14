@@ -49,3 +49,49 @@ All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through
 - Use `getToken()` for all authenticated API calls from the frontend
 - Prefer real live data; mock/seed data is for tests only
 - Do not add comments or docstrings to code that wasn't changed
+
+## Testing & Regression Policy
+
+All widget, page, and feed-data changes must be validated with tests before and after implementation to limit regressions.
+
+### Required workflow for widget/page/feed changes
+
+1. Run a relevant baseline test pass before edits (to confirm starting state).
+2. Make the code changes.
+3. Re-run the same relevant suites plus impacted smoke checks.
+4. Do not finalize changes with failing tests unless the failure is unrelated and explicitly documented.
+
+### Smoke-first UI testing
+
+- UI smoke tests are the starting point for frontend regression checks.
+- Smoke coverage must include at least:
+	- app boot and auth route render
+	- dashboard route render and primary controls
+	- representative key routes (for example deals and drops)
+
+### Command matrix by change type
+
+- **Widget changes** (`src/components/`):
+	- `npm run test`
+	- `npm run test:smoke`
+	- `npm run typecheck`
+
+- **Page changes** (`pages/`):
+	- `npm run test`
+	- `npm run test:smoke`
+	- `npm run typecheck`
+
+- **Feed/backend changes** (`backend/routes/feedConfig.js`, `backend/scraper.js`, feed sources/rules):
+	- `npm run test:feed`
+	- optional live probe: `SHOPDECK_BACKEND_URL=http://127.0.0.1:4000 npm run test:feed`
+
+- **Cross-cutting changes** (widgets/pages + feed logic):
+	- `npm run test:regression`
+	- `npm run test:smoke`
+	- `npm run test:feed`
+
+### Feed testing constraints
+
+- Keep CI feed tests deterministic with fixtures/mocks where practical.
+- Live upstream probe tests are allowed, but should be optional/manual to avoid flaky CI failures.
+- Maintain Mouser no-cache behavior while testing (`mouser-api` requests must stay live and uncached).
