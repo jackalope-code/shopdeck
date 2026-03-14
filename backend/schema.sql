@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
   username     TEXT UNIQUE NOT NULL,
   email        TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  account_verified BOOLEAN NOT NULL DEFAULT false,
+  email_verified_at TIMESTAMPTZ,
   is_demo BOOLEAN NOT NULL DEFAULT false,
   github_token TEXT,
   github_username TEXT,
@@ -114,9 +116,37 @@ CREATE TABLE IF NOT EXISTS webhooks (
 );
 CREATE INDEX IF NOT EXISTS webhooks_user_id_idx ON webhooks(user_id);
 
+-- ─── Email verification ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at    TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS email_verification_tokens_user_idx ON email_verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS email_verification_tokens_expires_idx ON email_verification_tokens(expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS email_verification_tokens_hash_idx ON email_verification_tokens(token_hash);
+
+CREATE TABLE IF NOT EXISTS email_verification_codes (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash     TEXT NOT NULL,
+  expires_at    TIMESTAMPTZ NOT NULL,
+  used_at       TIMESTAMPTZ,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS email_verification_codes_user_idx ON email_verification_codes(user_id);
+CREATE INDEX IF NOT EXISTS email_verification_codes_expires_idx ON email_verification_codes(expires_at);
+CREATE INDEX IF NOT EXISTS email_verification_codes_hash_idx ON email_verification_codes(code_hash);
+
 -- ─── Migrations (safe to re-run) ─────────────────────────────────────────────
 -- Adds columns that were introduced after the initial schema deployment.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS account_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_token TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username TEXT;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS widget_order JSONB;

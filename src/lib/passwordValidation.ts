@@ -41,6 +41,11 @@ export function validatePassword(password: string): PasswordValidationResult {
       pass: /[a-z]/.test(password),
     },
     {
+      key: 'number',
+      label: 'At least one number',
+      pass: /[0-9]/.test(password),
+    },
+    {
       key: 'special',
       label: 'At least one special character',
       pass: /[!@#$%^&*()\-_=+\[\]{}|;':",.<>?/`~\\]/.test(password),

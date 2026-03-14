@@ -10,11 +10,26 @@ const rateLimit = require('express-rate-limit');
 const { verifyToken, JWT_SECRET } = require('../middleware/auth');
 const { encryptToken } = require('../lib/tokenCrypto');
 const { validatePassword } = require('../lib/passwordValidation');
+const {
+  TOKEN_TTL_MS,
+  CODE_TTL_MS,
+  hashValue,
+  generateVerificationToken,
+  generateVerificationCode,
+  getVerificationExpiry,
+  sendVerificationEmail,
+} = require('../lib/emailVerification');
 const db = require('../db');
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, username: user.username, is_demo: user.is_demo ?? false },
+    {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      is_demo: user.is_demo ?? false,
+      account_verified: user.account_verified ?? false,
+    },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -24,6 +39,22 @@ const demoCreateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: { error: 'Too many demo accounts created from this IP. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const verifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many verification attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const resendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many resend attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -126,10 +157,25 @@ const DEFAULT_FEED_CONFIG = {
   },
 };
 
-async function createUserWithProfile(client, { id, username, email, passwordHash, isDemo = false }) {
+function getAppBaseUrl(req) {
+  return process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+}
+
+function getOptionalAuthUserId(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  try {
+    const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
+    return decoded?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+async function createUserWithProfile(client, { id, username, email, passwordHash, isDemo = false, accountVerified = false }) {
   await client.query(
-    `INSERT INTO users (id, username, email, password_hash, is_demo) VALUES ($1,$2,$3,$4,$5)`,
-    [id, username, email, passwordHash, isDemo]
+    `INSERT INTO users (id, username, email, password_hash, is_demo, account_verified) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [id, username, email, passwordHash, isDemo, accountVerified]
   );
   await client.query(
     `INSERT INTO user_profiles (user_id, active_widgets, grid_cols, feed_config, ai_config)
@@ -146,6 +192,86 @@ async function createUserWithProfile(client, { id, username, email, passwordHash
   await client.query(`INSERT INTO tracked_alerts  (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
   await client.query(`INSERT INTO alert_history   (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
   await client.query(`INSERT INTO user_watchlists (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
+}
+
+async function issueVerificationCredentials(client, userId) {
+  const token = generateVerificationToken();
+  const code = generateVerificationCode();
+  const tokenHash = hashValue(token);
+  const codeHash = hashValue(code);
+  const { tokenExpiresAt, codeExpiresAt } = getVerificationExpiry();
+
+  await client.query(
+    'UPDATE email_verification_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL',
+    [userId]
+  );
+  await client.query(
+    'UPDATE email_verification_codes SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL',
+    [userId]
+  );
+
+  await client.query(
+    `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userId, tokenHash, tokenExpiresAt]
+  );
+  await client.query(
+    `INSERT INTO email_verification_codes (user_id, code_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userId, codeHash, codeExpiresAt]
+  );
+
+  return { token, code };
+}
+
+async function sendUserVerificationEmail(req, { email, username, token, code }) {
+  const appBaseUrl = getAppBaseUrl(req);
+  const verificationLink = `${appBaseUrl.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+  await sendVerificationEmail({
+    to: email,
+    username,
+    appBaseUrl,
+    verificationLink,
+    code,
+  });
+}
+
+async function enforceResendLimits(userId) {
+  const latest = await db.query(
+    `SELECT created_at
+       FROM email_verification_tokens
+      WHERE user_id=$1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [userId]
+  );
+  if (latest.rows[0]) {
+    const lastCreatedAt = new Date(latest.rows[0].created_at).getTime();
+    if (Date.now() - lastCreatedAt < 60 * 1000) {
+      const err = new Error('Please wait before requesting another verification email');
+      err.statusCode = 429;
+      throw err;
+    }
+  }
+
+  const lastHour = await db.query(
+    `SELECT COUNT(*)::int AS count
+       FROM email_verification_tokens
+      WHERE user_id=$1 AND created_at > NOW() - INTERVAL '1 hour'`,
+    [userId]
+  );
+  if ((lastHour.rows[0]?.count || 0) >= 5) {
+    const err = new Error('Verification resend limit reached. Try again later');
+    err.statusCode = 429;
+    throw err;
+  }
+}
+
+function genericResendResponse() {
+  return {
+    ok: true,
+    message: 'If the account exists and is not yet verified, a new verification email has been sent.',
+  };
 }
 
 // POST /api/auth/register
@@ -169,16 +295,35 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
     const id = uuidv4();
+    let verification;
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      await createUserWithProfile(client, { id, username, email, passwordHash });
+      await createUserWithProfile(client, { id, username, email, passwordHash, accountVerified: false });
+      verification = await issueVerificationCredentials(client, id);
       await client.query('COMMIT');
     } catch (e) { await client.query('ROLLBACK'); throw e; }
     finally { client.release(); }
 
-    const token = generateToken({ id, email, username });
-    res.status(201).json({ token, user: { id, username, email } });
+    let verificationEmailSent = true;
+    try {
+      await sendUserVerificationEmail(req, { email, username, token: verification.token, code: verification.code });
+    } catch (mailErr) {
+      verificationEmailSent = false;
+      console.error('Verification email send failed:', mailErr.message);
+    }
+
+    const token = generateToken({ id, email, username, account_verified: false });
+    res.status(201).json({
+      token,
+      user: { id, username, email, accountVerified: false },
+      verification: {
+        required: true,
+        emailSent: verificationEmailSent,
+        linkExpiresInHours: TOKEN_TTL_MS / (60 * 60 * 1000),
+        codeExpiresInMinutes: CODE_TTL_MS / (60 * 1000),
+      },
+    });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -199,11 +344,213 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const token = generateToken({ id: user.id, email: user.email, username: user.username, is_demo: user.is_demo });
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, is_demo: user.is_demo } });
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      is_demo: user.is_demo,
+      account_verified: user.account_verified,
+    });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        is_demo: user.is_demo,
+        accountVerified: !!user.account_verified,
+      },
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/auth/verify-email?token=...
+router.get('/verify-email', verifyLimiter, async (req, res) => {
+  try {
+    const token = String(req.query.token || '').trim();
+    if (!token) return res.status(400).json({ error: 'Verification token is required' });
+
+    const tokenHash = hashValue(token);
+    const result = await db.query(
+      `SELECT t.id AS token_id, t.user_id, t.expires_at, t.used_at,
+              u.account_verified
+         FROM email_verification_tokens t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.token_hash = $1
+        ORDER BY t.created_at DESC
+        LIMIT 1`,
+      [tokenHash]
+    );
+    const row = result.rows[0];
+    if (!row) return res.status(400).json({ error: 'Invalid or expired verification token' });
+
+    if (row.used_at || new Date(row.expires_at).getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'Invalid or expired verification token' });
+    }
+
+    if (row.account_verified) {
+      await db.query('UPDATE email_verification_tokens SET used_at=NOW() WHERE id=$1', [row.token_id]);
+      return res.json({ verified: true, alreadyVerified: true });
+    }
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'UPDATE users SET account_verified=true, email_verified_at=NOW() WHERE id=$1',
+        [row.user_id]
+      );
+      await client.query('UPDATE email_verification_tokens SET used_at=NOW() WHERE id=$1', [row.token_id]);
+      await client.query(
+        'UPDATE email_verification_codes SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL',
+        [row.user_id]
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    return res.json({ verified: true });
+  } catch (err) {
+    console.error('Verify email token error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/verify-email-code
+router.post('/verify-email-code', verifyLimiter, async (req, res) => {
+  try {
+    const code = String(req.body?.code || '').trim();
+    const optionalUserId = getOptionalAuthUserId(req);
+    const email = optionalUserId ? null : String(req.body?.email || '').trim();
+
+    if (!code) return res.status(400).json({ error: 'Verification code is required' });
+    if (!optionalUserId && !email) return res.status(400).json({ error: 'Email is required' });
+
+    const userResult = optionalUserId
+      ? await db.query('SELECT id, account_verified FROM users WHERE id=$1', [optionalUserId])
+      : await db.query('SELECT id, account_verified FROM users WHERE email=$1', [email]);
+    const user = userResult.rows[0];
+    if (!user) return res.status(400).json({ error: 'Invalid verification code' });
+    if (user.account_verified) return res.json({ verified: true, alreadyVerified: true });
+
+    const activeCodeResult = await db.query(
+      `SELECT id, code_hash, expires_at, used_at, attempt_count
+         FROM email_verification_codes
+        WHERE user_id=$1
+          AND used_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [user.id]
+    );
+    const activeCode = activeCodeResult.rows[0];
+    if (!activeCode || new Date(activeCode.expires_at).getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+    if (activeCode.attempt_count >= 5) {
+      return res.status(429).json({ error: 'Too many failed attempts. Request a new code' });
+    }
+
+    if (activeCode.code_hash !== hashValue(code)) {
+      await db.query(
+        'UPDATE email_verification_codes SET attempt_count = attempt_count + 1 WHERE id=$1',
+        [activeCode.id]
+      );
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE users SET account_verified=true, email_verified_at=NOW() WHERE id=$1', [user.id]);
+      await client.query('UPDATE email_verification_codes SET used_at=NOW() WHERE id=$1', [activeCode.id]);
+      await client.query(
+        'UPDATE email_verification_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL',
+        [user.id]
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    return res.json({ verified: true });
+  } catch (err) {
+    console.error('Verify email code error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/resend-verification
+router.post('/resend-verification', resendLimiter, async (req, res) => {
+  try {
+    const authUserId = getOptionalAuthUserId(req);
+    const email = String(req.body?.email || '').trim();
+
+    if (!authUserId && !email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const userResult = authUserId
+      ? await db.query(
+          'SELECT id, email, username, account_verified FROM users WHERE id=$1',
+          [authUserId]
+        )
+      : await db.query(
+          'SELECT id, email, username, account_verified FROM users WHERE email=$1',
+          [email]
+        );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return res.json(genericResendResponse());
+    }
+    if (user.account_verified) {
+      return res.json(authUserId ? { ok: true, alreadyVerified: true } : genericResendResponse());
+    }
+
+    await enforceResendLimits(user.id);
+
+    let verification;
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      verification = await issueVerificationCredentials(client, user.id);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    await sendUserVerificationEmail(req, {
+      email: user.email,
+      username: user.username,
+      token: verification.token,
+      code: verification.code,
+    });
+
+    return res.json(
+      authUserId
+        ? {
+            ok: true,
+            linkExpiresInHours: TOKEN_TTL_MS / (60 * 60 * 1000),
+            codeExpiresInMinutes: CODE_TTL_MS / (60 * 1000),
+          }
+        : genericResendResponse()
+    );
+  } catch (err) {
+    console.error('Resend verification error:', err);
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -223,15 +570,36 @@ router.post('/developer', async (req, res) => {
       const client = await db.connect();
       try {
         await client.query('BEGIN');
-        await createUserWithProfile(client, { id, username: 'developer', email: DEV_EMAIL, passwordHash });
+        await createUserWithProfile(client, {
+          id,
+          username: 'developer',
+          email: DEV_EMAIL,
+          passwordHash,
+          accountVerified: true,
+        });
         await client.query('COMMIT');
       } catch (e) { await client.query('ROLLBACK'); throw e; }
       finally { client.release(); }
-      dev = { id, username: 'developer', email: DEV_EMAIL };
+      dev = { id, username: 'developer', email: DEV_EMAIL, is_demo: false, account_verified: true };
     }
 
-    const token = generateToken({ id: dev.id, email: dev.email, username: dev.username, is_demo: false });
-    res.json({ token, user: { id: dev.id, username: dev.username, email: dev.email, is_demo: false } });
+    const token = generateToken({
+      id: dev.id,
+      email: dev.email,
+      username: dev.username,
+      is_demo: false,
+      account_verified: dev.account_verified ?? true,
+    });
+    res.json({
+      token,
+      user: {
+        id: dev.id,
+        username: dev.username,
+        email: dev.email,
+        is_demo: false,
+        accountVerified: dev.account_verified ?? true,
+      },
+    });
   } catch (err) {
     console.error('Developer login error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -249,13 +617,20 @@ router.post('/demo', demoCreateLimiter, async (req, res) => {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      await createUserWithProfile(client, { id, username, email, passwordHash, isDemo: true });
+      await createUserWithProfile(client, {
+        id,
+        username,
+        email,
+        passwordHash,
+        isDemo: true,
+        accountVerified: true,
+      });
       await client.query('COMMIT');
     } catch (e) { await client.query('ROLLBACK'); throw e; }
     finally { client.release(); }
 
-    const token = generateToken({ id, email, username, is_demo: true });
-    res.status(201).json({ token, user: { id, username, email, is_demo: true } });
+    const token = generateToken({ id, email, username, is_demo: true, account_verified: true });
+    res.status(201).json({ token, user: { id, username, email, is_demo: true, accountVerified: true } });
   } catch (err) {
     console.error('Demo account creation error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -265,7 +640,10 @@ router.post('/demo', demoCreateLimiter, async (req, res) => {
 // GET /api/auth/me  (protected)
 router.get('/me', verifyToken, async (req, res) => {
   try {
-    const result = await db.query('SELECT id, username, email FROM users WHERE id=$1', [req.user.id]);
+    const result = await db.query(
+      'SELECT id, username, email, is_demo, account_verified AS "accountVerified" FROM users WHERE id=$1',
+      [req.user.id]
+    );
     const user = result.rows[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);

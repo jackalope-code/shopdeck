@@ -8,6 +8,7 @@ export interface AuthUser {
   username: string;
   email: string;
   is_demo?: boolean;
+  accountVerified?: boolean;
 }
 
 export class DemoRestrictedError extends Error {

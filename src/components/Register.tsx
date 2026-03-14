@@ -5,6 +5,17 @@ import { useRouter } from 'next/router';
 import { apiPost, setToken, setUser, AuthUser } from '../lib/auth';
 import { validatePassword } from '../lib/passwordValidation';
 
+interface RegisterResponse {
+  token: string;
+  user: AuthUser;
+  verification?: {
+    required?: boolean;
+    emailSent?: boolean;
+    linkExpiresInHours?: number;
+    codeExpiresInMinutes?: number;
+  };
+}
+
 export default function Register() {
   const router = useRouter();
   const [username, setUsername] = useState('');
@@ -26,9 +37,12 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const data = await apiPost<{ token: string; user: AuthUser }>('/api/auth/register', { username, email, password });
+      const data = await apiPost<RegisterResponse>('/api/auth/register', { username, email, password });
       setToken(data.token);
       setUser(data.user);
+      if (data.verification?.required) {
+        sessionStorage.setItem('sd-pending-verification-email', email);
+      }
       // New user → go through onboarding
       localStorage.removeItem('sd-onboarded');
       router.replace('/onboarding');

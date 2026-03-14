@@ -49,3 +49,16 @@ All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through
 - Use `getToken()` for all authenticated API calls from the frontend
 - Prefer real live data; mock/seed data is for tests only
 - Do not add comments or docstrings to code that wasn't changed
+
+## Auth And Verification Notes
+
+- Password policy is mirrored in `backend/lib/passwordValidation.js` and `src/lib/passwordValidation.ts`. Keep them in sync.
+- Email verification supports both a direct-link token flow and a manual code flow. Preserve both unless the task explicitly changes that product decision.
+- `accountVerified` is intentionally exposed through auth payloads and `GET /api/auth/me`; frontend auth state should keep using that field.
+- Resend verification currently supports both authenticated users and email-based resend from the verify page. Avoid reintroducing account-enumerating responses for unauthenticated resend requests.
+- For local development, if SMTP is not configured, the backend logs the verification link and code. Do not remove that fallback unless a replacement local-development path is added.
+- For production-oriented tasks touching verification, prefer documenting or implementing these follow-ups when relevant:
+	- sender/provider configuration (`APP_BASE_URL`, `MAIL_FROM`, `SMTP_*`)
+	- cleanup of expired verification tokens/codes
+	- provider deliverability setup such as SPF/DKIM
+	- monitoring of email send failures and resend/verify abuse

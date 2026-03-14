@@ -21,6 +21,7 @@
     "jsonpath-plus": "^10.4.0",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.1",
     "pg": "^8.20.0",
     "uuid": "^13.0.0"
   },

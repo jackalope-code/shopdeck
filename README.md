@@ -85,3 +85,31 @@ npm run build
 
 > **Note:** `backend/.env` and `.env.local` contain secrets — never commit them.
 
+---
+
+## Natural Next Steps
+
+The current auth flow now supports:
+
+- password validation with a required number
+- hybrid email verification via direct link or 6-digit code
+- resend verification from the dashboard or dedicated verify page
+
+To finish rolling this out safely:
+
+1. Configure outbound email in `backend/.env`.
+	Suggested production provider: SendGrid SMTP.
+	For local/dev testing, leaving `SMTP_*` unset falls back to logging the verification link and code in the backend console.
+
+2. Restart the backend after env changes.
+	The verification flow depends on `APP_BASE_URL`, `MAIL_FROM`, and SMTP credentials being present in the runtime environment.
+
+3. Run the verification flow end to end.
+	Register a new user, confirm login still works while unverified, verify once by direct link, and test resend + invalid-code behavior.
+
+4. For production, complete sender authentication.
+	Verify the sending domain/address with your mail provider and configure SPF/DKIM before relying on real delivery.
+
+5. Add operational cleanup and monitoring.
+	Expired verification token/code rows should be pruned periodically, and failed email sends should be monitored in logs/alerts.
+

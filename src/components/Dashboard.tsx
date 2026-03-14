@@ -16,7 +16,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
+import { getUser, getToken, clearToken, apiGet, apiPatch, apiPost, setUser, AuthUser } from '../lib/auth';
 import { useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
@@ -827,6 +827,13 @@ export default function Dashboard() {
   }
   const [now, setNow] = useState<Date | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [accountVerified, setAccountVerified] = useState<boolean>(true);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyMessage, setVerifyMessage] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendCooldownUntil, setResendCooldownUntil] = useState(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -840,7 +847,10 @@ export default function Dashboard() {
   useEffect(() => {
     setNow(new Date());
     const localUser = getUser();
-    if (localUser) setUsername(localUser.username);
+    if (localUser) {
+      setUsername(localUser.username);
+      setAccountVerified(localUser.accountVerified ?? true);
+    }
     if (getToken()) {
       apiGet<{ profile: { activeWidgets?: string[]; gridCols?: number } }>('/api/profile')
         .then(({ profile }) => {
@@ -857,6 +867,14 @@ export default function Dashboard() {
           } catch {}
         })
         .finally(() => { hydratedRef.current = true; });
+
+      apiGet<AuthUser>('/api/auth/me')
+        .then((me) => {
+          setUsername(me.username);
+          setAccountVerified(me.accountVerified ?? true);
+          setUser(me);
+        })
+        .catch(() => {});
     } else {
       try {
         const w = localStorage.getItem(STORAGE_KEY_WIDGETS);
@@ -911,6 +929,43 @@ export default function Dashboard() {
     router.push('/login');
   }
 
+  async function handleVerifyCode() {
+    if (!verifyCode.trim()) {
+      setVerifyError('Enter the verification code from your email');
+      return;
+    }
+    setVerifyBusy(true);
+    setVerifyError('');
+    setVerifyMessage('');
+    try {
+      await apiPost('/api/auth/verify-email-code', { code: verifyCode.trim() });
+      const localUser = getUser();
+      if (localUser) setUser({ ...localUser, accountVerified: true });
+      setAccountVerified(true);
+      setVerifyCode('');
+      setVerifyMessage('Email verified successfully.');
+    } catch (err: unknown) {
+      setVerifyError(err instanceof Error ? err.message : 'Verification failed');
+    } finally {
+      setVerifyBusy(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    setResendBusy(true);
+    setVerifyError('');
+    setVerifyMessage('');
+    try {
+      await apiPost('/api/auth/resend-verification', {});
+      setResendCooldownUntil(Date.now() + 60 * 1000);
+      setVerifyMessage('Verification email sent. Check your inbox for a link and code.');
+    } catch (err: unknown) {
+      setVerifyError(err instanceof Error ? err.message : 'Failed to resend verification email');
+    } finally {
+      setResendBusy(false);
+    }
+  }
+
   const toggleWidget = (id: string) =>
     setActiveWidgetIds(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]);
 
@@ -929,6 +984,7 @@ export default function Dashboard() {
 
   const timeStr = now?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) ?? '';
   const dateStr = now?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) ?? '';
+  const resendCooldownRemaining = Math.max(0, Math.ceil((resendCooldownUntil - (now?.getTime() ?? Date.now())) / 1000));
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
@@ -1066,6 +1122,55 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+
+      {accountVerified === false && (
+        <div className="mx-4 mt-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/10 p-4">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">mark_email_unread</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Verify your email address</p>
+              <p className="text-xs text-amber-700/90 dark:text-amber-300/80 mt-1">
+                Use the one-click verification link from your inbox, or enter your 6-digit code below.
+              </p>
+
+              <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+                <input
+                  type="text"
+                  value={verifyCode}
+                  onChange={e => setVerifyCode(e.target.value)}
+                  placeholder="Verification code"
+                  maxLength={6}
+                  className="w-full sm:w-48 px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-800 text-sm"
+                />
+                <button
+                  onClick={handleVerifyCode}
+                  disabled={verifyBusy}
+                  className="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-60"
+                >
+                  {verifyBusy ? 'Verifying…' : 'Verify code'}
+                </button>
+                <button
+                  onClick={handleResendVerification}
+                  disabled={resendBusy || resendCooldownRemaining > 0}
+                  className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100/50 dark:hover:bg-amber-900/20 disabled:opacity-60"
+                >
+                  {resendBusy
+                    ? 'Sending…'
+                    : resendCooldownRemaining > 0
+                      ? `Resend (${resendCooldownRemaining}s)`
+                      : 'Resend verification'}
+                </button>
+                <Link href="/verify-email" className="text-xs font-semibold text-amber-800 dark:text-amber-300 hover:underline">
+                  Open verify page
+                </Link>
+              </div>
+
+              {verifyMessage && <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">{verifyMessage}</p>}
+              {verifyError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{verifyError}</p>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hamburger drawer */}
       {drawerOpen && (
