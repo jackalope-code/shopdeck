@@ -40,7 +40,7 @@ const SOURCES: { id: AlertSource; label: string; icon: string; color: string; tr
   { id: 'gpu',         label: 'GPU',         icon: 'videogame_asset',   color: 'text-purple-500',  trackerHref: '/gpu-availability-tracker' },
   { id: 'keyboard',    label: 'Keyboards',   icon: 'compare',           color: 'text-emerald-500', trackerHref: '/keyboard-comparison' },
   { id: 'keycaps',     label: 'Keycaps',     icon: 'format_color_text', color: 'text-pink-500',    trackerHref: '/keycaps-tracker' },
-  { id: 'electronics', label: 'Electronics', icon: 'inventory_2',       color: 'text-orange-500',  trackerHref: '/my-electronics' },
+  { id: 'electronics', label: 'Electronics', icon: 'inventory_2',       color: 'text-orange-500',  trackerHref: '/electronics' },
   { id: 'deals',       label: 'Deals',       icon: 'local_offer',       color: 'text-cyan-500',    trackerHref: '/active-deals' },
 ];
 

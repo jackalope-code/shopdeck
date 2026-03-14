@@ -37,6 +37,9 @@ interface Project {
   builtUnits?: number;
   soldUnits?: number;
   wasteOverageRate?: number;
+  computedProducibleUnits?: number;
+  computedExpectedPartsTotal?: number;
+  computedTargetShortfall?: number;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -76,6 +79,15 @@ function normalizeProject(project: Project): Project {
     builtUnits: Math.max(0, toSafeNumber(project.builtUnits, 0)),
     soldUnits: Math.max(0, toSafeNumber(project.soldUnits, 0)),
     wasteOverageRate: Math.max(0, toSafeNumber(project.wasteOverageRate, 0)),
+    ...(project.computedProducibleUnits != null
+      ? { computedProducibleUnits: Math.max(0, toSafeNumber(project.computedProducibleUnits, 0)) }
+      : {}),
+    ...(project.computedExpectedPartsTotal != null
+      ? { computedExpectedPartsTotal: Math.max(0, toSafeNumber(project.computedExpectedPartsTotal, 0)) }
+      : {}),
+    ...(project.computedTargetShortfall != null
+      ? { computedTargetShortfall: Math.max(0, toSafeNumber(project.computedTargetShortfall, 0)) }
+      : {}),
   };
 }
 
@@ -147,7 +159,7 @@ export default function ProjectDetail() {
   const soldUnits = Math.max(0, toSafeNumber(project?.soldUnits, 0));
   const wasteOverageRate = Math.max(0, toSafeNumber(project?.wasteOverageRate, 0));
 
-  const producibleUnits = useMemo(() => {
+  const fallbackProducibleUnits = useMemo(() => {
     if (components.length === 0) return 0;
     const capacities = components
       .filter(component => toSafeNumber(component.partsPerUnit, 1) > 0)
@@ -156,7 +168,7 @@ export default function ProjectDetail() {
     return Math.max(0, Math.min(...capacities));
   }, [components]);
 
-  const expectedPartsTotal = useMemo(
+  const fallbackExpectedPartsTotal = useMemo(
     () => components.reduce((sum, component) => {
       const expected = Math.ceil(toSafeNumber(component.partsPerUnit, 1) * targetUnits * (1 + wasteOverageRate));
       return sum + expected;
@@ -164,14 +176,22 @@ export default function ProjectDetail() {
     [components, targetUnits, wasteOverageRate]
   );
 
-  const targetShortfall = Math.max(0, targetUnits - producibleUnits);
+  const producibleUnits = project?.computedProducibleUnits != null
+    ? Math.max(0, toSafeNumber(project.computedProducibleUnits, 0))
+    : fallbackProducibleUnits;
+  const expectedPartsTotal = project?.computedExpectedPartsTotal != null
+    ? Math.max(0, toSafeNumber(project.computedExpectedPartsTotal, 0))
+    : fallbackExpectedPartsTotal;
+  const targetShortfall = project?.computedTargetShortfall != null
+    ? Math.max(0, toSafeNumber(project.computedTargetShortfall, 0))
+    : Math.max(0, targetUnits - fallbackProducibleUnits);
   const progressPercent = componentCount > 0 ? Math.round((sourceCount / componentCount) * 100) : 0;
 
   async function persistProject(next: Project) {
     if (!id || !getToken()) return;
     setSaving(true);
     try {
-      await apiPatch(`/api/projects/${id}`, {
+      const { project: updatedProject } = await apiPatch<{ project: Project }>(`/api/projects/${id}`, {
         sourced: sourceCount,
         total: componentCount,
         spent,
@@ -181,6 +201,7 @@ export default function ProjectDetail() {
         wasteOverageRate: next.wasteOverageRate,
         components: next.components,
       });
+      setProject(normalizeProject(updatedProject));
     } catch {
       setLoadError('Could not save project updates.');
     } finally {

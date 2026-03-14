@@ -1423,6 +1423,64 @@ async function scrapeMouserApi(opts, mode, context = {}) {
   const keywords = opts.keywords;
   if (!keywords) throw new Error('mouser-api requires opts.keywords');
   const records = opts.limit ?? 10;
+  const imageSize = typeof opts.imageSize === 'string' ? opts.imageSize : 'large';
+
+  function tryUpscaleMouserImage(url, size = 'large') {
+    if (!url || typeof url !== 'string') return undefined;
+    try {
+      const parsed = new URL(url, 'https://www.mouser.com');
+      const host = parsed.hostname.toLowerCase();
+      if (!host.includes('mouser')) return url;
+      const normalizedSize = String(size).trim().toLowerCase();
+      if (!normalizedSize) return url;
+
+      const dimsBySize = {
+        small: { w: 160, h: 160 },
+        medium: { w: 320, h: 320 },
+        large: { w: 640, h: 640 },
+        xl: { w: 960, h: 960 },
+      };
+      const target = dimsBySize[normalizedSize] ?? dimsBySize.large;
+
+      const existingW = parseInt(parsed.searchParams.get('w') ?? parsed.searchParams.get('width') ?? '0', 10);
+      const existingH = parseInt(parsed.searchParams.get('h') ?? parsed.searchParams.get('height') ?? '0', 10);
+      if (!Number.isFinite(existingW) || existingW < target.w) {
+        parsed.searchParams.set('w', String(target.w));
+      }
+      if (!Number.isFinite(existingH) || existingH < target.h) {
+        parsed.searchParams.set('h', String(target.h));
+      }
+
+      const sizeParam = (parsed.searchParams.get('size') ?? '').toLowerCase();
+      if (!sizeParam || ['small', 'tiny', 'thumb', 'thumbnail', 'medium'].includes(sizeParam)) {
+        parsed.searchParams.set('size', normalizedSize);
+      }
+
+      return parsed.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  function selectBestMouserImage(part) {
+    const candidates = [part.ImagePath, part.ImageURL, part.Image]
+      .filter(v => typeof v === 'string' && v.trim().length > 0)
+      .map(v => String(v).trim());
+    if (candidates.length === 0) return undefined;
+
+    const rank = (candidate) => {
+      const lower = candidate.toLowerCase();
+      let score = candidate.length;
+      if (lower.includes('mouser')) score += 1000;
+      if (lower.includes('imagepath')) score += 50;
+      if (lower.includes('thumbnail') || lower.includes('thumb')) score -= 200;
+      if (lower.includes('small') || lower.includes('tiny')) score -= 100;
+      return score;
+    };
+
+    const best = candidates.sort((a, b) => rank(b) - rank(a))[0];
+    return tryUpscaleMouserImage(best, imageSize);
+  }
 
   const res = await axios.post(
     `https://api.mouser.com/api/v2/search/keyword?apiKey=${encodeURIComponent(apiKey)}`,
@@ -1459,7 +1517,7 @@ async function scrapeMouserApi(opts, mode, context = {}) {
     name:         p.ManufacturerPartNumber ?? p.Description ?? p.DescriptionShort ?? '',
     partNumber:   p.ManufacturerPartNumber           ?? undefined,
     url:          p.ProductDetailUrl                 ?? undefined,
-    image:        p.ImagePath                        ?? p.ImageURL ?? p.Image ?? undefined,
+    image:        selectBestMouserImage(p),
     price:        Array.isArray(p.PriceBreaks) && p.PriceBreaks.length > 0
                     ? p.PriceBreaks[0].Price
                     : p.Price ?? undefined,

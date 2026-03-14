@@ -91,7 +91,7 @@ function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconCl
 }) {
   const [err, setErr] = useState(false);
   return (
-    <div className={`shrink-0 flex items-center justify-center size-10 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
+    <div className={`shrink-0 flex items-center justify-center size-12 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
       {src && !err
         ? <img src={src} alt="" className="w-full h-full object-contain p-1" onError={() => setErr(true)} />
         : <span className={`material-symbols-outlined text-[20px] ${iconClass}`}>{icon}</span>
@@ -362,7 +362,7 @@ export default function RamAvailabilityTracker() {
             </div>
             <p className="text-[10px] font-medium uppercase tracking-wider">Alerts</p>
           </Link>
-          <Link href="/my-electronics" className="flex flex-1 flex-col items-center justify-center gap-1 text-slate-500 hover:text-blue-500 transition-colors">
+          <Link href="/electronics" className="flex flex-1 flex-col items-center justify-center gap-1 text-slate-500 hover:text-blue-500 transition-colors">
             <span className="material-symbols-outlined text-[22px]">settings</span>
             <p className="text-[10px] font-medium uppercase tracking-wider">Settings</p>
           </Link>

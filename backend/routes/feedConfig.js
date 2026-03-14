@@ -227,21 +227,7 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   const cacheKey = `feed:${CACHE_VERSION}:widget:${req.user.id}:${widgetId}`;
   const localKey  = `${req.user.id}:${widgetId}`;
 
-  // Serve Redis-cached result if still fresh
-  const cachedRaw = await rGetJson(cacheKey);
-  if (cachedRaw) {
-    console.log(`[cache] HIT  redis  ${cacheKey}`);
-    return res.json({ sources: cachedRaw.results, at: cachedRaw.at, cached: true });
-  }
-  // Fallback: in-process Map (Redis unavailable)
-  const localCached = localFeedCache.get(localKey);
-  if (localCached && (Date.now() - localCached.at) < FEED_DATA_CACHE_TTL_MS) {
-    console.log(`[cache] HIT  local  ${localKey}`);
-    return res.json({ sources: localCached.results, at: new Date(localCached.at).toISOString(), cached: true });
-  }
-
-  console.log(`[cache] MISS ${cacheKey}`);
-  // Load user config from Postgres
+  // Load user config first so we can honor live-fetch rules (e.g. Mouser no-cache)
   const [profileResult] = await Promise.all([
     db.query('SELECT feed_config, api_keys FROM user_profiles WHERE user_id=$1', [req.user.id]),
   ]);
@@ -251,6 +237,26 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   const widgetCfg = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? defaults[widgetId] ?? {}, defaults);
   const sources  = widgetCfg.sources ?? [];
   const custom   = widgetCfg.custom  ?? [];
+  const hasLiveMouserSource = sources.some(src => src.enabled && src.ruleType === 'mouser-api');
+
+  if (!hasLiveMouserSource) {
+    // Serve Redis-cached result if still fresh
+    const cachedRaw = await rGetJson(cacheKey);
+    if (cachedRaw) {
+      console.log(`[cache] HIT  redis  ${cacheKey}`);
+      return res.json({ sources: cachedRaw.results, at: cachedRaw.at, cached: true });
+    }
+    // Fallback: in-process Map (Redis unavailable)
+    const localCached = localFeedCache.get(localKey);
+    if (localCached && (Date.now() - localCached.at) < FEED_DATA_CACHE_TTL_MS) {
+      console.log(`[cache] HIT  local  ${localKey}`);
+      return res.json({ sources: localCached.results, at: new Date(localCached.at).toISOString(), cached: true });
+    }
+  } else {
+    console.log(`[cache] BYPASS widget ${cacheKey} — mouser-api source enabled`);
+  }
+
+  console.log(`[cache] MISS ${cacheKey}`);
   const decryptedApiKeys = decryptMap(profile.api_keys ?? {});
   const apiKeys  = {
     ...decryptedApiKeys,
@@ -330,7 +336,12 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
         results[mouserKey] = { name: mouserName, data: [], error: 'Mouser API key not configured (mouser_api_key)' };
         continue;
       }
-      const mouserRule = { ruleType: 'mouser-api', keywords: src.keywords, limit: src.limit };
+      const mouserRule = {
+        ruleType: 'mouser-api',
+        keywords: src.keywords,
+        limit: src.limit,
+        ...(src.imageSize ? { imageSize: src.imageSize } : {}),
+      };
       try {
         const data = await scraper.runSource(mouserRule, 'scheduled', { apiKeys });
         results[mouserKey] = { name: mouserName, category: null, data: filterItemsForWidget(widgetId, data, null), error: null };
@@ -401,10 +412,12 @@ router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
   const at = new Date().toISOString();
   // Only cache if at least one source returned items — don't lock in 6 hrs of empty error results
   const anyData = Object.values(results).some(r => r.data && r.data.length > 0);
-  if (anyData) {
+  if (anyData && !hasLiveMouserSource) {
     await rSet(cacheKey, { at, results }, FEED_DATA_CACHE_TTL_S);
     localFeedCache.set(localKey, { at: Date.now(), results });
     console.log(`[cache] SET  widget ${cacheKey}`);
+  } else if (anyData && hasLiveMouserSource) {
+    console.log(`[cache] SKIP widget ${cacheKey} — mouser-api source enabled`);
   } else {
     console.log(`[cache] SKIP widget ${cacheKey} — all sources empty/errored, will retry next request`);
   }

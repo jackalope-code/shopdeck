@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFeedRefresh, useFavorites, FeedItem } from '../lib/ShopdataContext';
 import { apiGet, apiPatch } from '../lib/auth';
@@ -120,7 +120,14 @@ function PartCard({ item }: { item: FeedItem }) {
           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: favorited ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
         </button>
         {item.image
-          ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+          ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-full h-full object-contain p-3 bg-white/70 dark:bg-slate-900/60"
+              loading="lazy"
+            />
+          )
           : <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700">developer_board</span>
         }
       </div>
@@ -331,6 +338,12 @@ export default function MyElectronics() {
   const pageCount       = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const pageItems       = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Electronics" />
@@ -362,8 +375,12 @@ export default function MyElectronics() {
               >
                 <span className="material-symbols-outlined text-sm">rss_feed</span>Track Custom Source
               </button>
-              <button className="p-2 border border-slate-200 dark:border-blue-500/20 rounded-lg hover:bg-slate-100 dark:hover:bg-blue-500/10 transition-colors">
-                <span className="material-symbols-outlined">cloud_download</span>
+              <button
+                onClick={() => refreshWidget(activeTab)}
+                title="Refresh feed"
+                className="p-2 border border-slate-200 dark:border-blue-500/20 rounded-lg hover:bg-slate-100 dark:hover:bg-blue-500/10 transition-colors"
+              >
+                <span className="material-symbols-outlined">refresh</span>
               </button>
             </div>
           </header>

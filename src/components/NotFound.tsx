@@ -48,7 +48,7 @@ export default function NotFound() {
             {[
               { href: '/active-deals', label: 'Active Deals', icon: 'sell' },
               { href: '/keycaps', label: 'Keycaps', icon: 'format_color_text' },
-              { href: '/my-electronics', label: 'My Electronics', icon: 'memory' },
+              { href: '/electronics', label: 'My Electronics', icon: 'memory' },
               { href: '/ram-tracker', label: 'RAM Tracker', icon: 'storage' },
             ].map(link => (
               <Link

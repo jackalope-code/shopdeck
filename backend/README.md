@@ -65,6 +65,13 @@ The scraper adds computed stock fields to each Shopify-sourced item:
 | `lowStock` | `'true'` / `'false'` | All tracked variants are at or below the low-stock threshold |
 | `totalInventory` | numeric string | Sum of all tracked variant quantities |
 
+## Known limitations
+
+- **Mouser image quality can still be low in card-heavy UIs.**
+	- The Mouser Search API often returns thumbnail-grade product images for some queries.
+	- Shopdeck applies best-effort Mouser image selection and URL upscaling, but if the source asset itself is low-resolution, cards may still look grainy.
+	- This is a source-data limitation, not a cache issue (Mouser requests are live and bypass source/widget cache paths).
+
 ## Files
 
 - `server.js` — Express app entry point

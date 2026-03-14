@@ -279,7 +279,7 @@ export default function ActiveDealsDashboard() {
           <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>sell</span>
           <span className="text-[10px] font-bold uppercase tracking-wider">Deals</span>
         </Link>
-        <Link href="/my-electronics" className="flex flex-1 flex-col items-center justify-center gap-1 text-slate-500 hover:text-blue-500 transition-colors">
+        <Link href="/electronics" className="flex flex-1 flex-col items-center justify-center gap-1 text-slate-500 hover:text-blue-500 transition-colors">
           <span className="material-symbols-outlined text-[22px]">visibility</span>
           <span className="text-[10px] font-bold uppercase tracking-wider">Watchlist</span>
         </Link>

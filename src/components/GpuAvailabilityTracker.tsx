@@ -94,7 +94,7 @@ function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconCl
 }) {
   const [err, setErr] = useState(false);
   return (
-    <div className={`shrink-0 flex items-center justify-center size-10 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
+    <div className={`shrink-0 flex items-center justify-center size-12 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
       {src && !err
         ? <img src={src} alt="" className="w-full h-full object-contain p-1" onError={() => setErr(true)} />
         : <span className={`material-symbols-outlined text-[20px] ${iconClass}`}>{icon}</span>

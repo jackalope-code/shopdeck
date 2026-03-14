@@ -128,7 +128,7 @@ const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
     analyticsCategory: 'electronics',
     icon: 'developer_board',
     color: 'text-cyan-500',
-    linkHref: '/my-electronics',
+    linkHref: '/electronics',
     linkLabel: 'Open electronics →',
     emptyLabel: 'No shared electronics views yet.',
   },
@@ -335,7 +335,7 @@ const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
     analyticsSubcategory: 'microcontrollers',
     icon: 'developer_board',
     color: 'text-blue-500',
-    linkHref: '/my-electronics',
+    linkHref: '/electronics',
     linkLabel: 'Open electronics →',
     emptyLabel: 'No shared microcontroller views yet.',
   },
@@ -361,7 +361,7 @@ const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
     analyticsSubcategory: 'passives',
     icon: 'electric_bolt',
     color: 'text-slate-400',
-    linkHref: '/my-electronics',
+    linkHref: '/electronics',
     linkLabel: 'Open electronics →',
     emptyLabel: 'No shared passives views yet.',
   },
@@ -387,7 +387,7 @@ const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
     analyticsSubcategory: 'sensors',
     icon: 'sensors',
     color: 'text-purple-500',
-    linkHref: '/my-electronics',
+    linkHref: '/electronics',
     linkLabel: 'Open electronics →',
     emptyLabel: 'No shared sensor views yet.',
   },
@@ -413,7 +413,7 @@ const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
     analyticsSubcategory: 'motors',
     icon: 'settings_motion_mode',
     color: 'text-orange-500',
-    linkHref: '/my-electronics',
+    linkHref: '/electronics',
     linkLabel: 'Open electronics →',
     emptyLabel: 'No shared motor views yet.',
   },
@@ -439,7 +439,7 @@ const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
     analyticsSubcategory: 'ics',
     icon: 'memory_alt',
     color: 'text-cyan-500',
-    linkHref: '/my-electronics',
+    linkHref: '/electronics',
     linkLabel: 'Open electronics →',
     emptyLabel: 'No shared IC views yet.',
   },
@@ -465,7 +465,7 @@ const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
     analyticsSubcategory: 'encoders',
     icon: 'rotate_right',
     color: 'text-pink-500',
-    linkHref: '/my-electronics',
+    linkHref: '/electronics',
     linkLabel: 'Open electronics →',
     emptyLabel: 'No shared encoder views yet.',
   },
@@ -1049,15 +1049,15 @@ function WidgetContent({ id }: { id: string }) {
     case 'ram-availability':   return <FeedListWidget widgetId="ram-availability" linkHref="/ram-availability-tracker" linkLabel="Open RAM tracker →" />;
     case 'gpu-availability':   return <FeedListWidget widgetId="gpu-availability" linkHref="/gpu-availability-tracker" linkLabel="Open GPU tracker →" />;
     case 'active-deals':       return <FeedListWidget widgetId="active-deals" linkHref="/active-deals" linkLabel="View all deals →" />;
-    case 'electronics-watchlist':        return <FeedListWidget widgetId="electronics-watchlist"        linkHref="/my-electronics" linkLabel="Manage watchlist →" />;
-    case 'electronics-new-drops':        return <FeedListWidget widgetId="electronics-new-drops"        linkHref="/my-electronics" linkLabel="View all new drops →" />;
-    case 'electronics-sales':            return <FeedListWidget widgetId="electronics-sales"            linkHref="/my-electronics" linkLabel="View electronics deals →" />;
-    case 'electronics-microcontrollers': return <FeedListWidget widgetId="electronics-microcontrollers" linkHref="/my-electronics" linkLabel="View MCUs →" />;
-    case 'electronics-passives':         return <FeedListWidget widgetId="electronics-passives"         linkHref="/my-electronics" linkLabel="View passives →" />;
-    case 'electronics-sensors':          return <FeedListWidget widgetId="electronics-sensors"          linkHref="/my-electronics" linkLabel="View sensors →" />;
-    case 'electronics-motors':           return <FeedListWidget widgetId="electronics-motors"           linkHref="/my-electronics" linkLabel="View motors →" />;
-    case 'electronics-ics':              return <FeedListWidget widgetId="electronics-ics"              linkHref="/my-electronics" linkLabel="View ICs →" />;
-    case 'electronics-encoders':         return <FeedListWidget widgetId="electronics-encoders"         linkHref="/my-electronics" linkLabel="View encoders →" />;
+    case 'electronics-watchlist':        return <FeedListWidget widgetId="electronics-watchlist"        linkHref="/electronics" linkLabel="Manage watchlist →" />;
+    case 'electronics-new-drops':        return <FeedListWidget widgetId="electronics-new-drops"        linkHref="/electronics" linkLabel="View all new drops →" />;
+    case 'electronics-sales':            return <FeedListWidget widgetId="electronics-sales"            linkHref="/electronics" linkLabel="View electronics deals →" />;
+    case 'electronics-microcontrollers': return <FeedListWidget widgetId="electronics-microcontrollers" linkHref="/electronics" linkLabel="View MCUs →" />;
+    case 'electronics-passives':         return <FeedListWidget widgetId="electronics-passives"         linkHref="/electronics" linkLabel="View passives →" />;
+    case 'electronics-sensors':          return <FeedListWidget widgetId="electronics-sensors"          linkHref="/electronics" linkLabel="View sensors →" />;
+    case 'electronics-motors':           return <FeedListWidget widgetId="electronics-motors"           linkHref="/electronics" linkLabel="View motors →" />;
+    case 'electronics-ics':              return <FeedListWidget widgetId="electronics-ics"              linkHref="/electronics" linkLabel="View ICs →" />;
+    case 'electronics-encoders':         return <FeedListWidget widgetId="electronics-encoders"         linkHref="/electronics" linkLabel="View encoders →" />;
     case 'inventory-stats':    return <InventoryStatsWidget />;
     case 'vendor-performance':
       return (
@@ -1329,7 +1329,7 @@ export default function Dashboard() {
     { href: '/community-insights',      label: 'Community Insights', icon: 'insights' },
     { href: '/recently-viewed',         label: 'Recently Viewed', icon: 'history' },
     { href: '/favorites',               label: 'Favorites', icon: 'favorite' },
-    { href: '/my-electronics',           label: 'Electronics', icon: 'inventory_2' },
+    { href: '/electronics',              label: 'Electronics', icon: 'inventory_2' },
     { href: '/ram-availability-tracker', label: 'RAM',         icon: 'memory' },
     { href: '/gpu-availability-tracker', label: 'GPU',         icon: 'videogame_asset' },
     { href: '/keyboard-comparison',      label: 'Keyboards',   icon: 'compare' },
@@ -1729,7 +1729,7 @@ export default function Dashboard() {
         >
           <span className="material-symbols-outlined mt-3">add</span>
         </button>
-        <Link href="/my-electronics" className="flex flex-col items-center gap-1 text-slate-400">
+        <Link href="/electronics" className="flex flex-col items-center gap-1 text-slate-400">
           <span className="material-symbols-outlined">inventory_2</span>
           <span className="text-[10px] font-bold">Inventory</span>
         </Link>
