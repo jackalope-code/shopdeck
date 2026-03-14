@@ -13,6 +13,24 @@ A keyboard/electronics deal tracker and project manager built with Next.js, Expr
 
 ---
 
+## Development mode
+* git clone the project
+* In one terminal:
+* cd backend
+* npm run docker:services:dev
+* In a second terminal:
+* cd backend
+* npm run dev
+* In a third terminal:
+* npm run dev from project root
+
+# Known issues
+* Sales data tracking broken
+
+# Planned features
+* Feed viewing/editing
+* More categories
+
 ## Production / Full-stack Docker (recommended)
 
 Runs the full stack — frontend (port 80), backend API, PostgreSQL, and Redis — all in containers.
