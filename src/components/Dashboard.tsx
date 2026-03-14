@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
-import { useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
+import { useCommunityInsights, useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
 export interface WidgetDef {
@@ -29,7 +29,23 @@ export interface WidgetDef {
   description: string;
 }
 
-export const ALL_WIDGETS: WidgetDef[] = [
+type CommunityMetric = 'views' | 'favorites';
+
+interface CommunityWidgetConfig {
+  id: string;
+  title: string;
+  description: string;
+  metric: CommunityMetric;
+  analyticsCategory?: string;
+  analyticsSubcategory?: string;
+  icon: string;
+  color: string;
+  linkHref: string;
+  linkLabel: string;
+  emptyLabel: string;
+}
+
+const BASE_WIDGETS: WidgetDef[] = [
   { id: 'active-projects', title: 'Active Projects', category: 'Projects', icon: 'rocket_launch', color: 'text-blue-500', description: 'Track all in-progress builds and flips.' },
   { id: 'recent-activity', title: 'Recently Viewed', category: 'Projects', icon: 'history', color: 'text-slate-400', description: 'Products you recently opened in vendor stores.' },
   { id: 'favorite-products', title: 'Favorites', category: 'Projects', icon: 'favorite', color: 'text-red-500', description: 'Saved products from all trackers.' },
@@ -57,6 +73,430 @@ export const ALL_WIDGETS: WidgetDef[] = [
   { id: 'vendor-performance', title: 'Vendor Performance', category: 'Overview', icon: 'storefront', color: 'text-yellow-500', description: 'Fulfillment rates across top vendors.' },
 ];
 
+const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
+  {
+    id: 'community-popular-overall',
+    title: 'Popular Items Overall',
+    description: 'Most viewed shared products across the app.',
+    metric: 'views',
+    icon: 'trending_up',
+    color: 'text-blue-500',
+    linkHref: '/recently-viewed',
+    linkLabel: 'View your history →',
+    emptyLabel: 'No shared history data yet.',
+  },
+  {
+    id: 'community-favorites-overall',
+    title: 'Frequently Favorited Overall',
+    description: 'Most favorited shared products across the app.',
+    metric: 'favorites',
+    icon: 'favorite',
+    color: 'text-red-500',
+    linkHref: '/favorites',
+    linkLabel: 'View your favorites →',
+    emptyLabel: 'No shared favorites data yet.',
+  },
+  {
+    id: 'community-popular-keyboards',
+    title: 'Popular Keyboard Items',
+    description: 'Shared keyboard products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'keyboards',
+    icon: 'keyboard',
+    color: 'text-emerald-500',
+    linkHref: '/drops',
+    linkLabel: 'Browse keyboard feeds →',
+    emptyLabel: 'No shared keyboard views yet.',
+  },
+  {
+    id: 'community-favorites-keyboards',
+    title: 'Frequently Favorited Keyboards',
+    description: 'Keyboard products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'keyboards',
+    icon: 'keyboard',
+    color: 'text-emerald-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared keyboard favorites yet.',
+  },
+  {
+    id: 'community-popular-electronics',
+    title: 'Popular Electronics Items',
+    description: 'Shared electronics products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    icon: 'developer_board',
+    color: 'text-cyan-500',
+    linkHref: '/my-electronics',
+    linkLabel: 'Open electronics →',
+    emptyLabel: 'No shared electronics views yet.',
+  },
+  {
+    id: 'community-favorites-electronics',
+    title: 'Frequently Favorited Electronics',
+    description: 'Electronics products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    icon: 'developer_board',
+    color: 'text-cyan-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared electronics favorites yet.',
+  },
+  {
+    id: 'community-popular-keycaps',
+    title: 'Popular Keycaps',
+    description: 'Shared keycap products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'keycaps',
+    icon: 'format_color_text',
+    color: 'text-emerald-500',
+    linkHref: '/keycaps-tracker',
+    linkLabel: 'Open keycaps tracker →',
+    emptyLabel: 'No shared keycap views yet.',
+  },
+  {
+    id: 'community-favorites-keycaps',
+    title: 'Frequently Favorited Keycaps',
+    description: 'Keycap products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'keycaps',
+    icon: 'format_color_text',
+    color: 'text-emerald-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared keycap favorites yet.',
+  },
+  {
+    id: 'community-popular-full-keyboards',
+    title: 'Popular Full Keyboards',
+    description: 'Shared keyboard kits and complete boards with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'full',
+    icon: 'keyboard',
+    color: 'text-emerald-500',
+    linkHref: '/drops',
+    linkLabel: 'Browse keyboard feeds →',
+    emptyLabel: 'No shared full keyboard views yet.',
+  },
+  {
+    id: 'community-favorites-full-keyboards',
+    title: 'Frequently Favorited Full Keyboards',
+    description: 'Keyboard kits and complete boards users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'full',
+    icon: 'keyboard',
+    color: 'text-emerald-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared full keyboard favorites yet.',
+  },
+  {
+    id: 'community-popular-keyboard-parts',
+    title: 'Popular Keyboard Parts',
+    description: 'Shared PCBs, plates, and keyboard parts with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'parts',
+    icon: 'memory_alt',
+    color: 'text-blue-500',
+    linkHref: '/drops',
+    linkLabel: 'Browse keyboard parts →',
+    emptyLabel: 'No shared keyboard parts views yet.',
+  },
+  {
+    id: 'community-favorites-keyboard-parts',
+    title: 'Frequently Favorited Keyboard Parts',
+    description: 'Keyboard parts users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'parts',
+    icon: 'memory_alt',
+    color: 'text-blue-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared keyboard parts favorites yet.',
+  },
+  {
+    id: 'community-popular-keyboard-switches',
+    title: 'Popular Keyboard Switches',
+    description: 'Shared switch products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'switches',
+    icon: 'tune',
+    color: 'text-cyan-500',
+    linkHref: '/drops',
+    linkLabel: 'Browse switch feeds →',
+    emptyLabel: 'No shared switch views yet.',
+  },
+  {
+    id: 'community-favorites-keyboard-switches',
+    title: 'Frequently Favorited Switches',
+    description: 'Switch products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'switches',
+    icon: 'tune',
+    color: 'text-cyan-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared switch favorites yet.',
+  },
+  {
+    id: 'community-popular-keyboard-accessories',
+    title: 'Popular Keyboard Accessories',
+    description: 'Shared keyboard accessories with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'accessories',
+    icon: 'cable',
+    color: 'text-slate-400',
+    linkHref: '/drops',
+    linkLabel: 'Browse accessory feeds →',
+    emptyLabel: 'No shared accessory views yet.',
+  },
+  {
+    id: 'community-favorites-keyboard-accessories',
+    title: 'Frequently Favorited Accessories',
+    description: 'Keyboard accessories users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'keyboards',
+    analyticsSubcategory: 'accessories',
+    icon: 'cable',
+    color: 'text-slate-400',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared accessory favorites yet.',
+  },
+  {
+    id: 'community-popular-ram',
+    title: 'Popular RAM',
+    description: 'Shared RAM products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'ram',
+    icon: 'memory',
+    color: 'text-purple-500',
+    linkHref: '/ram-availability-tracker',
+    linkLabel: 'Open RAM tracker →',
+    emptyLabel: 'No shared RAM views yet.',
+  },
+  {
+    id: 'community-favorites-ram',
+    title: 'Frequently Favorited RAM',
+    description: 'RAM products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'ram',
+    icon: 'memory',
+    color: 'text-purple-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared RAM favorites yet.',
+  },
+  {
+    id: 'community-popular-gpu',
+    title: 'Popular GPUs',
+    description: 'Shared GPU products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'gpu',
+    icon: 'videogame_asset',
+    color: 'text-green-500',
+    linkHref: '/gpu-availability-tracker',
+    linkLabel: 'Open GPU tracker →',
+    emptyLabel: 'No shared GPU views yet.',
+  },
+  {
+    id: 'community-favorites-gpu',
+    title: 'Frequently Favorited GPUs',
+    description: 'GPU products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'gpu',
+    icon: 'videogame_asset',
+    color: 'text-green-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared GPU favorites yet.',
+  },
+  {
+    id: 'community-popular-microcontrollers',
+    title: 'Popular Microcontrollers',
+    description: 'Shared MCU products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'microcontrollers',
+    icon: 'developer_board',
+    color: 'text-blue-500',
+    linkHref: '/my-electronics',
+    linkLabel: 'Open electronics →',
+    emptyLabel: 'No shared microcontroller views yet.',
+  },
+  {
+    id: 'community-favorites-microcontrollers',
+    title: 'Frequently Favorited Microcontrollers',
+    description: 'MCU products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'microcontrollers',
+    icon: 'developer_board',
+    color: 'text-blue-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared microcontroller favorites yet.',
+  },
+  {
+    id: 'community-popular-passives',
+    title: 'Popular Passives',
+    description: 'Shared passive components with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'passives',
+    icon: 'electric_bolt',
+    color: 'text-slate-400',
+    linkHref: '/my-electronics',
+    linkLabel: 'Open electronics →',
+    emptyLabel: 'No shared passives views yet.',
+  },
+  {
+    id: 'community-favorites-passives',
+    title: 'Frequently Favorited Passives',
+    description: 'Passive components users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'passives',
+    icon: 'electric_bolt',
+    color: 'text-slate-400',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared passives favorites yet.',
+  },
+  {
+    id: 'community-popular-sensors',
+    title: 'Popular Sensors',
+    description: 'Shared sensor products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'sensors',
+    icon: 'sensors',
+    color: 'text-purple-500',
+    linkHref: '/my-electronics',
+    linkLabel: 'Open electronics →',
+    emptyLabel: 'No shared sensor views yet.',
+  },
+  {
+    id: 'community-favorites-sensors',
+    title: 'Frequently Favorited Sensors',
+    description: 'Sensor products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'sensors',
+    icon: 'sensors',
+    color: 'text-purple-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared sensor favorites yet.',
+  },
+  {
+    id: 'community-popular-motors',
+    title: 'Popular Motors & Actuators',
+    description: 'Shared motors and actuators with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'motors',
+    icon: 'settings_motion_mode',
+    color: 'text-orange-500',
+    linkHref: '/my-electronics',
+    linkLabel: 'Open electronics →',
+    emptyLabel: 'No shared motor views yet.',
+  },
+  {
+    id: 'community-favorites-motors',
+    title: 'Frequently Favorited Motors',
+    description: 'Motors and actuators users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'motors',
+    icon: 'settings_motion_mode',
+    color: 'text-orange-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared motor favorites yet.',
+  },
+  {
+    id: 'community-popular-ics',
+    title: 'Popular ICs & Breakouts',
+    description: 'Shared IC and breakout products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'ics',
+    icon: 'memory_alt',
+    color: 'text-cyan-500',
+    linkHref: '/my-electronics',
+    linkLabel: 'Open electronics →',
+    emptyLabel: 'No shared IC views yet.',
+  },
+  {
+    id: 'community-favorites-ics',
+    title: 'Frequently Favorited ICs & Breakouts',
+    description: 'IC and breakout products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'ics',
+    icon: 'memory_alt',
+    color: 'text-cyan-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared IC favorites yet.',
+  },
+  {
+    id: 'community-popular-encoders',
+    title: 'Popular Encoders & Pots',
+    description: 'Shared encoder and potentiometer products with the most unique viewers.',
+    metric: 'views',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'encoders',
+    icon: 'rotate_right',
+    color: 'text-pink-500',
+    linkHref: '/my-electronics',
+    linkLabel: 'Open electronics →',
+    emptyLabel: 'No shared encoder views yet.',
+  },
+  {
+    id: 'community-favorites-encoders',
+    title: 'Frequently Favorited Encoders & Pots',
+    description: 'Encoder and potentiometer products users save most often.',
+    metric: 'favorites',
+    analyticsCategory: 'electronics',
+    analyticsSubcategory: 'encoders',
+    icon: 'rotate_right',
+    color: 'text-pink-500',
+    linkHref: '/favorites',
+    linkLabel: 'Open favorites →',
+    emptyLabel: 'No shared encoder favorites yet.',
+  },
+];
+
+const COMMUNITY_WIDGETS: WidgetDef[] = COMMUNITY_WIDGET_CONFIGS.map(({ id, title, description, icon, color }) => ({
+  id,
+  title,
+  category: 'Community',
+  icon,
+  color,
+  description,
+}));
+
+const COMMUNITY_WIDGET_CONFIG_BY_ID = new Map(COMMUNITY_WIDGET_CONFIGS.map(cfg => [cfg.id, cfg]));
+
+export const ALL_WIDGETS: WidgetDef[] = [...BASE_WIDGETS, ...COMMUNITY_WIDGETS];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function relativeTime(timestamp: string): string {
   const diff = Date.now() - new Date(timestamp).getTime();
@@ -83,6 +523,34 @@ function SkeletonRows({ n = 3 }: { n?: number }) {
       ))}
     </div>
   );
+}
+
+function communityLabel(value?: string) {
+  if (!value) return null;
+  const labels: Record<string, string> = {
+    keyboards: 'Keyboards',
+    electronics: 'Electronics',
+    full: 'Full Keyboards',
+    parts: 'Keyboard Parts',
+    switches: 'Switches',
+    accessories: 'Accessories',
+    keycaps: 'Keycaps',
+    ram: 'RAM',
+    gpu: 'GPU',
+    microcontrollers: 'Microcontrollers',
+    passives: 'Passives',
+    sensors: 'Sensors',
+    motors: 'Motors & Actuators',
+    ics: 'ICs & Breakouts',
+    encoders: 'Encoders & Pots',
+    power: 'Power',
+    connectors: 'Connectors',
+    displays: 'Displays',
+    wireless: 'Wireless',
+    audio: 'Audio',
+    general: 'General',
+  };
+  return labels[value] ?? value;
 }
 
 // ─── Widget sub-components (each calls hooks at top level) ────────────────────
@@ -232,6 +700,56 @@ function FavoritesWidget() {
       ))}
       <div className="px-4 py-3">
         <Link href="/favorites" className="text-xs font-bold text-blue-500 hover:underline">View favorites →</Link>
+      </div>
+    </div>
+  );
+}
+
+function CommunityInsightsWidget({ config }: { config: CommunityWidgetConfig }) {
+  const { loading, entries, error } = useCommunityInsights(
+    config.metric,
+    config.analyticsCategory,
+    config.analyticsSubcategory,
+    5,
+  );
+
+  if (loading) return <SkeletonRows n={4} />;
+
+  if (entries.length === 0) {
+    return (
+      <div className="px-4 py-6 text-center text-slate-400 text-sm">
+        {error ? <p className="text-red-400 text-xs mb-1">{error}</p> : <p>{config.emptyLabel}</p>}
+        <div className="mt-2"><Link href={config.linkHref} className="text-xs font-bold text-blue-500 hover:underline">{config.linkLabel}</Link></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      {entries.map((item) => (
+        <div key={item.url} className="flex gap-3 items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+          <div className="h-10 w-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
+            {item.image
+              ? <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+              : <span className="material-symbols-outlined text-slate-400 text-lg">trending_up</span>}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{item.name}</p>
+            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+              {item.vendor && <span>{item.vendor}</span>}
+              {item.analyticsCategory && <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase">{communityLabel(item.analyticsCategory)}</span>}
+              {item.analyticsSubcategory && <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold uppercase">{communityLabel(item.analyticsSubcategory)}</span>}
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            {item.price && <p className="text-sm font-bold text-blue-500">{item.price.startsWith('$') ? item.price : `$${item.price}`}</p>}
+            <p className="text-[10px] text-slate-500">{item.uniqueUsers} users</p>
+            <p className="text-[10px] text-slate-400">{config.metric === 'views' ? `${item.totalEvents} views` : `${item.totalEvents} saves`}</p>
+          </div>
+        </div>
+      ))}
+      <div className="px-4 py-3">
+        <Link href={config.linkHref} className="text-xs font-bold text-blue-500 hover:underline">{config.linkLabel}</Link>
       </div>
     </div>
   );
@@ -511,6 +1029,11 @@ function InventoryStatsWidget() {
 
 // ─── WidgetContent router ─────────────────────────────────────────────────────
 function WidgetContent({ id }: { id: string }) {
+  const communityWidget = COMMUNITY_WIDGET_CONFIG_BY_ID.get(id);
+  if (communityWidget) {
+    return <CommunityInsightsWidget config={communityWidget} />;
+  }
+
   switch (id) {
     case 'active-projects':    return <ActiveProjectsWidget />;
     case 'recent-activity':    return <RecentActivityWidget />;

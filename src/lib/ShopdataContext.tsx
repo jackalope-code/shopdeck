@@ -77,6 +77,8 @@ export interface ViewHistoryEntry {
   image?: string;
   price?: string;
   category?: string;
+  analyticsCategory?: string;
+  analyticsSubcategory?: string;
   viewedAt: string;
   viewCount: number;
 }
@@ -88,7 +90,30 @@ export interface FavoriteEntry {
   image?: string;
   price?: string;
   category?: string;
+  analyticsCategory?: string;
+  analyticsSubcategory?: string;
   favoritedAt: string;
+}
+
+export interface CommunityInsightEntry {
+  url: string;
+  name: string;
+  vendor?: string;
+  image?: string;
+  price?: string;
+  category?: string;
+  analyticsCategory?: string;
+  analyticsSubcategory?: string;
+  uniqueUsers: number;
+  totalEvents: number;
+  lastSeenAt: string;
+}
+
+interface CommunityInsightState {
+  loading: boolean;
+  entries: CommunityInsightEntry[];
+  error: string | null;
+  loaded: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -128,6 +153,8 @@ interface ShopdataContextValue {
   getWidget: (widgetId: string) => WidgetFeedState;
   refresh: (widgetId: string) => void;
   refreshAll: () => void;
+  communityInsights: Record<string, CommunityInsightState>;
+  refreshCommunityInsights: (metric: 'views' | 'favorites', category?: string, subcategory?: string, limit?: number) => void;
   projects: Project[];
   projectsLoading: boolean;
   activity: ActivityEntry[];
@@ -148,6 +175,8 @@ const ShopdataContext = createContext<ShopdataContextValue>({
   getWidget: () => EMPTY_WIDGET,
   refresh: () => {},
   refreshAll: () => {},
+  communityInsights: {},
+  refreshCommunityInsights: () => {},
   projects: [],
   projectsLoading: true,
   activity: [],
@@ -169,6 +198,7 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
   const [widgets, setWidgets] = useState<Record<string, WidgetFeedState>>(() =>
     Object.fromEntries(FEED_WIDGET_IDS.map(id => [id, { ...EMPTY_WIDGET }]))
   );
+  const [communityInsights, setCommunityInsights] = useState<Record<string, CommunityInsightState>>({});
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
@@ -194,6 +224,10 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
       // ignore localStorage write failures
     }
   }, [favorites]);
+
+  const getCommunityInsightKey = useCallback((metric: 'views' | 'favorites', category?: string, subcategory?: string, limit = 5) => (
+    [metric, category || 'all', subcategory || 'all', String(limit)].join(':')
+  ), []);
 
   const fetchWidget = useCallback(async (widgetId: string) => {
     const token = getToken();
@@ -235,6 +269,49 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
       }));
     }
   }, []);
+
+  const refreshCommunityInsights = useCallback(async (metric: 'views' | 'favorites', category?: string, subcategory?: string, limit = 5) => {
+    const token = getToken();
+    const key = getCommunityInsightKey(metric, category, subcategory, limit);
+
+    if (!token) {
+      setCommunityInsights(prev => ({
+        ...prev,
+        [key]: { loading: false, entries: [], error: null, loaded: true },
+      }));
+      return;
+    }
+
+    setCommunityInsights(prev => ({
+      ...prev,
+      [key]: { ...(prev[key] ?? { entries: [], error: null, loaded: false }), loading: true },
+    }));
+
+    try {
+      const params = new URLSearchParams({ metric, limit: String(limit) });
+      if (category) params.set('category', category);
+      if (subcategory) params.set('subcategory', subcategory);
+      const res = await fetch(`/api/community-insights?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setCommunityInsights(prev => ({
+        ...prev,
+        [key]: { loading: false, entries: json.entries ?? [], error: null, loaded: true },
+      }));
+    } catch (err: unknown) {
+      setCommunityInsights(prev => ({
+        ...prev,
+        [key]: {
+          loading: false,
+          entries: [],
+          error: err instanceof Error ? err.message : String(err),
+          loaded: true,
+        },
+      }));
+    }
+  }, [getCommunityInsightKey]);
 
   const fetchProjects = useCallback(async () => {
     const token = getToken();
@@ -457,6 +534,8 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
         getWidget,
         refresh: fetchWidget,
         refreshAll: fetchAll,
+        communityInsights,
+        refreshCommunityInsights,
         projects,
         projectsLoading,
         activity,
@@ -502,6 +581,24 @@ export function useFeedRefresh() {
 export function useProjects() {
   const { projects, projectsLoading } = useContext(ShopdataContext);
   return { projects, loading: projectsLoading };
+}
+
+export function useCommunityInsights(metric: 'views' | 'favorites', category?: string, subcategory?: string, limit = 5) {
+  const ctx = useContext(ShopdataContext);
+  const key = [metric, category || 'all', subcategory || 'all', String(limit)].join(':');
+  const state = ctx.communityInsights[key] ?? { loading: false, entries: [], error: null, loaded: false };
+
+  useEffect(() => {
+    if (state.loaded || state.loading) return;
+    ctx.refreshCommunityInsights(metric, category, subcategory, limit);
+  }, [ctx, metric, category, subcategory, limit, state.loaded, state.loading]);
+
+  return {
+    loading: state.loading,
+    entries: state.entries,
+    error: state.error,
+    refresh: () => ctx.refreshCommunityInsights(metric, category, subcategory, limit),
+  };
 }
 
 export function useActivity() {

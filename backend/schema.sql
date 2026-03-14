@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   api_keys       JSONB    NOT NULL DEFAULT '{}',
   browser_alerts BOOLEAN  NOT NULL DEFAULT false,
   ai_perms       JSONB    NOT NULL DEFAULT '{"projects":false,"inventory":false,"watchlist":false,"deals":false}',
+  share_view_history BOOLEAN NOT NULL DEFAULT true,
+  share_favorites BOOLEAN NOT NULL DEFAULT true,
   ram_alert_states JSONB  NOT NULL DEFAULT '{}',
   gpu_alert_states JSONB  NOT NULL DEFAULT '{}',
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -61,6 +63,8 @@ CREATE TABLE IF NOT EXISTS view_history (
   image      TEXT,
   price      TEXT,
   category   TEXT,
+  analytics_category TEXT,
+  analytics_subcategory TEXT,
   view_count INTEGER     NOT NULL DEFAULT 1,
   viewed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, url)
@@ -76,6 +80,8 @@ CREATE TABLE IF NOT EXISTS user_favorites (
   image        TEXT,
   price        TEXT,
   category     TEXT,
+  analytics_category TEXT,
+  analytics_subcategory TEXT,
   favorited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, url)
 );
@@ -123,8 +129,14 @@ ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS widget_order JSONB;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS api_keys JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS browser_alerts BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ai_perms JSONB NOT NULL DEFAULT '{"projects":false,"inventory":false,"watchlist":false,"deals":false}';
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_view_history BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_favorites BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ram_alert_states JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS gpu_alert_states JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_category TEXT;
+ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_subcategory TEXT;
+ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS analytics_category TEXT;
+ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS analytics_subcategory TEXT;
 
 -- Nullify any previously stored plaintext GitHub tokens.
 -- After this migration, users must re-connect GitHub. New tokens are encrypted (AES-256-GCM).

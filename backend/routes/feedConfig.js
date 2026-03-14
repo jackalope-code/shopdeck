@@ -11,6 +11,7 @@ const scraper = require('../scraper');
 const db = require('../db');
 const redis = require('../redis');
 const { decryptMap } = require('../lib/tokenCrypto');
+const { classifyKeyboardItem } = require('../lib/productTaxonomy');
 
 // Max 5 test-rule requests per user per minute (keyed on user ID; route is auth-gated).
 const testLimiter = rateLimit({
@@ -52,27 +53,6 @@ const KEYBOARD_WIDGET_IDS = new Set([
   'keyboard-accessories',
   'keycap-releases',
 ]);
-
-function classifyKeyboardItem(item = {}, sourceCategory = '') {
-  const text = [item.name, item.productType, item.tags, item.itemType]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  if (/keycap|gmk|pbt|kat|dsa|sa\b/.test(text)) return 'keycaps';
-  if (/switch|spring|stabilizer|lube|film|stem|housing/.test(text)) return 'switches';
-  if (/deskmat|cable|wrist\s*rest|artisan|puller|tool|storage|misc|accessor/.test(text)) return 'accessories';
-  if (/\bpcb\b|plate|daughterboard|foam|gasket|weights?\b|mounting/.test(text)) return 'parts';
-  if (/pre.?built|fully built|keyboard kit|\bkit\b|mechanical keyboard|alice|\btkl\b|\b65%\b|\b75%\b|\b60%\b/.test(text)) return 'full';
-  if (/barebone/.test(text)) return 'parts';
-
-  const source = String(sourceCategory || '').toLowerCase();
-  if (source === 'keycaps') return 'keycaps';
-  if (source === 'switches') return 'switches';
-  if (source === 'accessories') return 'accessories';
-  if (source === 'keyboards') return 'full';
-  return 'accessories';
-}
 
 function hasKeyboardPartsSignal(item = {}) {
   const text = [item.name, item.productType, item.tags, item.itemType]
@@ -485,4 +465,4 @@ async function warmAllSources() {
   console.log(`[cache] warm complete — ${warmed} sources refreshed`);
 }
 
-module.exports = { router, warmAllSources };
+module.exports = { router, warmAllSources, filterItemsForWidget };

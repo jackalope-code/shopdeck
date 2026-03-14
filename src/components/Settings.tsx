@@ -105,6 +105,8 @@ const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences', '
 // ─── Tab 4: Preferences ─────────────────────────────────────────────────────────────
 function PreferencesTab() {
   const [notifEnabled, setNotifEnabled] = React.useState(false);
+  const [shareViewHistory, setShareViewHistory] = React.useState(true);
+  const [shareFavorites, setShareFavorites] = React.useState(true);
   const [perm, setPerm] = React.useState<NotificationPermission | 'unsupported'>(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
     return Notification.permission;
@@ -113,8 +115,12 @@ function PreferencesTab() {
   // Load from profile API on mount
   useEffect(() => {
     if (!getToken()) return;
-    apiGet<{ profile: { browserAlerts?: boolean } }>('/api/profile')
-      .then(data => { if (data?.profile?.browserAlerts != null) setNotifEnabled(data.profile.browserAlerts); })
+    apiGet<{ profile: { browserAlerts?: boolean; shareViewHistory?: boolean; shareFavorites?: boolean } }>('/api/profile')
+      .then(data => {
+        if (data?.profile?.browserAlerts != null) setNotifEnabled(data.profile.browserAlerts);
+        if (data?.profile?.shareViewHistory != null) setShareViewHistory(data.profile.shareViewHistory);
+        if (data?.profile?.shareFavorites != null) setShareFavorites(data.profile.shareFavorites);
+      })
       .catch(() => {});
   }, []);
 
@@ -132,6 +138,15 @@ function PreferencesTab() {
       setNotifEnabled(false);
       apiPatch('/api/profile', { browserAlerts: false }).catch(() => {});
     }
+  }
+
+  function handleShareToggle(field: 'shareViewHistory' | 'shareFavorites', value: boolean) {
+    if (field === 'shareViewHistory') setShareViewHistory(value);
+    if (field === 'shareFavorites') setShareFavorites(value);
+    apiPatch('/api/profile', { [field]: value }).catch(() => {
+      if (field === 'shareViewHistory') setShareViewHistory(prev => !prev);
+      if (field === 'shareFavorites') setShareFavorites(prev => !prev);
+    });
   }
 
   return (
@@ -204,6 +219,59 @@ function PreferencesTab() {
               Enabling will prompt your browser for notification permission.
             </p>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-emerald-500">groups</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Shared Popularity Signals</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+            Shared history and favorites help ShopDeck surface products the community is actually viewing and saving. Turning either off removes your past contribution from those shared rankings and recommendation signals.
+          </div>
+
+          {[
+            {
+              key: 'shareViewHistory' as const,
+              enabled: shareViewHistory,
+              icon: 'history',
+              title: 'Share product history',
+              detail: 'Include your viewed products in shared popularity widgets.',
+            },
+            {
+              key: 'shareFavorites' as const,
+              enabled: shareFavorites,
+              icon: 'favorite',
+              title: 'Share favorites',
+              detail: 'Include your saved products in shared favorites widgets.',
+            },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => handleShareToggle(item.key, !item.enabled)}
+              className={`w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+                item.enabled
+                  ? 'border-emerald-500 bg-emerald-500/5'
+                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-colors ${
+                item.enabled ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+              }`}>
+                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: item.enabled ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold ${item.enabled ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>{item.title}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{item.detail}</p>
+              </div>
+              <div className="ml-2 shrink-0 relative inline-flex items-center rounded-full pointer-events-none" style={{ width: 44, height: 24 }}>
+                <span className="block rounded-full transition-colors" style={{ width: 44, height: 24, background: item.enabled ? '#10b981' : undefined }} />
+                <span className={`absolute block rounded-full bg-white shadow transition-transform ${item.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} style={{ width: 20, height: 20, top: 2, left: 2 }} />
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
