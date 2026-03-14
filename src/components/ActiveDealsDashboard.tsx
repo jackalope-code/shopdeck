@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
-import { useFeedData, useFavorites } from '../lib/ShopdataContext';
+import { useFavorites } from '../lib/ShopdataContext';
+import { getToken } from '../lib/auth';
 import HistoryAwareLink from './HistoryAwareLink';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -11,7 +12,8 @@ type SortMode = 'discount' | 'price';
 interface Deal {
   id: string;
   name: string;
-  category: DealCategory;
+  category: DealCategory | null;
+  subcategory?: string | null;
   vendor: string;
   price: number;
   wasPrice: number;
@@ -53,6 +55,19 @@ const TIME_ICON: Record<string, string> = {
 
 type FilterChip = 'All' | DealCategory;
 
+interface AggregatedDealItem {
+  id: string;
+  name: string;
+  url?: string;
+  image?: string;
+  vendor?: string;
+  productType?: string | null;
+  price: number;
+  comparePrice?: number;
+  category?: DealCategory | null;
+  subcategory?: string | null;
+}
+
 // ─── Deal card ────────────────────────────────────────────────────────────────
 function DealCard({ deal }: { deal: Deal }) {
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -71,7 +86,7 @@ function DealCard({ deal }: { deal: Deal }) {
         {/* Discount badge */}
         <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg">
           <span className="material-symbols-outlined text-[14px]">{deal.discountIcon}</span>
-          -{deal.discount}% OFF
+          {deal.discount > 0 ? `-${deal.discount}% OFF` : 'SALE'}
         </div>
         {/* Vendor badge */}
         <div className="absolute bottom-3 left-3 bg-[#101922]/80 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-slate-700">
@@ -82,7 +97,7 @@ function DealCard({ deal }: { deal: Deal }) {
       <div className="p-4">
         {/* Category + urgency */}
         <div className="flex justify-between items-start mb-1">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">{deal.category}</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">{deal.category ?? 'Uncategorized'}</span>
           <span className={`flex items-center gap-1 text-[10px] font-medium ${TIME_COLOR[deal.timeUrgency]}`}>
             <span className="material-symbols-outlined text-[12px]">{TIME_ICON[deal.timeUrgency]}</span>
             {deal.timeLeft}
@@ -92,14 +107,16 @@ function DealCard({ deal }: { deal: Deal }) {
         {/* Name */}
         <h3 className="text-sm font-bold mb-2 line-clamp-1">
           {deal.url
-            ? <HistoryAwareLink href={deal.url} item={{ url: deal.url, name: deal.name, image: deal.image, price: String(deal.price), vendor: deal.vendor, category: deal.category }} className="hover:text-blue-500 transition-colors">{deal.name}</HistoryAwareLink>
+            ? <HistoryAwareLink href={deal.url} item={{ url: deal.url, name: deal.name, image: deal.image, price: String(deal.price), vendor: deal.vendor, category: deal.category ?? undefined }} className="hover:text-blue-500 transition-colors">{deal.name}</HistoryAwareLink>
             : deal.name}
         </h3>
 
         {/* Price */}
         <div className="flex items-end gap-2 mb-3">
           <span className="text-xl font-bold">${deal.price.toLocaleString()}</span>
-          <span className="text-sm text-slate-500 line-through mb-0.5">${deal.wasPrice.toLocaleString()}</span>
+          {deal.wasPrice !== deal.price && (
+            <span className="text-sm text-slate-500 line-through mb-0.5">${deal.wasPrice.toLocaleString()}</span>
+          )}
         </div>
 
         {/* Bottom row */}
@@ -127,7 +144,7 @@ function DealCard({ deal }: { deal: Deal }) {
                   image: deal.image,
                   price: String(deal.price),
                   vendor: deal.vendor,
-                  category: deal.category,
+                  category: deal.category ?? undefined,
                 });
               }}
               disabled={!deal.url}
@@ -137,7 +154,7 @@ function DealCard({ deal }: { deal: Deal }) {
               <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: favorited ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
             </button>
             {deal.url
-              ? <HistoryAwareLink href={deal.url} item={{ url: deal.url, name: deal.name, image: deal.image, price: String(deal.price), vendor: deal.vendor, category: deal.category }} className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">View Deal</HistoryAwareLink>
+              ? <HistoryAwareLink href={deal.url} item={{ url: deal.url, name: deal.name, image: deal.image, price: String(deal.price), vendor: deal.vendor, category: deal.category ?? undefined }} className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">View Deal</HistoryAwareLink>
               : <button className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">View Deal</button>}
           </div>
         </div>
@@ -152,21 +169,41 @@ export default function ActiveDealsDashboard() {
   const [filter, setFilter] = useState<FilterChip>('All');
   const [sort, setSort] = useState<SortMode>('discount');
 
-  const { loading, items: feedItems } = useFeedData('active-deals');
+  const [loading, setLoading] = useState(true);
+  const [feedItems, setFeedItems] = useState<AggregatedDealItem[]>([]);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setFeedItems([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    fetch('/api/feed-config/data-aggregated/deals', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(json => setFeedItems(Array.isArray(json.items) ? json.items : []))
+      .catch(() => setFeedItems([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const deals: Deal[] = feedItems
     .flatMap((item, idx) => {
-      const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
-      const wasPrice = parseFloat((item.comparePrice ?? '0').replace(/[^0-9.]/g, '')) || 0;
+      const price = Number(item.price) || 0;
+      const wasPrice = Number(item.comparePrice) || 0;
       if (price <= 0) return [];
       const discount = wasPrice > price ? Math.round((1 - price / wasPrice) * 100) : 0;
-      const type = item.productType?.toLowerCase() ?? '';
-      const cat: DealCategory = type.includes('keycap') ? 'Keyboards' : type.includes('switch') ? 'Components' : 'Keyboards';
       return [{
-        id: `${item._vendor}-${idx}`,
+        id: item.id ?? `${item.vendor ?? 'deal'}-${idx}`,
         name: item.name,
-        category: cat,
-        vendor: item._vendor ?? '',
+        category: item.category ?? null,
+        subcategory: item.subcategory ?? null,
+        vendor: item.vendor ?? '',
         price,
         wasPrice: wasPrice || price,
         discount,

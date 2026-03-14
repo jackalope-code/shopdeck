@@ -13,7 +13,7 @@ services:
     environment:
       POSTGRES_DB: shopdeck
       POSTGRES_USER: shopdeck
-      POSTGRES_PASSWORD: shopdeck_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shopdeck_dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -53,7 +53,7 @@ services:
       PGPORT: 5432
       PGDATABASE: shopdeck
       PGUSER: shopdeck
-      PGPASSWORD: shopdeck_dev
+      PGPASSWORD: ${POSTGRES_PASSWORD:-shopdeck_dev}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET environment variable is required}
