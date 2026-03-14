@@ -1039,7 +1039,7 @@ function WidgetContent({ id }: { id: string }) {
     case 'recent-activity':    return <RecentActivityWidget />;
     case 'favorite-products':  return <FavoritesWidget />;
     case 'keyboard-releases':  return <KeyboardReleasesWidget />;
-    case 'keyboard-full-release': return <FeedListWidget widgetId="keyboard-full-release" linkHref="/drops" linkLabel="View full keyboard releases →" />;
+    case 'keyboard-full-release': return <FeedListWidget widgetId="keyboard-full-release" linkHref="/keyboards" linkLabel="Browse keyboard catalog →" />;
     case 'keyboard-parts-release': return <FeedListWidget widgetId="keyboard-parts-release" linkHref="/drops" linkLabel="View keyboard parts →" />;
     case 'keyboard-switches': return <FeedListWidget widgetId="keyboard-switches" linkHref="/drops" linkLabel="View keyboard switches →" />;
     case 'keyboard-accessories': return <FeedListWidget widgetId="keyboard-accessories" linkHref="/drops" linkLabel="View keyboard accessories →" />;

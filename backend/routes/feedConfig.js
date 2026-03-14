@@ -11,7 +11,7 @@ const scraper = require('../scraper');
 const db = require('../db');
 const redis = require('../redis');
 const { decryptMap } = require('../lib/tokenCrypto');
-const { classifyKeyboardItem } = require('../lib/productTaxonomy');
+const { classifyKeyboardItem, inferKeyboardSubkind } = require('../lib/productTaxonomy');
 
 // Max 5 test-rule requests per user per minute (keyed on user ID; route is auth-gated).
 const testLimiter = rateLimit({
@@ -408,6 +408,7 @@ router.get('/data-aggregated/deals', verifyToken, dataLimiter, async (req, res) 
           seen.add(dedupeKey);
           accepted++;
 
+          const dealCategory = inferDealCategory(widgetId, item);
           deals.push({
             id: crypto.createHash('sha1').update(dedupeKey).digest('hex').slice(0, 16),
             name: item.name,
@@ -417,8 +418,9 @@ router.get('/data-aggregated/deals', verifyToken, dataLimiter, async (req, res) 
             productType: item.productType ?? null,
             price,
             comparePrice: comparePrice > 0 ? comparePrice : null,
-            category: inferDealCategory(widgetId, item),
+            category: dealCategory,
             subcategory: inferDealSubcategory(widgetId),
+            keyboardSubkind: dealCategory === 'Keyboards' ? inferKeyboardSubkind(item) : undefined,
             sourceWidgetId: widgetId,
             sourceId: scraped.sourceId,
             sourceName: scraped.sourceName,

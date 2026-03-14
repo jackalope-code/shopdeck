@@ -14,6 +14,7 @@ interface Deal {
   name: string;
   category: DealCategory | null;
   subcategory?: string | null;
+  keyboardSubkind?: KeyboardSubkind | null;
   vendor: string;
   price: number;
   wasPrice: number;
@@ -54,6 +55,7 @@ const TIME_ICON: Record<string, string> = {
 };
 
 type FilterChip = 'All' | DealCategory;
+type KeyboardSubkind = 'kit' | 'barebones' | 'prebuilt';
 
 interface AggregatedDealItem {
   id: string;
@@ -66,6 +68,7 @@ interface AggregatedDealItem {
   comparePrice?: number;
   category?: DealCategory | null;
   subcategory?: string | null;
+  keyboardSubkind?: KeyboardSubkind | null;
 }
 
 // ─── Deal card ────────────────────────────────────────────────────────────────
@@ -167,6 +170,7 @@ function DealCard({ deal }: { deal: Deal }) {
 export default function ActiveDealsDashboard() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterChip>('All');
+  const [subkindFilter, setSubkindFilter] = useState<KeyboardSubkind | 'all'>('all');
   const [sort, setSort] = useState<SortMode>('discount');
 
   const [loading, setLoading] = useState(true);
@@ -203,6 +207,7 @@ export default function ActiveDealsDashboard() {
         name: item.name,
         category: item.category ?? null,
         subcategory: item.subcategory ?? null,
+        keyboardSubkind: item.keyboardSubkind ?? null,
         vendor: item.vendor ?? '',
         price,
         wasPrice: wasPrice || price,
@@ -219,11 +224,17 @@ export default function ActiveDealsDashboard() {
 
   const cats: FilterChip[] = ['All', 'Keyboards', 'Electronics', 'Audio', 'Components'];
 
+  const kbDeals = filter === 'Keyboards' ? deals.filter(d => d.category === 'Keyboards') : [];
+  const availableSubkinds = (['kit', 'barebones', 'prebuilt'] as KeyboardSubkind[]).filter(sk =>
+    kbDeals.some(d => d.keyboardSubkind === sk)
+  );
+
   const displayed = deals
     .filter(d => {
       const matchCat = filter === 'All' || d.category === filter;
+      const matchSubkind = filter !== 'Keyboards' || subkindFilter === 'all' || d.keyboardSubkind === subkindFilter;
       const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.vendor.toLowerCase().includes(search.toLowerCase());
-      return matchCat && matchSearch;
+      return matchCat && matchSubkind && matchSearch;
     })
     .sort((a, b) => sort === 'discount' ? b.discount - a.discount : a.price - b.price);
 
@@ -262,13 +273,32 @@ export default function ActiveDealsDashboard() {
             {cats.map(c => (
               <button
                 key={c}
-                onClick={() => setFilter(c)}
+                onClick={() => { setFilter(c); setSubkindFilter('all'); }}
                 className={`flex h-9 shrink-0 items-center justify-center rounded-full px-5 text-sm font-semibold transition-colors ${filter === c ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
               >
                 {c}
               </button>
             ))}
           </div>
+
+          {/* Keyboard subkind chips */}
+          {filter === 'Keyboards' && availableSubkinds.length > 0 && (
+            <div className="flex gap-2 px-4 pb-3 overflow-x-auto max-w-2xl mx-auto w-full" style={{ scrollbarWidth: 'none' }}>
+              {(['all', ...availableSubkinds] as Array<'all' | KeyboardSubkind>).map(sk => {
+                const label = sk === 'all' ? 'All Types' : sk === 'kit' ? 'Kit' : sk === 'barebones' ? 'Barebones' : 'Pre-built';
+                const count = sk === 'all' ? kbDeals.length : kbDeals.filter(d => d.keyboardSubkind === sk).length;
+                return (
+                  <button
+                    key={sk}
+                    onClick={() => setSubkindFilter(sk)}
+                    className={`flex h-7 shrink-0 items-center justify-center rounded-full px-4 text-xs font-semibold transition-colors ${subkindFilter === sk ? 'bg-slate-700 dark:bg-slate-200 text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  >
+                    {label} <span className="ml-1 opacity-70">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Sort tabs */}
           <div className="flex border-b border-slate-200 dark:border-slate-800 px-4 gap-6 max-w-2xl mx-auto w-full">

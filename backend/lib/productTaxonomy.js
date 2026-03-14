@@ -103,6 +103,29 @@ function classifyProductTaxonomy(input = {}) {
   };
 }
 
+function inferKeyboardSubkind(item = {}) {
+  const itype = String(item.itemType || '');
+  if (itype === 'Pre-built') return 'prebuilt';
+  if (itype === 'Barebones') return 'barebones';
+  if (itype === 'Kit') return 'kit';
+
+  const text = [item.name, item.productType, item.tags]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (/pre.?built|fully.?built|assembled|ready.?to.?type/.test(text)) return 'prebuilt';
+  if (/\bbarebones?\b|case.?only/.test(text)) return 'barebones';
+  if (/\bkit\b|keyboard kit|\bdiy\b/.test(text)) return 'kit';
+
+  // Enthusiast boutiques list keyboards without explicit "kit" tags; productType "Keyboard"
+  // is the reliable fallback — these stores don't sell pre-builts without marking them.
+  const ptype = String(item.productType || '').toLowerCase();
+  if (/^keyboard/.test(ptype)) return 'kit';
+
+  return null;
+}
+
 function isMouserDerived(input = {}) {
   const vendor = normalizeText(input.vendor);
   const url = normalizeText(input.url);
@@ -112,5 +135,6 @@ function isMouserDerived(input = {}) {
 module.exports = {
   classifyKeyboardItem,
   classifyProductTaxonomy,
+  inferKeyboardSubkind,
   isMouserDerived,
 };
