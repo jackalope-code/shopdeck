@@ -1,28 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Sidebar, TopHeader } from './ProjectsOverview';
-import { apiGet, getToken } from '../lib/auth';
+import { Sidebar } from './ProjectsOverview';
+import { apiGet, apiPatch, getToken } from '../lib/auth';
 
-// ─── Project shape (mirrors backend) ──────────────────────────────────────────
-interface Project {
-  id: string;
-  name: string;
-  status: string;
-  icon: string;
-  forSale: boolean;
-  budget: number;
-  targetPrice: number;
-  estProfit: number;
-  sourced: number;
-  total: number;
-  spent: number;
-  gradient: string;
-  category?: string;
-  components?: Component[];
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface Component {
   id: string;
   name: string;
@@ -31,18 +12,32 @@ interface Component {
   vendor: string;
   status: 'Sourced' | 'Tracked' | 'Pending' | 'Ordered';
   price: number;
-  trend: number[]; // 6 bar heights 1-6
+  trend: number[];
+  partsPerUnit?: number;
+  stockQty?: number;
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const COMPONENTS: Component[] = [
-  { id: '1', name: 'Neo65 Case & PCB', detail: 'Aluminum Shell, E-white', icon: 'keyboard', vendor: 'QwertyKeys', status: 'Sourced', price: 120.00, trend: [2, 3, 2, 4, 5, 5] },
-  { id: '2', name: 'Gateron Baby Raccoon', detail: '70x Switches, Linear', icon: 'switch_access', vendor: 'Divinikey', status: 'Tracked', price: 45.50, trend: [4, 3, 4, 3, 4, 5] },
-  { id: '3', name: 'GMK Botanical R2', detail: 'Base Kit Keycaps', icon: 'grid_view', vendor: 'ZFrontier', status: 'Sourced', price: 155.00, trend: [3, 5, 4, 6, 5, 6] },
-  { id: '4', name: 'Stabilizers', detail: 'Durock V2 Screw-in', icon: 'adjust', vendor: 'KBDfans', status: 'Sourced', price: 18.00, trend: [2, 2, 3, 2, 2, 3] },
-  { id: '5', name: 'FR4 Plate', detail: '65% Layout, ANSI', icon: 'layers', vendor: 'TheKeyCompany', status: 'Pending', price: 22.00, trend: [4, 3, 3, 4, 4, 5] },
-  { id: '6', name: 'Foam Kit', detail: 'Case + PCB foam', icon: 'texture', vendor: 'KBDfans', status: 'Ordered', price: 12.00, trend: [1, 2, 1, 2, 3, 3] },
-];
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+  icon: string;
+  forSale: boolean;
+  budget?: number;
+  targetPrice?: number;
+  estProfit?: number;
+  sourced: number;
+  total: number;
+  spent: number;
+  gradient: string;
+  modified: string;
+  image?: string;
+  components?: Component[];
+  targetUnits?: number;
+  builtUnits?: number;
+  soldUnits?: number;
+  wasteOverageRate?: number;
+}
 
 const STATUS_STYLE: Record<string, string> = {
   Sourced: 'bg-emerald-500/10 text-emerald-500',
@@ -58,18 +53,43 @@ const STATUS_DOT: Record<string, string> = {
   Ordered: 'bg-purple-500',
 };
 
-// ─── Mini trend bar chart ─────────────────────────────────────────────────────
+const WASTE_TOOLTIP_TEXT = 'Waste/Overage Rate adds a buffer for expected losses during builds (defects, breakage, or unusable units). Example: 0.05 means add 5% extra parts';
+
+function toSafeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeComponent(component: Component): Component {
+  return {
+    ...component,
+    partsPerUnit: Math.max(0, toSafeNumber(component.partsPerUnit, 1)),
+    stockQty: Math.max(0, toSafeNumber(component.stockQty, 0)),
+  };
+}
+
+function normalizeProject(project: Project): Project {
+  return {
+    ...project,
+    components: (project.components ?? []).map(normalizeComponent),
+    targetUnits: Math.max(0, toSafeNumber(project.targetUnits, 0)),
+    builtUnits: Math.max(0, toSafeNumber(project.builtUnits, 0)),
+    soldUnits: Math.max(0, toSafeNumber(project.soldUnits, 0)),
+    wasteOverageRate: Math.max(0, toSafeNumber(project.wasteOverageRate, 0)),
+  };
+}
+
 function TrendBars({ heights }: { heights: number[] }) {
   const max = 6;
   return (
     <div className="w-20 h-6 flex items-end gap-0.5">
-      {heights.map((h, i) => {
-        const isLast = i === heights.length - 1;
+      {heights.map((height, index) => {
+        const isLast = index === heights.length - 1;
         return (
           <div
-            key={i}
+            key={index}
             className={`flex-1 rounded-t-sm ${isLast ? 'bg-blue-500' : 'bg-blue-500/25'}`}
-            style={{ height: `${(h / max) * 100}%` }}
+            style={{ height: `${(height / max) * 100}%` }}
           />
         );
       })}
@@ -77,50 +97,133 @@ function TrendBars({ heights }: { heights: number[] }) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
 export default function ProjectDetail() {
   const router = useRouter();
   const { id } = router.query as { id?: string };
 
   const [project, setProject] = useState<Project | null>(null);
   const [loadError, setLoadError] = useState('');
-  const [forSale, setForSale] = useState(true);
   const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  // Load project from API
   useEffect(() => {
-    if (!id) return;
-    if (!getToken()) return;
-    apiGet<Project[]>('/api/projects').then(projects => {
-      const found = projects.find(p => p.id === id);
-      if (found) {
-        setProject(found);
-        setForSale(found.forSale);
-      } else {
-        setLoadError(`Project ${id} not found.`);
-      }
-    }).catch(() => setLoadError('Could not load project. Using demo data.'));
+    if (!id || !getToken()) return;
+    apiGet<{ projects: Project[] }>('/api/projects')
+      .then(({ projects }) => {
+        const found = projects.find(p => p.id === id);
+        if (!found) {
+          setLoadError(`Project ${id} not found.`);
+          return;
+        }
+        setProject(normalizeProject(found));
+      })
+      .catch(() => setLoadError('Could not load project.'));
   }, [id]);
 
-  // Derived values — use API data if available, else fall back to mock
-  const components = project?.components?.length ? project.components : COMPONENTS;
-  const spent = project?.spent ?? COMPONENTS.filter(c => c.status !== 'Pending').reduce((s, c) => s + c.price, 0);
-  const total = components.reduce((s: number, c: Component) => s + c.price, 0);
-  const budget = project?.budget ?? 450;
-  const sourced = project?.sourced ?? components.filter((c: Component) => c.status === 'Sourced').length;
-  const pct = components.length > 0 ? Math.round((sourced / components.length) * 100) : 0;
-  const projectName = project?.name ?? 'Neo65 Keyboard Build';
-
-  const filtered = components.filter((c: Component) =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.vendor.toLowerCase().includes(search.toLowerCase())
+  const components = useMemo(() => project?.components ?? [], [project?.components]);
+  const filtered = useMemo(
+    () => components.filter(component =>
+      !search
+      || component.name.toLowerCase().includes(search.toLowerCase())
+      || component.vendor.toLowerCase().includes(search.toLowerCase())
+    ),
+    [components, search]
   );
+
+  const sourceCount = useMemo(() => components.filter(component => component.status === 'Sourced').length, [components]);
+  const componentCount = components.length;
+  const spent = useMemo(
+    () => components.filter(component => component.status !== 'Pending').reduce((sum, component) => sum + toSafeNumber(component.price, 0), 0),
+    [components]
+  );
+  const totalCost = useMemo(
+    () => components.reduce((sum, component) => sum + toSafeNumber(component.price, 0), 0),
+    [components]
+  );
+  const averagePartCost = componentCount > 0 ? totalCost / componentCount : 0;
+
+  const targetUnits = Math.max(0, toSafeNumber(project?.targetUnits, 0));
+  const builtUnits = Math.max(0, toSafeNumber(project?.builtUnits, 0));
+  const soldUnits = Math.max(0, toSafeNumber(project?.soldUnits, 0));
+  const wasteOverageRate = Math.max(0, toSafeNumber(project?.wasteOverageRate, 0));
+
+  const producibleUnits = useMemo(() => {
+    if (components.length === 0) return 0;
+    const capacities = components
+      .filter(component => toSafeNumber(component.partsPerUnit, 1) > 0)
+      .map(component => Math.floor(toSafeNumber(component.stockQty, 0) / toSafeNumber(component.partsPerUnit, 1)));
+    if (capacities.length === 0) return 0;
+    return Math.max(0, Math.min(...capacities));
+  }, [components]);
+
+  const expectedPartsTotal = useMemo(
+    () => components.reduce((sum, component) => {
+      const expected = Math.ceil(toSafeNumber(component.partsPerUnit, 1) * targetUnits * (1 + wasteOverageRate));
+      return sum + expected;
+    }, 0),
+    [components, targetUnits, wasteOverageRate]
+  );
+
+  const targetShortfall = Math.max(0, targetUnits - producibleUnits);
+  const progressPercent = componentCount > 0 ? Math.round((sourceCount / componentCount) * 100) : 0;
+
+  async function persistProject(next: Project) {
+    if (!id || !getToken()) return;
+    setSaving(true);
+    try {
+      await apiPatch(`/api/projects/${id}`, {
+        sourced: sourceCount,
+        total: componentCount,
+        spent,
+        builtUnits: next.builtUnits,
+        targetUnits: next.targetUnits,
+        soldUnits: next.soldUnits,
+        wasteOverageRate: next.wasteOverageRate,
+        components: next.components,
+      });
+    } catch {
+      setLoadError('Could not save project updates.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateProjectField(field: 'targetUnits' | 'builtUnits' | 'soldUnits' | 'wasteOverageRate', value: number) {
+    if (!project) return;
+    const next: Project = normalizeProject({ ...project, [field]: value });
+    setProject(next);
+    persistProject(next);
+  }
+
+  function updateComponentField(componentId: string, field: 'partsPerUnit' | 'stockQty', value: number) {
+    if (!project) return;
+    const nextComponents = (project.components ?? []).map(component =>
+      component.id === componentId
+        ? normalizeComponent({ ...component, [field]: value })
+        : component
+    );
+    const next = normalizeProject({ ...project, components: nextComponents });
+    setProject(next);
+    persistProject(next);
+  }
+
+  if (!project) {
+    return (
+      <div className="flex min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
+        <Sidebar active="Projects" />
+        <main className="flex-1 p-6">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-500">
+            {loadError || 'Loading project...'}
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <Sidebar active="Projects" />
-
       <main className="flex-1">
-        {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -131,103 +234,137 @@ export default function ProjectDetail() {
                 <div className="flex items-center gap-1 text-xs text-slate-500 mb-0.5">
                   <Link href="/projects" className="hover:text-blue-500">Projects</Link>
                   <span className="material-symbols-outlined text-[12px]">chevron_right</span>
-                  <span>{projectName}</span>
+                  <span>{project.name}</span>
                 </div>
-                <h2 className="text-xl font-bold">{projectName}</h2>
+                <h2 className="text-xl font-bold">{project.name}</h2>
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              {/* For Sale toggle */}
-              <div className="flex items-center gap-2 py-2 px-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">For Sale</span>
-                <button
-                  onClick={() => setForSale(v => !v)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${forSale ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'}`}
-                >
-                  <span className={`pointer-events-none inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${forSale ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-              <button className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px]">ios_share</span>
-                <span className="hidden sm:inline">Export List</span>
-              </button>
-              <button className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition-all flex items-center gap-2 shadow-sm shadow-blue-500/30">
-                <span className="material-symbols-outlined text-[16px]">add</span>
-                <span className="hidden sm:inline">Add Component</span>
-              </button>
-            </div>
+            <div className="text-xs text-slate-500">{saving ? 'Saving…' : `Modified ${project.modified}`}</div>
           </div>
         </div>
 
         <div className="px-6 py-8 space-y-8 max-w-7xl mx-auto">
-            {loadError && (
-              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3">
-                <span className="material-symbols-outlined text-[18px]">warning</span>
-                {loadError}
-              </div>
-            )}
-            {/* Overview grid */}
+          {loadError && (
+            <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3">
+              <span className="material-symbols-outlined text-[18px]">warning</span>
+              {loadError}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Progress card */}
             <div className="lg:col-span-4 p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Project Progress</h3>
                 <span className="px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-500 text-xs font-bold">ACTIVE</span>
               </div>
               <div className="flex items-end justify-between mb-2">
-                <span className="text-4xl font-bold">{pct}%</span>
-                <span className="text-sm text-slate-500 mb-1">{sourced} of {components.length} Sourced</span>
+                <span className="text-4xl font-bold">{progressPercent}%</span>
+                <span className="text-sm text-slate-500 mb-1">{sourceCount} of {componentCount} Sourced</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden">
-                <div className="bg-blue-500 h-3 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                <div className="bg-blue-500 h-3 rounded-full transition-all" style={{ width: `${progressPercent}%` }} />
               </div>
-              <p className="mt-4 text-sm text-slate-500">Estimated completion: Feb 28, 2026</p>
             </div>
 
-            {/* Budget card */}
-            <div className="lg:col-span-8 p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="lg:col-span-5 p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="grid grid-cols-3 gap-6">
                 <div>
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Budget</h3>
-                  <div className="text-3xl font-bold">${budget.toFixed(2)}</div>
-                  <p className="mt-2 flex items-center gap-1 text-xs text-slate-500">
-                    <span className="material-symbols-outlined text-[12px]">info</span> Target Cap
-                  </p>
+                  <div className="text-3xl font-bold">${toSafeNumber(project.budget, 0).toFixed(2)}</div>
                 </div>
                 <div className="border-x border-slate-200 dark:border-slate-800 px-6">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Spent to Date</h3>
                   <div className="text-3xl font-bold text-blue-500">${spent.toFixed(2)}</div>
-                  <p className="mt-2 flex items-center gap-1 text-xs text-emerald-500 font-medium">
-                    <span className="material-symbols-outlined text-[12px]">trending_down</span> ${(budget - spent).toFixed(2)} Left
-                  </p>
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Avg. Part Cost</h3>
-                  <div className="text-3xl font-bold">${(total / COMPONENTS.length).toFixed(2)}</div>
-                  <p className="mt-2 text-xs text-slate-500">Across {components.length} components</p>
+                  <div className="text-3xl font-bold">${averagePartCost.toFixed(2)}</div>
                 </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-3 p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Build & Inventory</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Producible Units</span>
+                  <span className="font-bold text-blue-500">{producibleUnits}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Built Units</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={builtUnits}
+                    onChange={e => updateProjectField('builtUnits', Math.max(0, toSafeNumber(e.target.value, 0)))}
+                    className="w-20 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-right"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Sold Units</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={soldUnits}
+                    onChange={e => updateProjectField('soldUnits', Math.max(0, toSafeNumber(e.target.value, 0)))}
+                    className="w-20 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-right"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Target Units</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={targetUnits}
+                    onChange={e => updateProjectField('targetUnits', Math.max(0, toSafeNumber(e.target.value, 0)))}
+                    className="w-20 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-right"
+                  />
+                </div>
+                {targetShortfall > 0 && (
+                  <div className="text-xs text-orange-500 font-semibold">
+                    Producible ({producibleUnits}) is below target by {targetShortfall}.
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Components table */}
           <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-base font-bold">Components</h3>
+              <h3 className="text-base font-bold">Part Planning</h3>
               <div className="flex items-center gap-2">
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[16px]">search</span>
-                  <input
-                    className="pl-9 pr-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Search parts..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                  />
-                </div>
-                <button className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors">
-                  <span className="material-symbols-outlined">filter_list</span>
-                </button>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1" title={WASTE_TOOLTIP_TEXT}>
+                  Waste/Overage Rate (%)
+                  <span className="material-symbols-outlined text-[14px] text-slate-400">info</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={Number((wasteOverageRate * 100).toFixed(2))}
+                  onChange={e => {
+                    const percent = Math.max(0, toSafeNumber(e.target.value, 0));
+                    updateProjectField('wasteOverageRate', percent / 100);
+                  }}
+                  className="w-24 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-right text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="text-sm text-slate-500">Expected total parts to purchase for target</div>
+              <div className="text-lg font-bold text-blue-500">{expectedPartsTotal}</div>
+            </div>
+
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[16px]">search</span>
+                <input
+                  className="pl-9 pr-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Search parts..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
               </div>
             </div>
 
@@ -238,119 +375,70 @@ export default function ProjectDetail() {
                     <th className="px-6 py-4">Component</th>
                     <th className="px-6 py-4 hidden sm:table-cell">Vendor</th>
                     <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 hidden md:table-cell">Trend (30d)</th>
+                    <th className="px-6 py-4 hidden md:table-cell">Trend</th>
                     <th className="px-6 py-4 text-right">Price</th>
-                    <th className="px-6 py-4 w-10"></th>
+                    <th className="px-6 py-4 text-right">Parts / Unit</th>
+                    <th className="px-6 py-4 text-right">Stock</th>
+                    <th className="px-6 py-4 text-right">Expected Buy</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {filtered.map(c => (
-                    <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="size-10 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                            <span className="material-symbols-outlined text-slate-400">{c.icon}</span>
+                  {filtered.map(component => {
+                    const partsPerUnit = Math.max(0, toSafeNumber(component.partsPerUnit, 1));
+                    const stockQty = Math.max(0, toSafeNumber(component.stockQty, 0));
+                    const expectedBuy = Math.ceil(partsPerUnit * targetUnits * (1 + wasteOverageRate));
+                    return (
+                      <tr key={component.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="size-10 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined text-slate-400">{component.icon}</span>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm">{component.name}</p>
+                              <p className="text-xs text-slate-500">{component.detail}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-sm">{c.name}</p>
-                            <p className="text-xs text-slate-500">{c.detail}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium hidden sm:table-cell">{c.vendor}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLE[c.status]}`}>
-                          <span className={`size-1.5 rounded-full ${STATUS_DOT[c.status]}`} />
-                          {c.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 hidden md:table-cell">
-                        <TrendBars heights={c.trend} />
-                      </td>
-                      <td className="px-6 py-4 text-right font-bold text-sm">${c.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right text-slate-400">
-                        <button className="hover:text-slate-900 dark:hover:text-white transition-colors">
-                          <span className="material-symbols-outlined">more_vert</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium hidden sm:table-cell">{component.vendor}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLE[component.status]}`}>
+                            <span className={`size-1.5 rounded-full ${STATUS_DOT[component.status]}`} />
+                            {component.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 hidden md:table-cell">
+                          <TrendBars heights={component.trend} />
+                        </td>
+                        <td className="px-6 py-4 text-right font-bold text-sm">${toSafeNumber(component.price, 0).toFixed(2)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={partsPerUnit}
+                            onChange={e => updateComponentField(component.id, 'partsPerUnit', Math.max(0, toSafeNumber(e.target.value, 0)))}
+                            className="w-20 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-right text-sm"
+                          />
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={stockQty}
+                            onChange={e => updateComponentField(component.id, 'stockQty', Math.max(0, toSafeNumber(e.target.value, 0)))}
+                            className="w-20 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-right text-sm"
+                          />
+                        </td>
+                        <td className="px-6 py-4 text-right font-bold text-blue-500">{expectedBuy}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50 dark:bg-slate-950/50">
-                    <td colSpan={4} className="px-6 py-4 text-sm font-bold text-slate-500">Total</td>
-                    <td className="px-6 py-4 text-right font-bold">${total.toFixed(2)}</td>
-                    <td />
-                  </tr>
-                </tfoot>
               </table>
             </div>
           </div>
-
-          {/* "For Sale" listing preview panel */}
-          {forSale && (
-            <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold flex items-center gap-2">
-                    <span className="material-symbols-outlined text-emerald-500">sell</span>
-                    For Sale Listing
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Configure your listing details</p>
-                </div>
-                <span className="px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-500 text-xs font-bold">LIVE</span>
-              </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-3">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Asking Price</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                    <input
-                      type="number"
-                      defaultValue={649}
-                      className="w-full pl-7 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <p className="text-xs text-emerald-500 font-medium">Est. profit: +${(649 - spent).toFixed(2)}</p>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Condition</label>
-                  <select className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
-                    <option>Brand New / Sealed</option>
-                    <option>Excellent</option>
-                    <option>Good</option>
-                    <option>Fair</option>
-                  </select>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Platform</label>
-                  <select className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
-                    <option>mechkeys r/mechmarket</option>
-                    <option>Geekhack</option>
-                    <option>eBay</option>
-                    <option>Direct Sale</option>
-                  </select>
-                </div>
-                <div className="md:col-span-3">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Description</label>
-                  <textarea
-                    rows={3}
-                    defaultValue="Neo65 complete build. E-white aluminum case with GMK Botanical R2. Gateron Baby Raccoon switches, lubed and filmed. FR4 plate. All original packaging included."
-                    className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="md:col-span-3 flex justify-end gap-3">
-                  <button className="px-5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                    Save Draft
-                  </button>
-                  <button className="px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition-colors shadow-sm shadow-blue-500/30 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[16px]">publish</span>
-                    Publish Listing
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </div>

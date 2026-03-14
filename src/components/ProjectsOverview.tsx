@@ -93,6 +93,7 @@ const TOP_NAV_LINKS = [
 ];
 
 const DRAWER_LINKS = [
+  { href: '/community-insights',       label: 'Community Insights', icon: 'insights' },
   { href: '/recently-viewed',          label: 'Recently Viewed', icon: 'history' },
   { href: '/favorites',                label: 'Favorites', icon: 'favorite' },
   { href: '/my-electronics',           label: 'Electronics', icon: 'inventory_2' },
@@ -292,6 +293,22 @@ interface Project {
   gradient: string;
   icon: string;
   image?: string;
+  components?: Array<{
+    id: string;
+    name: string;
+    detail: string;
+    icon: string;
+    vendor: string;
+    status: 'Sourced' | 'Tracked' | 'Pending' | 'Ordered';
+    price: number;
+    trend: number[];
+    partsPerUnit?: number;
+    stockQty?: number;
+  }>;
+  targetUnits?: number;
+  builtUnits?: number;
+  soldUnits?: number;
+  wasteOverageRate?: number;
 }
 
 const SEED_PROJECTS: Project[] = [
@@ -576,6 +593,10 @@ function NewProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate:
       if (getToken()) {
         const { project } = await apiPost<{ project: Project }>('/api/projects', {
           name, icon, forSale,
+          targetUnits: 0,
+          builtUnits: 0,
+          soldUnits: 0,
+          wasteOverageRate: 0,
           ...(forSale ? { targetPrice: Number(targetPrice) || undefined } : { budget: Number(budget) || undefined }),
         });
         logActivity({ type: 'create', title: `Created project "${project.name}"` });
@@ -586,6 +607,11 @@ function NewProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate:
         const project: Project = {
           id: Date.now().toString(), name, icon, status: 'Planning', forSale,
           sourced: 0, total: 0, spent: 0,
+          targetUnits: 0,
+          builtUnits: 0,
+          soldUnits: 0,
+          wasteOverageRate: 0,
+          components: [],
           ...(forSale ? { targetPrice: Number(targetPrice) || 0, estProfit: 0 } : { budget: Number(budget) || 0 }),
           gradient: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)],
           modified: 'Just now',

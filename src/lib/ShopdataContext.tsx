@@ -62,6 +62,22 @@ export interface Project {
   gradient: string;
   icon: string;
   image?: string;
+  components?: Array<{
+    id: string;
+    name: string;
+    detail: string;
+    icon: string;
+    vendor: string;
+    status: 'Sourced' | 'Tracked' | 'Pending' | 'Ordered';
+    price: number;
+    trend: number[];
+    partsPerUnit?: number;
+    stockQty?: number;
+  }>;
+  targetUnits?: number;
+  builtUnits?: number;
+  soldUnits?: number;
+  wasteOverageRate?: number;
 }
 
 export interface ActivityEntry {

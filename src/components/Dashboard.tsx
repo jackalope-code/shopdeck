@@ -1326,6 +1326,7 @@ export default function Dashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const DASH_DRAWER_LINKS = [
+    { href: '/community-insights',      label: 'Community Insights', icon: 'insights' },
     { href: '/recently-viewed',         label: 'Recently Viewed', icon: 'history' },
     { href: '/favorites',               label: 'Favorites', icon: 'favorite' },
     { href: '/my-electronics',           label: 'Electronics', icon: 'inventory_2' },

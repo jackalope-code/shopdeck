@@ -158,6 +158,10 @@ function KeycapCard({ set }: { set: KeycapSet }) {
         </div>
       )}
 
+    </div>
+  );
+}
+
 export default function KeycapsTracker() {
   const [search, setSearch] = useState('');
   const [brand, setBrand] = useState('All Sets');
