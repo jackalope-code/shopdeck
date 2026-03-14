@@ -791,19 +791,17 @@ const BUILTIN_SOURCE_RULES = {
     category: 'Electronics',
   },
   'adafruit-sales': {
-    url: 'https://www.adafruit.com/collections/sale/products.json?limit=50',
-    ruleType: 'jsonpath-multi',
-    containerPath: '$.products[*]',
+    url: 'https://www.adafruit.com/category/1028',
+    ruleType: 'css',
+    containerSelector: 'li[itemscope][itemtype="https://schema.org/Product"]',
     fields: [
-      { path: '$.title',               fieldName: 'name' },
-      { path: '$.images[0].src',       fieldName: 'image' },
-      { path: '$.variants[0].price',   fieldName: 'price' },
-      { path: '$.variants[0].compare_at_price', fieldName: 'comparePrice' },
-      { path: '$.handle',              fieldName: 'handle' },
-      { path: '$.product_type',        fieldName: 'productType' },
-      { path: '$.tags',                fieldName: 'tags' },
+      { selector: 'h2 a[itemprop="name"]',        fieldName: 'name' },
+      { selector: 'h2 a[itemprop="name"]',        fieldName: 'url',          attribute: 'href' },
+      { selector: 'img.productThumb',              fieldName: 'image',        attribute: 'src' },
+      { selector: '.red-sale-price',               fieldName: 'price' },
+      { selector: '.normal-price span',            fieldName: 'comparePrice' },
+      { selector: '.stock span',                   fieldName: 'availability' },
     ],
-    baseUrl: 'https://www.adafruit.com/product/',
     label: 'Adafruit — Sales',
     vendor: 'Adafruit',
     category: 'Electronics',
@@ -1248,7 +1246,7 @@ const BUILTIN_SOURCE_RULES = {
   // Shopify sale collections — same stable products.json API, discounted items only
 
   'keeb-io-sale': {
-    url: 'https://keeb.io/collections/sale/products.json?limit=50',
+    url: 'https://keeb.io/collections/clearance/products.json?limit=50',
     ruleType: 'jsonpath-multi',
     containerPath: '$.products[*]',
     fields: [
@@ -1283,7 +1281,7 @@ const BUILTIN_SOURCE_RULES = {
     vendor: 'CannonKeys',
   },
   'novelkeys-sale': {
-    url: 'https://novelkeys.com/collections/sale/products.json?limit=50',
+    url: 'https://novelkeys.com/collections/clearance/products.json?limit=50',
     ruleType: 'jsonpath-multi',
     containerPath: '$.products[*]',
     fields: [
@@ -1300,7 +1298,7 @@ const BUILTIN_SOURCE_RULES = {
     vendor: 'NovelKeys',
   },
   'kbdfans-sale': {
-    url: 'https://kbdfans.com/collections/sale/products.json?limit=50',
+    url: 'https://kbdfans.com/collections/clearance/products.json?limit=50',
     ruleType: 'jsonpath-multi',
     containerPath: '$.products[*]',
     fields: [
