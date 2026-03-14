@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import HistoryAwareLink from './HistoryAwareLink';
 import {
   DndContext,
   DragEndEvent,
@@ -525,6 +526,48 @@ function SkeletonRows({ n = 3 }: { n?: number }) {
   );
 }
 
+function CompactListSkeleton({ n = 4, iconClassName = 'h-9 w-9 rounded bg-slate-200 dark:bg-slate-700 shrink-0' }: { n?: number; iconClassName?: string }) {
+  return (
+    <div className="p-4 space-y-4">
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="flex gap-3 animate-pulse">
+          <div className={iconClassName} />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+            <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WidgetFooterLink({ href, label }: { href: string; label: string }) {
+  return (
+    <div className="px-4 py-3">
+      <Link href={href} className="text-xs font-bold text-blue-500 hover:underline">{label}</Link>
+    </div>
+  );
+}
+
+function WidgetIconEmptyState({
+  icon,
+  message,
+  action,
+}: {
+  icon: string;
+  message: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="p-6 text-center text-slate-400 text-sm">
+      <span className="material-symbols-outlined block text-3xl mb-2">{icon}</span>
+      <p>{message}</p>
+      {action}
+    </div>
+  );
+}
+
 function communityLabel(value?: string) {
   if (!value) return null;
   const labels: Record<string, string> = {
@@ -553,17 +596,278 @@ function communityLabel(value?: string) {
   return labels[value] ?? value;
 }
 
+function summarizeSourceErrors(
+  sources: Record<string, { error: string | null }>,
+  options: { rateLimitLabel: string; blockedLabel: string; maxLen?: number },
+) {
+  const { rateLimitLabel, blockedLabel, maxLen = 60 } = options;
+  const sourceErrors = Object.values(sources)
+    .filter(s => s.error)
+    .map(s => s.error as string);
+
+  return [...new Set(sourceErrors.map(error =>
+    error.startsWith('Rate limit') ? rateLimitLabel :
+    error.startsWith('Access denied') ? blockedLabel :
+    error.startsWith('HTTP 4') ? error.slice(0, 30) :
+    error.slice(0, maxLen)
+  ))];
+}
+
+function FeedWidgetEmptyState({
+  error,
+  sourceErrors,
+  emptyLabel,
+  linkHref,
+  linkLabel,
+}: {
+  error: string | null;
+  sourceErrors: string[];
+  emptyLabel: string;
+  linkHref: string;
+  linkLabel: string;
+}) {
+  return (
+    <div className="px-4 py-6 text-center text-slate-400 text-sm">
+      {error
+        ? <p className="text-red-400 text-xs mb-1">{error}</p>
+        : sourceErrors.length > 0
+          ? <>
+              <p className="mb-1">Sources unavailable:</p>
+              {sourceErrors.slice(0, 2).map(message => (
+                <p key={message} className="text-[10px] text-slate-500 mb-0.5">{message}</p>
+              ))}
+            </>
+          : <p>{emptyLabel}</p>
+      }
+      <div className="mt-2"><Link href={linkHref} className="text-xs font-bold text-blue-500 hover:underline">{linkLabel}</Link></div>
+    </div>
+  );
+}
+
+function formatDisplayPrice(price?: string) {
+  if (!price) return null;
+  return price.startsWith('$') ? price : `$${price}`;
+}
+
+function parseNumericPrice(value?: string) {
+  return parseFloat((value ?? '').replace(/[^0-9.]/g, '')) || 0;
+}
+
+type DashboardRowLinkItem = {
+  name: string;
+  url: string;
+  image?: string;
+  price?: string;
+  vendor?: string;
+  category?: string;
+};
+
+function DashboardItemRow({
+  image,
+  title,
+  url,
+  item,
+  vendor,
+  badges,
+  fallbackIcon,
+  rightTop,
+  rightBottom,
+  rightBottomSecondary,
+}: {
+  image?: string;
+  title: string;
+  url?: string;
+  item?: DashboardRowLinkItem;
+  vendor?: string;
+  badges?: Array<{ label: string; className: string }>;
+  fallbackIcon: string;
+  rightTop?: string | null;
+  rightBottom?: string | null;
+  rightBottomSecondary?: string | null;
+}) {
+  const row = (
+    <div className="flex gap-3 items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+      <div className="h-10 w-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
+        {image
+          ? <img src={image} alt={title} className="h-full w-full object-cover" />
+          : <span className="material-symbols-outlined text-slate-400 text-lg">{fallbackIcon}</span>}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium truncate">{title}</p>
+        <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
+          {vendor && <span>{vendor}</span>}
+          {(badges ?? []).map((badge, index) => (
+            <span key={`${badge.label}-${index}`} className={badge.className}>{badge.label}</span>
+          ))}
+        </div>
+      </div>
+      {(rightTop || rightBottom || rightBottomSecondary) && (
+        <div className="shrink-0 text-right">
+          {rightTop && <p className="text-sm font-bold text-blue-500">{rightTop}</p>}
+          {rightBottom && <p className="text-[10px] text-slate-500">{rightBottom}</p>}
+          {rightBottomSecondary && <p className="text-[10px] text-slate-400">{rightBottomSecondary}</p>}
+        </div>
+      )}
+    </div>
+  );
+
+  if (url && item) {
+    return (
+      <HistoryAwareLink href={url} item={item} className="block">
+        {row}
+      </HistoryAwareLink>
+    );
+  }
+
+  return row;
+}
+
+function FeedProductRow({
+  name,
+  url,
+  item,
+  vendor,
+  price,
+  badge,
+}: {
+  name: string;
+  url?: string;
+  item?: DashboardRowLinkItem;
+  vendor?: string;
+  price: string;
+  badge?: { label: string; className: string };
+}) {
+  const row = (
+    <div className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+      <div className="min-w-0 mr-2">
+        <p className="text-sm font-semibold line-clamp-1">{name}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <p className="text-[10px] text-slate-500">{vendor}</p>
+          {badge && <span className={badge.className}>{badge.label}</span>}
+        </div>
+      </div>
+      <span className="text-sm font-bold text-blue-500 shrink-0">{price}</span>
+    </div>
+  );
+
+  if (url && item) {
+    return (
+      <HistoryAwareLink href={url} item={item} className="block">
+        {row}
+      </HistoryAwareLink>
+    );
+  }
+
+  return row;
+}
+
+function KeyboardComparisonSkeleton() {
+  return (
+    <div className="p-4 animate-pulse space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1].map(i => (
+          <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-2">
+            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+            {Array.from({ length: 3 }).map((_, j) => <div key={j} className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-full" />)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function KeyboardComparisonTable({
+  cards,
+  rows,
+}: {
+  cards: Array<{ key: string; name: string; vendor?: string; values: Record<string, string> }>;
+  rows: Array<{ label: string; key: string }>;
+}) {
+  return (
+    <div className="p-4">
+      <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: `140px repeat(${cards.length}, 1fr)` }}>
+        <div />
+        {cards.map(card => (
+          <div key={card.key} className="min-w-0">
+            <p className="text-xs font-bold truncate">{card.name}</p>
+            <p className="text-[10px] text-slate-500 truncate">{card.vendor}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-1">
+        {rows.map(row => (
+          <div key={row.key} className="grid gap-3 py-1 border-t border-slate-100 dark:border-slate-800"
+            style={{ gridTemplateColumns: `140px repeat(${cards.length}, 1fr)` }}>
+            <span className="text-[10px] font-medium text-slate-500 flex items-center">{row.label}</span>
+            {cards.map(card => {
+              const value = card.values[row.key] ?? '—';
+              return (
+                <span key={card.key} className="text-[11px] font-semibold flex items-center text-slate-700 dark:text-slate-300">{value}</span>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link>
+      </div>
+    </div>
+  );
+}
+
+type InventoryStat = {
+  icon: string;
+  bg: string;
+  label: string;
+  value: string;
+  badge: string;
+  badgeCls: string;
+};
+
+function InventoryStatsSkeleton({ n = 4 }: { n?: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 p-4 animate-pulse">
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
+          <div className="h-8 w-8 rounded-lg bg-slate-200 dark:bg-slate-700 mb-2" />
+          <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-1" />
+          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function InventoryStatCard({ stat }: { stat: InventoryStat }) {
+  return (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
+      <div className="flex justify-between items-start mb-2">
+        <div className={`p-1.5 rounded-lg ${stat.bg}`}>
+          <span className="material-symbols-outlined text-[18px]">{stat.icon}</span>
+        </div>
+        <span className={`text-[10px] font-bold ${stat.badgeCls}`}>{stat.badge}</span>
+      </div>
+      <p className="text-[10px] font-medium text-slate-500">{stat.label}</p>
+      <h3 className="text-xl font-bold mt-0.5">{stat.value}</h3>
+    </div>
+  );
+}
+
 // ─── Widget sub-components (each calls hooks at top level) ────────────────────
 function ActiveProjectsWidget() {
   const { projects, loading } = useProjects();
   if (loading) return <SkeletonRows />;
   const active = projects.slice(0, 3);
-  if (active.length === 0) return (
-    <div className="p-6 text-center text-slate-400 text-sm">
-      <span className="material-symbols-outlined block text-3xl mb-2">rocket_launch</span>
-      No projects yet. <Link href="/projects" className="text-blue-500 hover:underline">Create one →</Link>
-    </div>
-  );
+  if (active.length === 0) {
+    return (
+      <WidgetIconEmptyState
+        icon="rocket_launch"
+        message={<>No projects yet. <Link href="/projects" className="text-blue-500 hover:underline">Create one →</Link></>}
+      />
+    );
+  }
   return (
     <div className="divide-y divide-slate-200 dark:divide-slate-800">
       {active.map(p => {
@@ -598,109 +902,73 @@ function ActiveProjectsWidget() {
           </div>
         );
       })}
-      <div className="px-4 py-3">
-        <Link href="/projects" className="text-xs font-bold text-blue-500 hover:underline">View all projects →</Link>
-      </div>
+      <WidgetFooterLink href="/projects" label="View all projects →" />
     </div>
   );
 }
 
 function RecentActivityWidget() {
   const { viewHistory, loading } = useViewHistory();
-  if (loading) return (
-    <div className="p-4 space-y-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex gap-3 animate-pulse">
-          <div className="size-2 mt-1.5 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
-            <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-  if (viewHistory.length === 0) return (
-    <div className="p-6 text-center text-slate-400 text-sm">
-      <span className="material-symbols-outlined block text-3xl mb-2">history</span>
-      No recently viewed products yet.
-    </div>
-  );
+  if (loading) return <CompactListSkeleton iconClassName="size-2 mt-1.5 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />;
+  if (viewHistory.length === 0) return <WidgetIconEmptyState icon="history" message="No recently viewed products yet." />;
   return (
     <div className="divide-y divide-slate-200 dark:divide-slate-800">
       {viewHistory.slice(0, 5).map((item) => (
-        <div key={item.url} className="flex gap-3 items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-          <div className="h-10 w-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
-            {item.image
-              ? <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-              : <span className="material-symbols-outlined text-slate-400 text-lg">open_in_new</span>}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{item.name}</p>
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
-              {item.vendor && <span>{item.vendor}</span>}
-              {item.category && <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase">{item.category}</span>}
-              <span>{relativeTime(item.viewedAt)}</span>
-            </div>
-          </div>
-          <div className="shrink-0 text-right">
-            {item.price && <p className="text-sm font-bold text-blue-500">{item.price.startsWith('$') ? item.price : `$${item.price}`}</p>}
-            <p className="text-[10px] text-slate-500">{item.viewCount}x</p>
-          </div>
-        </div>
+        <DashboardItemRow
+          key={item.url}
+          image={item.image}
+          title={item.name}
+          url={item.url}
+          item={{
+            name: item.name,
+            url: item.url,
+            image: item.image,
+            price: item.price,
+            vendor: item.vendor,
+            category: item.category,
+          }}
+          vendor={item.vendor}
+          fallbackIcon="open_in_new"
+          badges={[
+            ...(item.category ? [{ label: item.category, className: 'px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase' }] : []),
+            { label: relativeTime(item.viewedAt), className: '' },
+          ]}
+          rightTop={formatDisplayPrice(item.price)}
+          rightBottom={`${item.viewCount}x`}
+        />
       ))}
-      <div className="px-4 py-3">
-        <Link href="/recently-viewed" className="text-xs font-bold text-blue-500 hover:underline">View recently viewed →</Link>
-      </div>
+      <WidgetFooterLink href="/recently-viewed" label="View recently viewed →" />
     </div>
   );
 }
 
 function FavoritesWidget() {
   const { favorites, loading } = useFavorites();
-  if (loading) return (
-    <div className="p-4 space-y-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex gap-3 animate-pulse">
-          <div className="h-9 w-9 rounded bg-slate-200 dark:bg-slate-700 shrink-0" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
-            <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-  if (favorites.length === 0) return (
-    <div className="p-6 text-center text-slate-400 text-sm">
-      <span className="material-symbols-outlined block text-3xl mb-2">favorite</span>
-      No favorites yet.
-    </div>
-  );
+  if (loading) return <CompactListSkeleton />;
+  if (favorites.length === 0) return <WidgetIconEmptyState icon="favorite" message="No favorites yet." />;
   return (
     <div className="divide-y divide-slate-200 dark:divide-slate-800">
       {favorites.slice(0, 5).map((item) => (
-        <div key={item.url} className="flex gap-3 items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-          <div className="h-10 w-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
-            {item.image
-              ? <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-              : <span className="material-symbols-outlined text-slate-400 text-lg">favorite</span>}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{item.name}</p>
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
-              {item.vendor && <span>{item.vendor}</span>}
-              {item.category && <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase">{item.category}</span>}
-            </div>
-          </div>
-          <div className="shrink-0 text-right">
-            {item.price && <p className="text-sm font-bold text-blue-500">{item.price.startsWith('$') ? item.price : `$${item.price}`}</p>}
-          </div>
-        </div>
+        <DashboardItemRow
+          key={item.url}
+          image={item.image}
+          title={item.name}
+          url={item.url}
+          item={{
+            name: item.name,
+            url: item.url,
+            image: item.image,
+            price: item.price,
+            vendor: item.vendor,
+            category: item.category,
+          }}
+          vendor={item.vendor}
+          fallbackIcon="favorite"
+          badges={item.category ? [{ label: item.category, className: 'px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase' }] : []}
+          rightTop={formatDisplayPrice(item.price)}
+        />
       ))}
-      <div className="px-4 py-3">
-        <Link href="/favorites" className="text-xs font-bold text-blue-500 hover:underline">View favorites →</Link>
-      </div>
+      <WidgetFooterLink href="/favorites" label="View favorites →" />
     </div>
   );
 }
@@ -727,30 +995,31 @@ function CommunityInsightsWidget({ config }: { config: CommunityWidgetConfig }) 
   return (
     <div className="divide-y divide-slate-200 dark:divide-slate-800">
       {entries.map((item) => (
-        <div key={item.url} className="flex gap-3 items-center px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-          <div className="h-10 w-10 rounded overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
-            {item.image
-              ? <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-              : <span className="material-symbols-outlined text-slate-400 text-lg">trending_up</span>}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{item.name}</p>
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
-              {item.vendor && <span>{item.vendor}</span>}
-              {item.analyticsCategory && <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase">{communityLabel(item.analyticsCategory)}</span>}
-              {item.analyticsSubcategory && <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold uppercase">{communityLabel(item.analyticsSubcategory)}</span>}
-            </div>
-          </div>
-          <div className="shrink-0 text-right">
-            {item.price && <p className="text-sm font-bold text-blue-500">{item.price.startsWith('$') ? item.price : `$${item.price}`}</p>}
-            <p className="text-[10px] text-slate-500">{item.uniqueUsers} users</p>
-            <p className="text-[10px] text-slate-400">{config.metric === 'views' ? `${item.totalEvents} views` : `${item.totalEvents} saves`}</p>
-          </div>
-        </div>
+        <DashboardItemRow
+          key={item.url}
+          image={item.image}
+          title={item.name}
+          url={item.url}
+          item={{
+            name: item.name,
+            url: item.url,
+            image: item.image,
+            price: item.price,
+            vendor: item.vendor,
+            category: item.category,
+          }}
+          vendor={item.vendor}
+          fallbackIcon="trending_up"
+          badges={[
+            ...(item.analyticsCategory ? [{ label: communityLabel(item.analyticsCategory) ?? item.analyticsCategory, className: 'px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase' }] : []),
+            ...(item.analyticsSubcategory ? [{ label: communityLabel(item.analyticsSubcategory) ?? item.analyticsSubcategory, className: 'px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold uppercase' }] : []),
+          ]}
+          rightTop={formatDisplayPrice(item.price)}
+          rightBottom={`${item.uniqueUsers} users`}
+          rightBottomSecondary={config.metric === 'views' ? `${item.totalEvents} views` : `${item.totalEvents} saves`}
+        />
       ))}
-      <div className="px-4 py-3">
-        <Link href={config.linkHref} className="text-xs font-bold text-blue-500 hover:underline">{config.linkLabel}</Link>
-      </div>
+      <WidgetFooterLink href={config.linkHref} label={config.linkLabel} />
     </div>
   );
 }
@@ -760,60 +1029,47 @@ function FeedListWidget({ widgetId, linkHref, linkLabel }: { widgetId: string; l
   if (loading) return <SkeletonRows />;
   const top = items.slice(0, 3);
   if (top.length === 0) {
-    const sourceErrors = Object.values(sources)
-      .filter(s => s.error)
-      .map(s => s.error as string);
-    const uniqueErrors = [...new Set(sourceErrors.map(e =>
-      e.startsWith('Rate limit') ? 'Rate limit — scrape cooldown active' :
-      e.startsWith('Access denied') ? 'Source blocked (403)' :
-      e.startsWith('HTTP 4') ? e.slice(0, 30) :
-      e.slice(0, 60)
-    ))];
-    return (
-      <div className="px-4 py-6 text-center text-slate-400 text-sm">
-        {error
-          ? <p className="text-red-400 text-xs mb-1">{error}</p>
-          : uniqueErrors.length > 0
-            ? <>
-                <p className="mb-1">Sources unavailable:</p>
-                {uniqueErrors.slice(0, 2).map(e => (
-                  <p key={e} className="text-[10px] text-slate-500 mb-0.5">{e}</p>
-                ))}
-              </>
-            : <p>No data available yet.</p>
-        }
-        <div className="mt-2"><Link href={linkHref} className="text-xs font-bold text-blue-500 hover:underline">{linkLabel}</Link></div>
-      </div>
-    );
+    const sourceErrors = summarizeSourceErrors(sources, {
+      rateLimitLabel: 'Rate limit — scrape cooldown active',
+      blockedLabel: 'Source blocked (403)',
+    });
+    return <FeedWidgetEmptyState error={error} sourceErrors={sourceErrors} emptyLabel="No data available yet." linkHref={linkHref} linkLabel={linkLabel} />;
   }
   return (
     <div className="divide-y divide-slate-200 dark:divide-slate-800">
       {top.map((item, i) => {
-        const clean = (s?: string) => parseFloat((s ?? '').replace(/[^0-9.]/g, '')) || 0;
-        const currentPrice = clean(item.price);
+        const currentPrice = parseNumericPrice(item.price);
         const price = currentPrice > 0 ? `$${currentPrice.toFixed(0)}` : '—';
-        const comparePrice = clean(item.comparePrice);
+        const comparePrice = parseNumericPrice(item.comparePrice);
         const discount = comparePrice > currentPrice && comparePrice > 0
           ? Math.round((1 - currentPrice / comparePrice) * 100)
           : 0;
+        const itemKey = item.url ?? `${item._vendor ?? 'vendor'}:${item.name}:${i}`;
         return (
-          <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-            <div>
-              <p className="text-sm font-semibold line-clamp-1">{item.name}</p>
-              <p className="text-[10px] text-slate-500">{item._vendor}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {discount > 0 && (
-                <span className="bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 px-2 py-0.5 rounded-full text-[10px] font-bold">-{discount}%</span>
-              )}
-              <span className="text-sm font-bold text-blue-500">{price}</span>
-            </div>
-          </div>
+          <FeedProductRow
+            key={itemKey}
+            name={item.name}
+            url={item.url}
+            item={item.url ? {
+              name: item.name,
+              url: item.url,
+              image: item.image,
+              price,
+              vendor: item._vendor,
+              category: item._sourceCategory,
+            } : undefined}
+            vendor={item._vendor}
+            price={price}
+            badge={discount > 0
+              ? {
+                  label: `-${discount}%`,
+                  className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 px-2 py-0.5 rounded-full text-[10px] font-bold',
+                }
+              : undefined}
+          />
         );
       })}
-      <div className="px-4 py-3">
-        <Link href={linkHref} className="text-xs font-bold text-blue-500 hover:underline">{linkLabel}</Link>
-      </div>
+      <WidgetFooterLink href={linkHref} label={linkLabel} />
     </div>
   );
 }
@@ -823,26 +1079,17 @@ function KeyboardReleasesWidget() {
   if (loading) return <SkeletonRows />;
   const top = items.slice(0, 5);
   if (top.length === 0) {
-    const errs = [...new Set(Object.values(sources).filter(s => s.error).map(s =>
-      (s.error as string).startsWith('Rate limit') ? 'Scrape cooldown active' :
-      (s.error as string).startsWith('Access denied') ? 'Source blocked (403)' :
-      (s.error as string).slice(0, 50)
-    ))];
-    return (
-      <div className="px-4 py-6 text-center text-slate-400 text-sm">
-        {error ? <p className="text-red-400 text-xs mb-1">{error}</p>
-          : errs.length > 0
-            ? <><p className="mb-1">Sources unavailable:</p>{errs.slice(0,2).map(e => <p key={e} className="text-[10px] text-slate-500 mb-0.5">{e}</p>)}</>
-            : <p>No keyboard data yet.</p>}
-        <div className="mt-2"><Link href="/drops" className="text-xs font-bold text-blue-500 hover:underline">Browse all drops →</Link></div>
-      </div>
-    );
+    const sourceErrors = summarizeSourceErrors(sources, {
+      rateLimitLabel: 'Scrape cooldown active',
+      blockedLabel: 'Source blocked (403)',
+      maxLen: 50,
+    });
+    return <FeedWidgetEmptyState error={error} sourceErrors={sourceErrors} emptyLabel="No keyboard data yet." linkHref="/drops" linkLabel="Browse all drops →" />;
   }
   return (
     <div className="divide-y divide-slate-200 dark:divide-slate-800">
       {top.map((item, i) => {
-        const clean = (s?: string) => parseFloat((s ?? '').replace(/[^0-9.]/g, '')) || 0;
-        const currentPrice = clean(item.price);
+        const currentPrice = parseNumericPrice(item.price);
         const price = currentPrice > 0 ? `$${currentPrice.toFixed(0)}` : '—';
         const stockStatus =
           item.anyAvailable === 'false' ? 'out' :
@@ -850,67 +1097,58 @@ function KeyboardReleasesWidget() {
           item.lowStock === 'true'      ? 'low' :
           item.anyAvailable === 'true'  ? 'in' :
           undefined;
+
+        const stockBadge = stockStatus
+          ? {
+              label: stockStatus === 'out' ? 'Out of Stock' : stockStatus === 'partial' ? 'Limited Stock' : stockStatus === 'low' ? 'Low Stock' : 'In Stock',
+              className: `px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
+                stockStatus === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' :
+                stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
+                                             'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+              }`,
+            }
+          : undefined;
+
+        const itemKey = item.url ?? `${item._vendor ?? 'vendor'}:${item.name}:${i}`;
+
         return (
-          <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-            <div className="min-w-0 mr-2">
-              <p className="text-sm font-semibold line-clamp-1">{item.name}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <p className="text-[10px] text-slate-500">{item._vendor}</p>
-                {stockStatus && (
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                    stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
-                    stockStatus === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' :
-                    stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
-                                               'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
-                  }`}>
-                    {stockStatus === 'out' ? 'Out of Stock' : stockStatus === 'partial' ? 'Limited Stock' : stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
-                  </span>
-                )}
-              </div>
-            </div>
-            <span className="text-sm font-bold text-blue-500 shrink-0">{price}</span>
-          </div>
+          <FeedProductRow
+            key={itemKey}
+            name={item.name}
+            url={item.url}
+            item={item.url ? {
+              name: item.name,
+              url: item.url,
+              image: item.image,
+              price,
+              vendor: item._vendor,
+              category: item._sourceCategory,
+            } : undefined}
+            vendor={item._vendor}
+            price={price}
+            badge={stockBadge}
+          />
         );
       })}
-      <div className="px-4 py-3">
-        <Link href="/drops" className="text-xs font-bold text-blue-500 hover:underline">Browse all drops →</Link>
-      </div>
+      <WidgetFooterLink href="/drops" label="Browse all drops →" />
     </div>
   );
 }
 
 function KeyboardComparisonWidget() {
   const { loading, items, sources, error } = useFeedData('keyboard-releases');
-  if (loading) return (
-    <div className="p-4 animate-pulse space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        {[0, 1].map(i => (
-          <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-2">
-            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
-            {Array.from({ length: 3 }).map((_, j) => <div key={j} className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-full" />)}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  if (loading) return <KeyboardComparisonSkeleton />;
 
   const displayed = items.slice(0, 2);
 
   if (displayed.length === 0) {
-    const errs = [...new Set(Object.values(sources).filter(s => s.error).map(s =>
-      (s.error as string).startsWith('Rate limit') ? 'Scrape cooldown active' :
-      (s.error as string).startsWith('Access denied') ? 'Source blocked (403)' :
-      (s.error as string).slice(0, 50)
-    ))];
-    return (
-      <div className="px-4 py-6 text-center text-slate-400 text-sm">
-        {error ? <p className="text-red-400 text-xs mb-1">{error}</p>
-          : errs.length > 0
-            ? <><p className="mb-1">Sources unavailable:</p>{errs.slice(0,2).map(e => <p key={e} className="text-[10px] text-slate-500 mb-0.5">{e}</p>)}</>
-            : <p>No keyboard data yet.</p>}
-        <div className="mt-2"><Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link></div>
-      </div>
-    );
+    const sourceErrors = summarizeSourceErrors(sources, {
+      rateLimitLabel: 'Scrape cooldown active',
+      blockedLabel: 'Source blocked (403)',
+      maxLen: 50,
+    });
+    return <FeedWidgetEmptyState error={error} sourceErrors={sourceErrors} emptyLabel="No keyboard data yet." linkHref="/keyboard-comparison" linkLabel="Full comparison →" />;
   }
 
   const getSpecs = (item: ReturnType<typeof useFeedData>['items'][number]) => {
@@ -929,72 +1167,31 @@ function KeyboardComparisonWidget() {
     { label: 'PCB',         key: 'pcb' },
     { label: 'Wireless',    key: 'wireless' },
     { label: 'Price',       key: 'price' },
-  ] as const;
+  ];
 
   const cards = displayed.map(item => {
     const specs = getSpecs(item);
-    const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
+    const price = parseNumericPrice(item.price);
     return {
-      item,
+      key: item.url ?? item.name,
+      name: item.name,
+      vendor: item._vendor,
       values: {
         layout: specs.layout,
         mount: specs.mount,
         pcb: specs.pcb,
         wireless: specs.wireless ? 'Yes' : 'No',
         price: price > 0 ? `$${price.toFixed(0)}` : '—',
-      } as Record<string, string>,
+      },
     };
   });
 
-  return (
-    <div className="p-4">
-      {/* Headers */}
-      <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: `140px repeat(${cards.length}, 1fr)` }}>
-        <div />
-        {cards.map(({ item }) => (
-          <div key={item.name} className="min-w-0">
-            <p className="text-xs font-bold truncate">{item.name}</p>
-            <p className="text-[10px] text-slate-500 truncate">{item._vendor}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Spec rows */}
-      <div className="space-y-1">
-        {SPEC_ROWS.map(row => (
-          <div key={row.key} className="grid gap-3 py-1 border-t border-slate-100 dark:border-slate-800"
-            style={{ gridTemplateColumns: `140px repeat(${cards.length}, 1fr)` }}>
-            <span className="text-[10px] font-medium text-slate-500 flex items-center">{row.label}</span>
-            {cards.map(({ item, values }) => {
-              const val = values[row.key] ?? '—';
-              return (
-                <span key={item.name} className="text-[11px] font-semibold flex items-center text-slate-700 dark:text-slate-300">{val}</span>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-        <Link href="/keyboard-comparison" className="text-xs font-bold text-blue-500 hover:underline">Full comparison →</Link>
-      </div>
-    </div>
-  );
+  return <KeyboardComparisonTable cards={cards} rows={SPEC_ROWS} />;
 }
 
 function InventoryStatsWidget() {
   const { projects, loading } = useProjects();
-  if (loading) return (
-    <div className="grid grid-cols-2 gap-3 p-4 animate-pulse">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
-          <div className="h-8 w-8 rounded-lg bg-slate-200 dark:bg-slate-700 mb-2" />
-          <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-1" />
-          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
-        </div>
-      ))}
-    </div>
-  );
+  if (loading) return <InventoryStatsSkeleton />;
   const activeCount = projects.filter(p => p.status === 'In Progress').length;
   const forSaleCount = projects.filter(p => p.forSale).length;
   const totalSpent = projects.reduce((sum, p) => sum + (p.spent || 0), 0);
@@ -1003,7 +1200,7 @@ function InventoryStatsWidget() {
     const s = p.spent || 0;
     return sum + Math.max(0, b - s);
   }, 0);
-  const stats = [
+  const stats: InventoryStat[] = [
     { icon: 'rocket_launch', bg: 'bg-blue-500/10 text-blue-500', label: 'Active Projects', value: String(activeCount), badge: 'In Progress', badgeCls: 'text-blue-500' },
     { icon: 'sell', bg: 'bg-emerald-500/10 text-emerald-500', label: 'For Sale', value: String(forSaleCount), badge: 'Listed', badgeCls: 'text-emerald-500' },
     { icon: 'payments', bg: 'bg-purple-500/10 text-purple-500', label: 'Total Spent', value: `$${totalSpent.toLocaleString()}`, badge: 'All Projects', badgeCls: 'text-slate-500' },
@@ -1011,18 +1208,7 @@ function InventoryStatsWidget() {
   ];
   return (
     <div className="grid grid-cols-2 gap-3 p-4">
-      {stats.map(c => (
-        <div key={c.label} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
-          <div className="flex justify-between items-start mb-2">
-            <div className={`p-1.5 rounded-lg ${c.bg}`}>
-              <span className="material-symbols-outlined text-[18px]">{c.icon}</span>
-            </div>
-            <span className={`text-[10px] font-bold ${c.badgeCls}`}>{c.badge}</span>
-          </div>
-          <p className="text-[10px] font-medium text-slate-500">{c.label}</p>
-          <h3 className="text-xl font-bold mt-0.5">{c.value}</h3>
-        </div>
-      ))}
+      {stats.map(stat => <InventoryStatCard key={stat.label} stat={stat} />)}
     </div>
   );
 }

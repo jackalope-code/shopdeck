@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
 import { useCommunityInsights } from '../lib/ShopdataContext';
+import HistoryAwareLink from './HistoryAwareLink';
 
 type InsightMetric = 'views' | 'favorites';
 
@@ -169,11 +170,17 @@ export default function CommunityInsights() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {entries.map((item, index) => (
-              <a
+              <HistoryAwareLink
                 key={item.url}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={item.url || '#'}
+                item={{
+                  url: item.url,
+                  name: item.name,
+                  image: item.image,
+                  price: item.price,
+                  vendor: item.vendor,
+                  category: item.category,
+                }}
                 className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-blue-500/40 hover:shadow-md transition-all"
               >
                 <div className="h-40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden relative">
@@ -200,7 +207,7 @@ export default function CommunityInsights() {
                   </div>
                   <p className="text-[10px] text-slate-400 mt-1">Updated {relativeTime(item.lastSeenAt)}</p>
                 </div>
-              </a>
+              </HistoryAwareLink>
             ))}
           </div>
         )}
