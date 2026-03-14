@@ -114,6 +114,11 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function structuredFetchOptions(mode = 'scheduled') {
+  if (mode === 'test') return undefined;
+  return { applyCooldown: false, recordCooldown: false };
+}
+
 // ─── Core fetch with all guards applied ───────────────────────────────────────
 
 /**
@@ -122,10 +127,12 @@ function sleep(ms) {
  * @param {'scheduled'|'test'} mode
  * @param {'text'|'json'} responseType
  */
-async function guardedFetch(url, mode = 'scheduled', responseType = 'text') {
+async function guardedFetch(url, mode = 'scheduled', responseType = 'text', options = {}) {
   const hostname = getHostname(url);
+  const applyCooldown = options.applyCooldown ?? true;
+  const recordCooldown = options.recordCooldown ?? applyCooldown;
 
-  if (isOnCooldown(hostname, mode)) {
+  if (applyCooldown && isOnCooldown(hostname, mode)) {
     throw new Error(
       `Rate limit: ${hostname} is on cooldown — ${cooldownRemaining(hostname, mode)}s remaining`
     );
@@ -133,7 +140,7 @@ async function guardedFetch(url, mode = 'scheduled', responseType = 'text') {
 
   await acquireSlot(hostname);
   try {
-    recordScrape(hostname);
+    if (recordCooldown) recordScrape(hostname);
     const response = await axios.get(url, {
       timeout: REQUEST_TIMEOUT_MS,
       responseType,
@@ -208,7 +215,7 @@ async function scrapeHtml(rule, mode = 'scheduled') {
 
 /** Scrape a JSON endpoint with a JSONPath expression (jsonpath-plus). */
 async function scrapeJson({ url, selector, fieldName }, mode = 'scheduled') {
-  const data = await guardedFetch(url, mode, 'json');
+  const data = await guardedFetch(url, mode, 'json', structuredFetchOptions(mode));
   const values = JSONPath({ path: selector, json: data });
   return values.map(v => ({ [fieldName]: v }));
 }
@@ -222,7 +229,7 @@ async function scrapeJson({ url, selector, fieldName }, mode = 'scheduled') {
  *   baseUrl       — optional prefix to build a product URL from a handle/slug
  */
 async function scrapeJsonMulti({ url, containerPath, fields, baseUrl }, mode = 'scheduled') {
-  const data = await guardedFetch(url, mode, 'json');
+  const data = await guardedFetch(url, mode, 'json', structuredFetchOptions(mode));
   const containers = JSONPath({ path: containerPath, json: data });
   const results = [];
   for (const container of containers) {
@@ -466,7 +473,7 @@ async function scrapeAmazonApi({ keywords, searchIndex = 'Electronics' }, _mode,
 }
 
 /**
- * Newegg search JSON API — public, no key required, but respects per-host cooldown.
+ * Newegg search JSON API — public, no key required.
  * Optional context.apiKeys.neweggApiKey reserved for future affiliate API use.
  */
 async function scrapeNeweggJson({ keywords, categoryId }, mode = 'scheduled') {
@@ -474,7 +481,7 @@ async function scrapeNeweggJson({ keywords, categoryId }, mode = 'scheduled') {
   const params = new URLSearchParams({ keyword: keywords, pageSize: '20', pageIndex: '1' });
   if (categoryId) params.set('N', categoryId);
   const url = `https://www.newegg.com/p/pl?${params.toString()}&ajax=1`;
-  const data = await guardedFetch(url, mode, 'json').catch(() => null);
+  const data = await guardedFetch(url, mode, 'json', structuredFetchOptions(mode)).catch(() => null);
   if (!data) return [];
   const products = data?.Filters?.ProductList ?? data?.ProductList ?? [];
   return products.slice(0, 20).map(p => ({

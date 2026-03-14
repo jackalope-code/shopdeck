@@ -25,7 +25,30 @@ A keyboard/electronics deal tracker and project manager built with Next.js, Expr
 * npm run dev from project root
 
 # Known issues
-* Sales data tracking broken
+* Some sales sources are still unreliable (vendor-side 404s, missing API keys, or strict anti-scrape cooldown on HTML-only endpoints)
+
+## Current status (March 2026)
+
+Completed recently:
+- Variant stock inference is implemented for Shopify JSON feeds, including OOS/in-stock text-signal fallback.
+- Per-variant payload data (`_variants`) is emitted by the scraper and consumed by the frontend feed types.
+- Keyboard comparison now treats `partialStock` as limited availability (not fully in stock).
+- Variant breakdown UI is live in both keycaps cards and keyboard comparison specs.
+- Keycaps tracker data flow is restored (live `keycap-releases` endpoint returning source data).
+- Aggregated deals categorization now derives from product metadata first, so electronics items can classify as `Components` / `Audio` instead of always collapsing to `Electronics`.
+
+## Useful next steps
+
+1. Stabilize non-Mouser deal diversity:
+	- Fix broken Adafruit category source URLs returning 404.
+	- Decide whether HTML sources (like Adafruit sales) should keep long cooldown or use a shorter policy for sale pages.
+2. Improve electronics sale coverage:
+	- Configure Digikey API keys in `backend/.env` (if desired for deal aggregation breadth).
+3. Keep validation repeatable:
+	- After backend restarts, verify:
+	  - `GET /api/feed-config/data/keycap-releases`
+	  - `GET /api/feed-config/data-aggregated/deals`
+	- Confirm category mix and source error summaries before shipping.
 
 # Planned features
 * Feed viewing/editing

@@ -178,15 +178,24 @@ function isKnownSaleSource(src) {
   );
 }
 
-function inferDealCategory(widgetId, item = {}) {
-  if (widgetId.startsWith('electronics-')) return 'Electronics';
-  if (widgetId.startsWith('keyboard-') || widgetId === 'active-deals') return 'Keyboards';
-  const type = String(item.productType ?? '').toLowerCase();
-  if (/headphone|speaker|audio|mic/.test(type)) return 'Audio';
-  if (/switch|pcb|plate|controller|module|sensor|ic|resistor|capacitor|inductor/.test(type)) return 'Components';
-  if (/keyboard|keycap/.test(type)) return 'Keyboards';
-  if (/electronics|board|mcu|microcontroller/.test(type)) return 'Electronics';
+function inferCategoryFromItem(item = {}) {
+  const text = [item.productType, item.itemType, item.tags, item.name]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (!text) return null;
+  if (/headphone|speaker|audio|mic(?:rophone)?|dac|amp(?:lifier)?|earbuds?|iem\b|headset/.test(text)) return 'Audio';
+  if (/switch|pcb|plate|controller|module|sensor|ic\b|resistor|capacitor|inductor|connector|encoder|display|wireless|power|microcontroller|mcu\b|development board|breakout/.test(text)) return 'Components';
+  if (/keyboard|keycap|barebones|pre.?built|mechanical/.test(text)) return 'Keyboards';
+  if (/electronics|board|kit\b|maker|embedded/.test(text)) return 'Electronics';
   return null;
+}
+
+function inferDealCategory(widgetId, item = {}) {
+  const inferred = inferCategoryFromItem(item);
+  if (widgetId.startsWith('keyboard-') || widgetId === 'active-deals') return inferred ?? 'Keyboards';
+  if (widgetId.startsWith('electronics-')) return inferred ?? 'Electronics';
+  return inferred;
 }
 
 function inferDealSubcategory(widgetId) {
@@ -264,12 +273,20 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
   };
 }
 
-// Max 60 data-fetch requests per user per minute.
-// With 8 widgets firing on page load (plus navigation and HMR reloads),
-// a limit lower than ~30 causes spurious 429s during normal use.
-const dataLimiter = rateLimit({
+// Widget data endpoint limiter.
+const widgetDataLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 180,
+  keyGenerator: (req) => String(req.user.id),
+  message: { error: 'Too many feed requests — slow down' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Aggregated deals endpoint limiter — separate bucket so widget bursts do not starve deals page.
+const aggregatedDealsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
   keyGenerator: (req) => String(req.user.id),
   message: { error: 'Too many feed requests — slow down' },
   standardHeaders: true,
@@ -346,7 +363,7 @@ router.post('/test', verifyToken, demoGuard, testLimiter, async (req, res) => {
 });
 
 // GET /api/feed-config/data-aggregated/deals  — merge sales-like feeds across categories/subcategories
-router.get('/data-aggregated/deals', verifyToken, dataLimiter, async (req, res) => {
+router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async (req, res) => {
   try {
     const widgetsFromQuery = String(req.query.widgets ?? '')
       .split(',')
@@ -452,7 +469,7 @@ router.get('/data-aggregated/deals', verifyToken, dataLimiter, async (req, res) 
 });
 
 // GET /api/feed-config/data/:widgetId  — scrape enabled built-in + custom sources for a widget
-router.get('/data/:widgetId', verifyToken, dataLimiter, async (req, res) => {
+router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) => {
   const { widgetId } = req.params;
   const cacheKey = `feed:${CACHE_VERSION}:widget:${req.user.id}:${widgetId}`;
   const localKey  = `${req.user.id}:${widgetId}`;

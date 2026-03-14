@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getToken } from './auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -133,8 +133,9 @@ interface CommunityInsightState {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const EMPTY_WIDGET: WidgetFeedState = { loading: true, sources: {}, error: null, fetchedAt: null };
+const EMPTY_WIDGET: WidgetFeedState = { loading: false, sources: {}, error: null, fetchedAt: null };
 const FAVORITES_STORAGE_KEY = 'sd:favorites';
+const WIDGET_FETCH_COOLDOWN_MS = 1500;
 
 export const FEED_WIDGET_IDS = [
   'drops',
@@ -167,6 +168,7 @@ export const FEED_WIDGET_IDS = [
 // ─── Context ──────────────────────────────────────────────────────────────────
 interface ShopdataContextValue {
   getWidget: (widgetId: string) => WidgetFeedState;
+  ensureLoaded: (widgetId: string) => void;
   refresh: (widgetId: string) => void;
   refreshAll: () => void;
   communityInsights: Record<string, CommunityInsightState>;
@@ -189,6 +191,7 @@ interface ShopdataContextValue {
 
 const ShopdataContext = createContext<ShopdataContextValue>({
   getWidget: () => EMPTY_WIDGET,
+  ensureLoaded: () => {},
   refresh: () => {},
   refreshAll: () => {},
   communityInsights: {},
@@ -223,6 +226,8 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
   const [viewHistoryLoading, setViewHistoryLoading] = useState(true);
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
+  const inFlightWidgetRequests = useRef<Map<string, Promise<void>>>(new Map());
+  const widgetLastFetchAt = useRef<Record<string, number>>({});
 
   useEffect(() => {
     try {
@@ -245,7 +250,52 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
     [metric, category || 'all', subcategory || 'all', String(limit)].join(':')
   ), []);
 
-  const fetchWidget = useCallback(async (widgetId: string) => {
+  const normalizeActiveDealsWidgetSources = useCallback((json: { items?: Array<Record<string, unknown>>; sources?: Array<Record<string, unknown>> }) => {
+    const itemsBySource = new Map<string, FeedItem[]>();
+
+    for (const rawItem of json.items ?? []) {
+      const sourceId = String(rawItem.sourceId ?? 'aggregated:deals');
+      const entry: FeedItem = {
+        name: String(rawItem.name ?? ''),
+        image: rawItem.image ? String(rawItem.image) : undefined,
+        price: rawItem.price != null ? String(rawItem.price) : undefined,
+        comparePrice: rawItem.comparePrice != null ? String(rawItem.comparePrice) : undefined,
+        url: rawItem.url ? String(rawItem.url) : undefined,
+        productType: rawItem.productType ? String(rawItem.productType) : undefined,
+        itemType: rawItem.keyboardSubkind ? String(rawItem.keyboardSubkind) : undefined,
+        _vendor: rawItem.vendor ? String(rawItem.vendor) : undefined,
+        _sourceCategory: rawItem.category ? String(rawItem.category) : undefined,
+      };
+      const group = itemsBySource.get(sourceId) ?? [];
+      group.push(entry);
+      itemsBySource.set(sourceId, group);
+    }
+
+    const normalizedSources: Record<string, SourceResult> = {};
+    for (const source of json.sources ?? []) {
+      const sourceId = String(source.sourceId ?? source.name ?? `aggregated:${Object.keys(normalizedSources).length}`);
+      normalizedSources[sourceId] = {
+        name: String(source.name ?? sourceId),
+        category: null,
+        data: itemsBySource.get(sourceId) ?? [],
+        error: source.error ? String(source.error) : null,
+      };
+    }
+
+    if (Object.keys(normalizedSources).length === 0 && itemsBySource.size > 0) {
+      normalizedSources['aggregated:deals'] = {
+        name: 'Active Deals',
+        category: null,
+        data: Array.from(itemsBySource.values()).flat(),
+        error: null,
+      };
+    }
+
+    return normalizedSources;
+  }, []);
+
+  const fetchWidget = useCallback(async (widgetId: string, options?: { force?: boolean }) => {
+    const force = options?.force === true;
     const token = getToken();
     if (!token) {
       setWidgets(prev => ({
@@ -254,35 +304,65 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
       }));
       return;
     }
+
+    const now = Date.now();
+    if (!force) {
+      const inFlight = inFlightWidgetRequests.current.get(widgetId);
+      if (inFlight) {
+        await inFlight;
+        return;
+      }
+      const last = widgetLastFetchAt.current[widgetId] ?? 0;
+      if (now - last < WIDGET_FETCH_COOLDOWN_MS) return;
+    }
+
     setWidgets(prev => ({
       ...prev,
       [widgetId]: { ...(prev[widgetId] ?? EMPTY_WIDGET), loading: true },
     }));
+    const request = (async () => {
+      try {
+        const endpoint = widgetId === 'active-deals'
+          ? '/api/feed-config/data-aggregated/deals'
+          : `/api/feed-config/data/${widgetId}`;
+        const res = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        widgetLastFetchAt.current[widgetId] = Date.now();
+        const nextSources: Record<string, SourceResult> = widgetId === 'active-deals'
+          ? normalizeActiveDealsWidgetSources(json)
+          : (json.sources ?? {});
+        const hasData = Object.values(nextSources).some(src => (src.data ?? []).length > 0);
+        setWidgets(prev => ({
+          ...prev,
+          [widgetId]: {
+            loading: false,
+            sources: nextSources,
+            error: null,
+            fetchedAt: hasData ? (json.at ?? new Date().toISOString()) : null,
+          },
+        }));
+      } catch (err: unknown) {
+        widgetLastFetchAt.current[widgetId] = Date.now();
+        setWidgets(prev => ({
+          ...prev,
+          [widgetId]: {
+            loading: false,
+            sources: {},
+            error: err instanceof Error ? err.message : String(err),
+            fetchedAt: null,
+          },
+        }));
+      }
+    })();
+
+    inFlightWidgetRequests.current.set(widgetId, request);
     try {
-      const res = await fetch(`/api/feed-config/data/${widgetId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setWidgets(prev => ({
-        ...prev,
-        [widgetId]: {
-          loading: false,
-          sources: json.sources ?? {},
-          error: null,
-          fetchedAt: json.at ?? null,
-        },
-      }));
-    } catch (err: unknown) {
-      setWidgets(prev => ({
-        ...prev,
-        [widgetId]: {
-          loading: false,
-          sources: {},
-          error: err instanceof Error ? err.message : String(err),
-          fetchedAt: null,
-        },
-      }));
+      await request;
+    } finally {
+      inFlightWidgetRequests.current.delete(widgetId);
     }
   }, []);
 
@@ -526,11 +606,15 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
     fetchActivity();
     fetchViewHistory();
     fetchFavorites();
-    // Stagger widget fetches so the backend source-level cache can warm up
-    FEED_WIDGET_IDS.forEach((id, i) => {
-      setTimeout(() => fetchWidget(id), i * 250);
-    });
-  }, [fetchWidget, fetchProjects, fetchActivity, fetchViewHistory, fetchFavorites]);
+  }, [fetchProjects, fetchActivity, fetchViewHistory, fetchFavorites]);
+
+  const refreshWidget = useCallback((widgetId: string) => {
+    fetchWidget(widgetId, { force: true });
+  }, [fetchWidget]);
+
+  const ensureWidgetLoaded = useCallback((widgetId: string) => {
+    fetchWidget(widgetId);
+  }, [fetchWidget]);
 
   useEffect(() => {
     fetchAll();
@@ -548,7 +632,8 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
     <ShopdataContext.Provider
       value={{
         getWidget,
-        refresh: fetchWidget,
+        ensureLoaded: ensureWidgetLoaded,
+        refresh: refreshWidget,
         refreshAll: fetchAll,
         communityInsights,
         refreshCommunityInsights,
@@ -577,6 +662,16 @@ export function ShopdataProvider({ children }: { children: React.ReactNode }) {
 export function useFeedData(widgetId: string) {
   const ctx = useContext(ShopdataContext);
   const widget = ctx.getWidget(widgetId);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    if (widget.loading) return;
+    if (widget.fetchedAt) return;
+    const hasData = Object.values(widget.sources).some(src => (src.data ?? []).length > 0);
+    if (hasData) return;
+    ctx.ensureLoaded(widgetId);
+  }, [ctx, widgetId, widget.loading, widget.fetchedAt, widget.sources]);
+
   const items: FeedItem[] = Object.entries(widget.sources).flatMap(([, src]) =>
     (src.data ?? []).map(item => ({ ...item, _vendor: src.name, _sourceCategory: src.category ?? undefined }))
   );
