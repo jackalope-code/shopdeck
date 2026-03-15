@@ -13,6 +13,19 @@ A keyboard/electronics deal tracker and project manager built with Next.js, Expr
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7
 
+## Feed cache policy
+
+All non-API feed sources are always served from cache. The cache is periodically refreshed in the background — no user request ever waits for a scrape unless the cache is cold for the first time.
+
+| Source type | Hard TTL | SWR refresh threshold |
+|---|---|---|
+| `rss`, `user-rss` | 6 h | 6 h |
+| All other non-API (`css`, `jsonpath`, etc.) | 24 h | 6 h |
+
+**How it works:** When a cached entry is older than 6 h, the request is served immediately from the stale cache while a background refresh fires concurrently (stale-while-revalidate). The 6 h background warmer (`warmAllSources`) runs on a cron schedule and proactively re-warms sources before requests trigger cold misses.
+
+**API sources** (`amazon-api`, `newegg-search-api`, `digikey-api`, `mouser-api`, and any type ending in `-api`) are **never cached** and always fetched live. Mouser caching is also contractually prohibited (ToS §4).
+
 ## Branch protection (`main`)
 
 Enable branch protection on `main` so merges require the test pipeline to pass:

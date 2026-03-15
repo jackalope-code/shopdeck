@@ -40,7 +40,24 @@ All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through
 
 - Do **not** add query-parameter flags (e.g. `?refresh=1`, `?bust=true`) or any other mechanism that lets callers bypass or invalidate the cache from outside the server.
 - Cache TTL and invalidation are server-side concerns only. If stale data is a problem, fix the scraper or adjust the TTL — never expose a cache-bust escape hatch through the API.
+
+### Feed cache policy (non-API sources)
+
+All non-API feed sources (css, jsonpath, jsonpath-multi, rss, user-rss, manual-list, webhook-buffer) **must always be served from cache**. Never re-scrape them on every request.
+
+| Source type | Hard TTL | SWR refresh threshold |
+|---|---|---|
+| `rss`, `user-rss` | 6 h | 6 h (i.e. always refreshed when cache expires) |
+| All other non-API | 24 h | 6 h |
+
+**Stale-while-revalidate (SWR):** When a cached entry is older than 6 h, the current request is served immediately from the stale cache. A background refresh is triggered concurrently via `triggerBackgroundRefresh()` — the next request then receives fresh data. Only one background refresh per source runs at a time (coalesced via `inFlightScrapes`).
+
+**Widget response cache:** Widget-level assembled responses are cached for 24 h (no API sources) or bypassed entirely (any API source present). When the assembled response is older than 6 h it is served stale and the cache entry is invalidated so the next request re-assembles from the (already SWR-refreshed) source caches.
+
+**Warmer (`warmAllSources`):** Runs every 6 h via cron. Skips sources whose cache is still within TTL. RSS sources are re-warmed every run (6 h TTL). Non-API scraper sources are only re-warmed after their 24 h TTL expires. API-type sources are always skipped.
+
 - **Mouser API — caching is contractually prohibited.** The Mouser API Terms of Service (Section 4) explicitly forbid caching, pre-fetching, or storing any Mouser data. The `mouser-api` rule type MUST bypass the Redis source cache and the in-process `localSourceCache` entirely. Every call to `runSource` for a Mouser rule must make a live API request. Do not add Mouser source IDs to the background warmer (`warmAllSources`).
+- All other API-type sources (`amazon-api`, `newegg-search-api`, `digikey-api`, and any rule type ending in `-api`) are also never cached and never pre-warmed.
 
 ## General Coding Conventions
 

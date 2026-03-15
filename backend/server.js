@@ -78,7 +78,10 @@ cron.schedule('0 2 * * *', () => {
   scraper.updateCache().catch(console.error);
 });
 
-// Pre-warm built-in source caches every 6 hours — aligns with FEED_DATA_CACHE_TTL_S
+// Pre-warm built-in source caches every 6 hours.
+// RSS/user-rss sources have a 6h TTL so they're refreshed on every run.
+// Non-API scraper sources have a 24h TTL — they're skipped when still warm
+// and only re-scraped once their cache has expired or been SWR-invalidated.
 cron.schedule('0 */6 * * *', () => {
   console.log('[cache] warm scheduled run starting...');
   warmAllSources().catch(console.error);

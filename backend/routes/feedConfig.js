@@ -148,9 +148,16 @@ function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
   });
 }
 
-// Redis TTL for scrape cache — matches scheduled cooldown in scraper.js
-const FEED_DATA_CACHE_TTL_S  = 6 * 60 * 60;  // 6 hours (seconds for Redis EX)
+// Redis TTL and stale-while-revalidate thresholds for the scrape cache.
+// Non-API (css/jsonpath/etc.) sources cache for 24h; RSS/user-rss for 6h.
+// When cached data is older than FEED_SWR_THRESHOLD_S, the current request is
+// served immediately from the stale cache while a background refresh is kicked off.
+const FEED_DATA_CACHE_TTL_S  = 24 * 60 * 60; // 24h hard expiry for non-API sources
 const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
+const FEED_RSS_CACHE_TTL_S   = 6 * 60 * 60;  // 6h for RSS / user-rss sources
+const FEED_RSS_CACHE_TTL_MS  = FEED_RSS_CACHE_TTL_S * 1000;
+const FEED_SWR_THRESHOLD_S   = 6 * 60 * 60;  // trigger async refresh when age > 6h
+const FEED_SWR_THRESHOLD_MS  = FEED_SWR_THRESHOLD_S * 1000;
 const AGGREGATED_SCRAPE_CONCURRENCY = 8;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
@@ -462,18 +469,54 @@ async function rGetJson(key) {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-async function getOrFetchSourceData({ sourceCacheKey, sourceLocalKey, rule, apiKeys, userId }) {
-  const cached = await rGetJson(sourceCacheKey) ?? (() => {
-    const m = localSourceCache.get(sourceLocalKey);
-    return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
-  })();
-  if (cached?.data) return cached.data;
+// Trigger a background (fire-and-forget) source refresh for stale-while-revalidate.
+// Uses the same inFlightScrapes map for coalescing — subsequent callers still see
+// the stale cached value and don't block on the in-flight refresh.
+function triggerBackgroundRefresh({ sourceCacheKey, sourceLocalKey, rule, apiKeys, userId, ttlS }) {
+  if (inFlightScrapes.has(sourceCacheKey)) return; // already refreshing
+  console.log(`[cache] SWR  trigger ${sourceCacheKey}`);
+  const refreshPromise = (async () => {
+    const data = await scraper.runSource(rule, 'scheduled', { apiKeys: apiKeys || {}, userId });
+    const entry = { at: new Date().toISOString(), data };
+    await rSet(sourceCacheKey, entry, ttlS);
+    localSourceCache.set(sourceLocalKey, { at: Date.now(), data });
+    console.log(`[cache] SWR  complete ${sourceCacheKey}`);
+    return data;
+  })().finally(() => inFlightScrapes.delete(sourceCacheKey));
+  inFlightScrapes.set(sourceCacheKey, refreshPromise);
+  // intentionally not awaited — fire and forget
+}
 
+async function getOrFetchSourceData({ sourceCacheKey, sourceLocalKey, rule, apiKeys, userId }) {
+  const isRss = /^rss$|^user-rss$/.test(String(rule?.ruleType || ''));
+  const ttlS  = isRss ? FEED_RSS_CACHE_TTL_S : FEED_DATA_CACHE_TTL_S;
+  const ttlMs = ttlS * 1000;
+
+  // --- Redis cache check ---
+  const cached = await rGetJson(sourceCacheKey);
+  if (cached?.data) {
+    const age = Date.now() - new Date(cached.at).getTime();
+    if (age > FEED_SWR_THRESHOLD_MS) {
+      triggerBackgroundRefresh({ sourceCacheKey, sourceLocalKey, rule, apiKeys, userId, ttlS });
+    }
+    return cached.data;
+  }
+
+  // --- Local in-process cache check (Redis unavailable) ---
+  const localEntry = localSourceCache.get(sourceLocalKey);
+  if (localEntry && (Date.now() - localEntry.at) < ttlMs) {
+    if ((Date.now() - localEntry.at) > FEED_SWR_THRESHOLD_MS) {
+      triggerBackgroundRefresh({ sourceCacheKey, sourceLocalKey, rule, apiKeys, userId, ttlS });
+    }
+    return localEntry.data;
+  }
+
+  // --- Cache miss: fetch fresh, coalesce concurrent callers ---
   if (!inFlightScrapes.has(sourceCacheKey)) {
     const scrapePromise = (async () => {
-      const data = await scraper.runSource(rule, 'scheduled', { apiKeys, userId });
+      const data = await scraper.runSource(rule, 'scheduled', { apiKeys: apiKeys || {}, userId });
       const entry = { at: new Date().toISOString(), data };
-      await rSet(sourceCacheKey, entry, FEED_DATA_CACHE_TTL_S);
+      await rSet(sourceCacheKey, entry, ttlS);
       localSourceCache.set(sourceLocalKey, { at: Date.now(), data });
       return data;
     })().finally(() => inFlightScrapes.delete(sourceCacheKey));
@@ -577,13 +620,27 @@ router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async 
     if (!hasLiveApiSource) {
       const cachedRaw = await rGetJson(cacheKey);
       if (cachedRaw) {
+        const age = Date.now() - new Date(cachedRaw.at).getTime();
+        if (age > FEED_SWR_THRESHOLD_MS) {
+          setImmediate(() => {
+            redis.del(cacheKey).catch(() => {});
+            localFeedCache.delete(localKey);
+            console.log(`[cache] SWR  aggregated deals invalidated ${cacheKey}`);
+          });
+        }
         console.log(`[cache] HIT  redis  ${cacheKey}`);
         return res.json({ ...cachedRaw, cached: true });
       }
       const localCached = localFeedCache.get(localKey);
       if (localCached && (Date.now() - localCached.at) < FEED_DATA_CACHE_TTL_MS) {
-        console.log(`[cache] HIT  local  ${localKey}`);
-        return res.json({ ...localCached.payload, cached: true });
+        const age = Date.now() - localCached.at;
+        if (age > FEED_SWR_THRESHOLD_MS) {
+          localFeedCache.delete(localKey);
+          console.log(`[cache] SWR  aggregated deals invalidated (local) ${localKey}`);
+        } else {
+          console.log(`[cache] HIT  local  ${localKey}`);
+          return res.json({ ...localCached.payload, cached: true });
+        }
       }
       console.log(`[cache] MISS ${cacheKey}`);
     } else {
@@ -716,14 +773,29 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
     // Serve Redis-cached result if still fresh
     const cachedRaw = await rGetJson(cacheKey);
     if (cachedRaw) {
+      const age = Date.now() - new Date(cachedRaw.at).getTime();
+      if (age > FEED_SWR_THRESHOLD_MS) {
+        // Serve stale immediately; invalidate so the next request re-assembles fresh
+        setImmediate(() => {
+          redis.del(cacheKey).catch(() => {});
+          localFeedCache.delete(widgetLocalCacheKey);
+          console.log(`[cache] SWR  widget invalidated ${cacheKey}`);
+        });
+      }
       console.log(`[cache] HIT  redis  ${cacheKey}`);
       return res.json({ sources: cachedRaw.results, at: cachedRaw.at, cached: true });
     }
     // Fallback: in-process Map (Redis unavailable)
     const localCached = localFeedCache.get(widgetLocalCacheKey);
     if (localCached && (Date.now() - localCached.at) < FEED_DATA_CACHE_TTL_MS) {
-      console.log(`[cache] HIT  local  ${widgetLocalCacheKey}`);
-      return res.json({ sources: localCached.results, at: new Date(localCached.at).toISOString(), cached: true });
+      const age = Date.now() - localCached.at;
+      if (age > FEED_SWR_THRESHOLD_MS) {
+        localFeedCache.delete(widgetLocalCacheKey);
+        console.log(`[cache] SWR  widget invalidated (local) ${widgetLocalCacheKey}`);
+      } else {
+        console.log(`[cache] HIT  local  ${widgetLocalCacheKey}`);
+        return res.json({ sources: localCached.results, at: new Date(localCached.at).toISOString(), cached: true });
+      }
     }
   } else {
     console.log(`[cache] BYPASS widget ${cacheKey} — API source enabled`);
@@ -740,23 +812,33 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
 
   const results = {};
 
-  // Run enabled built-in + user-rss sources — coalesce concurrent cache misses for the same
-  // source so only one HTTP request is made regardless of how many users miss simultaneously.
+  // Run enabled built-in + user-rss sources — non-API sources go through getOrFetchSourceData
+  // which handles caching, SWR background refresh, and in-flight coalescing.
   for (const src of sources.filter(s => s.enabled)) {
-    let rule, srcKey, resultKey, localKey;
 
     if (src.ruleType === 'user-rss') {
       // Validate SSRF early — surface error immediately so the widget can show it
+      const k = `user-rss:${src.url}`;
       try { scraper.validateUserRssUrl(src.url); } catch (e) {
-        const k = `user-rss:${src.url}`;
         results[k] = { name: src.label ?? src.url, data: [], error: e.message };
         continue;
       }
-      rule      = { ruleType: 'user-rss', url: src.url, label: src.label };
+      const userRssRule = { ruleType: 'user-rss', url: src.url, label: src.label };
       const urlHash = crypto.createHash('sha256').update(src.url).digest('hex').slice(0, 16);
-      srcKey    = `feed:${CACHE_VERSION}:source:user-rss:${urlHash}`;
-      resultKey = `user-rss:${src.url}`;
-      localKey  = srcKey;  // use the hash-based key for the in-process map too
+      const userRssCacheKey = `feed:${CACHE_VERSION}:source:user-rss:${urlHash}`;
+      try {
+        const data = await getOrFetchSourceData({
+          sourceCacheKey: userRssCacheKey,
+          sourceLocalKey: userRssCacheKey,
+          rule: userRssRule,
+          apiKeys,
+          userId: req.user.id,
+        });
+        results[k] = { name: src.label ?? src.url, category: null, data: filterItemsForWidget(widgetId, data, null), error: null };
+      } catch (err) {
+        results[k] = { name: src.label ?? src.url, data: [], error: err.message };
+      }
+      continue;
 
     } else if (src.ruleType === 'digikey-api') {
       // No caching — always live request
@@ -773,7 +855,7 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
       } catch (err) {
         results[dkKey] = { name: dkName, category: null, data: [], error: err.message };
       }
-      continue; // skip all caching logic below
+      continue;
 
     } else if (src.ruleType === 'manual-list') {
       // Items live in Postgres — read live, skip source cache entirely
@@ -786,7 +868,7 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
       } catch (err) {
         results[mlKey] = { name: mlName, category: null, data: [], error: err.message };
       }
-      continue; // skip source-level cache logic
+      continue;
 
     } else if (src.ruleType === 'webhook-buffer') {
       // Ring buffer already lives in Redis — read live, skip source cache entirely
@@ -799,7 +881,7 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
       } catch (err) {
         results[wbKey] = { name: wbName, category: null, data: [], error: err.message };
       }
-      continue; // skip source-level cache logic
+      continue;
 
     } else if (src.ruleType === 'mouser-api') {
       // Mouser ToS §4: no caching — always make a live request, never read or write cache
@@ -821,63 +903,36 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
       } catch (err) {
         results[mouserKey] = { name: mouserName, category: null, data: [], error: err.message };
       }
-      continue; // skip all caching logic below
+      continue;
 
     } else {
-      rule = scraper.BUILTIN_SOURCE_RULES[src.id];
-      if (!rule) continue;
+      const builtinRule = scraper.BUILTIN_SOURCE_RULES[src.id];
+      if (!builtinRule) continue;
+      const builtinName = src.name ?? src.label ?? src.id;
 
-      if (isApiRuleType(rule.ruleType)) {
-        const apiName = src.name ?? src.label ?? src.id;
-        const apiKey = `${rule.ruleType}:${src.id}`;
+      if (isApiRuleType(builtinRule.ruleType)) {
+        const apiKey = `${builtinRule.ruleType}:${src.id}`;
         try {
-          const data = await scraper.runSource(rule, 'scheduled', { apiKeys });
-          results[apiKey] = { name: apiName, category: rule.category ?? null, data: filterItemsForWidget(widgetId, data, rule.category ?? null), error: null };
+          const data = await scraper.runSource(builtinRule, 'scheduled', { apiKeys });
+          results[apiKey] = { name: builtinName, category: builtinRule.category ?? null, data: filterItemsForWidget(widgetId, data, builtinRule.category ?? null), error: null };
         } catch (err) {
-          results[apiKey] = { name: apiName, category: rule.category ?? null, data: [], error: err.message };
+          results[apiKey] = { name: builtinName, category: builtinRule.category ?? null, data: [], error: err.message };
         }
         continue;
       }
 
-      srcKey    = `feed:${CACHE_VERSION}:source:${src.id}`;
-      resultKey = src.id;
-      localKey  = src.id;
-    }
-
-    const srcName = src.name ?? src.label ?? resultKey;
-
-    // Check source-level cache first
-    const cachedSrc = await rGetJson(srcKey) ?? (() => {
-      const m = localSourceCache.get(localKey);
-      return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
-    })();
-    if (cachedSrc) {
-      const filteredCachedData = filterItemsForWidget(widgetId, cachedSrc.data, rule.category ?? null);
-      results[resultKey] = { name: srcName, category: rule.category ?? null, data: filteredCachedData, error: null };
-      continue;
-    }
-
-    // Coalesce: if a scrape is already in-flight for this source, await it
-    if (!inFlightScrapes.has(srcKey)) {
-      const scrapePromise = (async () => {
-        const data = await scraper.runSource(rule, 'scheduled', { apiKeys });
-        const entry = { at: new Date().toISOString(), data };
-        await rSet(srcKey, entry, FEED_DATA_CACHE_TTL_S);
-        localSourceCache.set(localKey, { at: Date.now(), data });
-        console.log(`[cache] SET  source ${srcKey}`);
-        return { data, entry };
-      })().finally(() => inFlightScrapes.delete(srcKey));
-      inFlightScrapes.set(srcKey, scrapePromise);
-    } else {
-      console.log(`[cache] COALESCE source ${srcKey}`);
-    }
-
-    try {
-      const { data } = await inFlightScrapes.get(srcKey);
-      const filteredData = filterItemsForWidget(widgetId, data, rule.category ?? null);
-      results[resultKey] = { name: srcName, category: rule.category ?? null, data: filteredData, error: null };
-    } catch (err) {
-      results[resultKey] = { name: srcName, category: rule.category ?? null, data: [], error: err.message };
+      try {
+        const data = await getOrFetchSourceData({
+          sourceCacheKey: `feed:${CACHE_VERSION}:source:${src.id}`,
+          sourceLocalKey: src.id,
+          rule: builtinRule,
+          apiKeys,
+          userId: req.user.id,
+        });
+        results[src.id] = { name: builtinName, category: builtinRule.category ?? null, data: filterItemsForWidget(widgetId, data, builtinRule.category ?? null), error: null };
+      } catch (err) {
+        results[src.id] = { name: builtinName, category: builtinRule.category ?? null, data: [], error: err.message };
+      }
     }
   }
 
@@ -920,19 +975,24 @@ async function warmAllSources() {
   let warmed = 0;
   const hostsScrapedThisRun = new Set();
   for (const sourceId of sourceIds) {
-    const srcKey = `feed:${CACHE_VERSION}:source:${sourceId}`;
-    const cached = await rGetJson(srcKey) ?? (() => {
-      const m = localSourceCache.get(sourceId);
-      return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
-    })();
-    if (cached) continue; // already warm
-
-    // Skip sources sharing a hostname already hit this run — scraper enforces per-host cooldown
     const rule = scraper.BUILTIN_SOURCE_RULES[sourceId];
     if (isApiRuleType(rule?.ruleType)) {
       console.log(`[cache] warm SKIP source ${sourceId} — API source (live-only)`);
       continue;
     }
+
+    const isRss = /^rss$|^user-rss$/.test(String(rule?.ruleType || ''));
+    const srcTtlMs = isRss ? FEED_RSS_CACHE_TTL_MS : FEED_DATA_CACHE_TTL_MS;
+    const srcTtlS  = isRss ? FEED_RSS_CACHE_TTL_S  : FEED_DATA_CACHE_TTL_S;
+
+    const srcKey = `feed:${CACHE_VERSION}:source:${sourceId}`;
+    const cached = await rGetJson(srcKey) ?? (() => {
+      const m = localSourceCache.get(sourceId);
+      return m && (Date.now() - m.at) < srcTtlMs ? m : null;
+    })();
+    if (cached) continue; // already warm
+
+    // Skip sources sharing a hostname already hit this run — scraper enforces per-host cooldown
     let hostname;
     try { hostname = new URL(rule.url).hostname; } catch { hostname = null; }
     if (hostname && hostsScrapedThisRun.has(hostname)) {
@@ -944,7 +1004,7 @@ async function warmAllSources() {
       const scrapePromise = (async () => {
         const data = await scraper.runSource(rule, 'scheduled', {});
         const entry = { at: new Date().toISOString(), data };
-        await rSet(srcKey, entry, FEED_DATA_CACHE_TTL_S);
+        await rSet(srcKey, entry, srcTtlS);
         localSourceCache.set(sourceId, { at: Date.now(), data });
         console.log(`[cache] warm SET  source ${srcKey}`);
         return { data, entry };
