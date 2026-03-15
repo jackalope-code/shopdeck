@@ -151,10 +151,90 @@ function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
 // Redis TTL for scrape cache — matches scheduled cooldown in scraper.js
 const FEED_DATA_CACHE_TTL_S  = 6 * 60 * 60;  // 6 hours (seconds for Redis EX)
 const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
+const AGGREGATED_SCRAPE_CONCURRENCY = 8;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
 // Old versioned keys are never written again and expire naturally via their TTL.
 const CACHE_VERSION = 'v9';
+
+const API_RULE_TYPES = new Set(['amazon-api', 'newegg-search-api', 'digikey-api', 'mouser-api']);
+
+function isApiRuleType(ruleType = '') {
+  const normalized = String(ruleType || '').toLowerCase();
+  return normalized.endsWith('-api') || API_RULE_TYPES.has(normalized);
+}
+
+function resolveSourceRuleType(src = {}) {
+  if (src.ruleType) return String(src.ruleType).toLowerCase();
+  const rule = src.id ? scraper.BUILTIN_SOURCE_RULES[src.id] : null;
+  return String(rule?.ruleType || '').toLowerCase();
+}
+
+function sourceUsesLiveApi(src = {}) {
+  return isApiRuleType(resolveSourceRuleType(src));
+}
+
+function hashCacheScope(value) {
+  return crypto.createHash('sha1').update(JSON.stringify(value)).digest('hex').slice(0, 16);
+}
+
+function sourceCacheDescriptor(src = {}) {
+  return {
+    id: src.id ?? null,
+    ruleType: src.ruleType ?? null,
+    url: src.url ?? null,
+    keywords: src.keywords ?? null,
+    limit: src.limit ?? null,
+    listId: src.listId ?? null,
+    webhookId: src.webhookId ?? null,
+    imageSize: src.imageSize ?? null,
+  };
+}
+
+function widgetCacheScope(widgetId, sources = [], custom = []) {
+  const enabledSources = sources
+    .filter(src => src && src.enabled)
+    .map(sourceCacheDescriptor);
+  const customRules = custom.map(rule => ({
+    name: rule?.name ?? null,
+    ruleType: rule?.ruleType ?? null,
+    url: rule?.url ?? null,
+    selector: rule?.selector ?? null,
+    fieldName: rule?.fieldName ?? null,
+    containerSelector: rule?.containerSelector ?? null,
+    fields: rule?.fields ?? null,
+    containerPath: rule?.containerPath ?? null,
+  }));
+  return { widgetId, enabledSources, customRules };
+}
+
+function aggregatedDealsCacheScope(widgetEntries = []) {
+  return {
+    widgets: widgetEntries.map(entry => ({
+      widgetId: entry.widgetId,
+      enabledSources: entry.enabledSources.map(sourceCacheDescriptor),
+    })),
+  };
+}
+
+async function mapWithConcurrency(items, worker, concurrency = 8) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  const limit = Math.max(1, Math.min(concurrency, items.length));
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index], index);
+    }
+  }
+
+  await Promise.all(Array.from({ length: limit }, () => runWorker()));
+  return results;
+}
 
 // Fallback in-process Maps (used if Redis is unavailable)
 const localFeedCache   = new Map();
@@ -260,7 +340,15 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
   try {
     if (src.ruleType === 'user-rss') {
       scraper.validateUserRssUrl(src.url);
-      data = await scraper.runSource({ ruleType: 'user-rss', url: src.url, label: src.label }, 'scheduled', { apiKeys });
+      const rule = { ruleType: 'user-rss', url: src.url, label: src.label };
+      const urlHash = crypto.createHash('sha256').update(src.url).digest('hex').slice(0, 16);
+      data = await getOrFetchSourceData({
+        sourceCacheKey: `feed:${CACHE_VERSION}:source:user-rss:${urlHash}`,
+        sourceLocalKey: `feed:${CACHE_VERSION}:source:user-rss:${urlHash}`,
+        rule,
+        apiKeys,
+        userId,
+      });
     } else if (src.ruleType === 'digikey-api') {
       if (!apiKeys.digikey_client_id || !apiKeys.digikey_client_secret) {
         throw new Error('Digikey API keys not configured (digikey_client_id, digikey_client_secret)');
@@ -302,7 +390,17 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
       resolvedRule = rule;
       sourceCategory = rule.category ?? null;
       sourceName = src.name ?? src.label ?? src.id;
-      data = await scraper.runSource(rule, 'scheduled', { apiKeys });
+      if (isApiRuleType(rule.ruleType)) {
+        data = await scraper.runSource(rule, 'scheduled', { apiKeys });
+      } else {
+        data = await getOrFetchSourceData({
+          sourceCacheKey: `feed:${CACHE_VERSION}:source:${src.id}`,
+          sourceLocalKey: src.id,
+          rule,
+          apiKeys,
+          userId,
+        });
+      }
     }
   } catch (err) {
     error = err.message;
@@ -362,6 +460,27 @@ async function rGetJson(key) {
   const raw = await rGet(key);
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }
+}
+
+async function getOrFetchSourceData({ sourceCacheKey, sourceLocalKey, rule, apiKeys, userId }) {
+  const cached = await rGetJson(sourceCacheKey) ?? (() => {
+    const m = localSourceCache.get(sourceLocalKey);
+    return m && (Date.now() - m.at) < FEED_DATA_CACHE_TTL_MS ? m : null;
+  })();
+  if (cached?.data) return cached.data;
+
+  if (!inFlightScrapes.has(sourceCacheKey)) {
+    const scrapePromise = (async () => {
+      const data = await scraper.runSource(rule, 'scheduled', { apiKeys, userId });
+      const entry = { at: new Date().toISOString(), data };
+      await rSet(sourceCacheKey, entry, FEED_DATA_CACHE_TTL_S);
+      localSourceCache.set(sourceLocalKey, { at: Date.now(), data });
+      return data;
+    })().finally(() => inFlightScrapes.delete(sourceCacheKey));
+    inFlightScrapes.set(sourceCacheKey, scrapePromise);
+  }
+
+  return await inFlightScrapes.get(sourceCacheKey);
 }
 
 // GET /api/feed-config  — returns merged (defaults + user overrides)
@@ -444,87 +563,130 @@ router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async 
       digikey_client_secret: decryptedApiKeys.digikey_client_secret ?? process.env.DIGIKEY_CLIENT_SECRET ?? undefined,
     };
 
+    const widgetEntries = targetWidgetIds.map(widgetId => {
+      const widgetCfg = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? defaults[widgetId] ?? {}, defaults);
+      const enabledSources = (widgetCfg.sources ?? []).filter(src => src.enabled);
+      return { widgetId, enabledSources };
+    });
+
+    const hasLiveApiSource = widgetEntries.some(entry => entry.enabledSources.some(sourceUsesLiveApi));
+    const aggregatedScopeHash = hashCacheScope(aggregatedDealsCacheScope(widgetEntries));
+    const cacheKey = `feed:${CACHE_VERSION}:aggregated:deals:${aggregatedScopeHash}`;
+    const localKey = `aggregated:deals:${aggregatedScopeHash}`;
+
+    if (!hasLiveApiSource) {
+      const cachedRaw = await rGetJson(cacheKey);
+      if (cachedRaw) {
+        console.log(`[cache] HIT  redis  ${cacheKey}`);
+        return res.json({ ...cachedRaw, cached: true });
+      }
+      const localCached = localFeedCache.get(localKey);
+      if (localCached && (Date.now() - localCached.at) < FEED_DATA_CACHE_TTL_MS) {
+        console.log(`[cache] HIT  local  ${localKey}`);
+        return res.json({ ...localCached.payload, cached: true });
+      }
+      console.log(`[cache] MISS ${cacheKey}`);
+    } else {
+      console.log(`[cache] BYPASS aggregated deals ${cacheKey} — API source enabled`);
+    }
+
     const sourceSummaries = [];
     const deals = [];
     const seen = new Set();
 
-    for (const widgetId of targetWidgetIds) {
-      const widgetCfg = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? defaults[widgetId] ?? {}, defaults);
-      const enabledSources = (widgetCfg.sources ?? []).filter(src => src.enabled);
-
-      for (const src of enabledSources) {
-        const scraped = await scrapeSourceForWidget({ src, widgetId, apiKeys, userId: req.user.id });
-        if (!scraped) continue;
-
-        const skipCounts = { outOfStock: 0, unknownStock: 0, noPrice: 0, belowThreshold: 0, noDiscount: 0 };
-        let accepted = 0;
-
-        for (const item of scraped.data) {
-          // 1. Stock gate — hide out-of-stock items
-          const stockStatus = inferStockStatus(item);
-          if (stockStatus === 'out-of-stock') { skipCounts.outOfStock++; continue; }
-          if (stockStatus === 'unknown') { skipCounts.unknownStock++; continue; }
-
-          const price = parseMoney(item.price);
-          const comparePrice = parseMoney(item.comparePrice);
-
-          // 2. Price gate — must have a real sale price
-          if (price <= 0) { skipCounts.noPrice++; continue; }
-
-          // 3. Sale gate
-          if (comparePrice > 0) {
-            // Explicit compare price present — require at least 2% discount
-            const discount = (comparePrice - price) / comparePrice;
-            if (discount < 0.02) { skipCounts.belowThreshold++; continue; }
-          } else if (!isKnownSaleSource(src)) {
-            // No compare price and not a trusted sale page — skip
-            skipCounts.noDiscount++; continue;
-          }
-
-          const dedupeKey = String(item.url || `${item._vendor || scraped.sourceName}:${item.name}:${price}`).toLowerCase();
-          if (seen.has(dedupeKey)) continue;
-          seen.add(dedupeKey);
-          accepted++;
-
-          const dealCategory = inferDealCategory(widgetId, item, { sourceSite: scraped.sourceSite });
-          if (widgetId.startsWith('electronics-') && dealCategory !== 'Electronics') continue;
-          deals.push({
-            id: crypto.createHash('sha1').update(dedupeKey).digest('hex').slice(0, 16),
-            name: item.name,
-            url: item.url ?? undefined,
-            image: item.image ?? undefined,
-            vendor: item._vendor ?? scraped.sourceName,
-            productType: item.productType ?? null,
-            price,
-            comparePrice: comparePrice > 0 ? comparePrice : null,
-            category: dealCategory,
-            subcategory: inferDealSubcategory(widgetId),
-            keyboardSubkind: dealCategory === 'Keyboards' ? inferKeyboardSubkind(item) : undefined,
-            stockStatus,
-            sourceWidgetId: widgetId,
-            sourceId: scraped.sourceId,
-            sourceName: scraped.sourceName,
-          });
-        }
-
-        sourceSummaries.push({
-          widgetId,
-          sourceId: scraped.sourceId,
-          name: scraped.sourceName,
-          count: scraped.data.length,
-          accepted,
-          skipped: skipCounts,
-          error: scraped.error,
-        });
-      }
+    const sourceJobs = [];
+    for (const entry of widgetEntries) {
+      const { widgetId, enabledSources } = entry;
+      for (const src of enabledSources) sourceJobs.push({ widgetId, src });
     }
 
-    res.json({
+    const scrapedResults = await mapWithConcurrency(
+      sourceJobs,
+      ({ widgetId, src }) => scrapeSourceForWidget({ src, widgetId, apiKeys, userId: req.user.id }),
+      AGGREGATED_SCRAPE_CONCURRENCY
+    );
+
+    for (let index = 0; index < sourceJobs.length; index++) {
+      const { widgetId, src } = sourceJobs[index];
+      const scraped = scrapedResults[index];
+      if (!scraped) continue;
+
+      const skipCounts = { outOfStock: 0, unknownStock: 0, noPrice: 0, belowThreshold: 0, noDiscount: 0 };
+      let accepted = 0;
+
+      for (const item of scraped.data) {
+        // 1. Stock gate — hide out-of-stock items
+        const stockStatus = inferStockStatus(item);
+        if (stockStatus === 'out-of-stock') { skipCounts.outOfStock++; continue; }
+        if (stockStatus === 'unknown') { skipCounts.unknownStock++; continue; }
+
+        const price = parseMoney(item.price);
+        const comparePrice = parseMoney(item.comparePrice);
+
+        // 2. Price gate — must have a real sale price
+        if (price <= 0) { skipCounts.noPrice++; continue; }
+
+        // 3. Sale gate
+        if (comparePrice > 0) {
+          // Explicit compare price present — require at least 2% discount
+          const discount = (comparePrice - price) / comparePrice;
+          if (discount < 0.02) { skipCounts.belowThreshold++; continue; }
+        } else if (!isKnownSaleSource(src)) {
+          // No compare price and not a trusted sale page — skip
+          skipCounts.noDiscount++; continue;
+        }
+
+        const dedupeKey = String(item.url || `${item._vendor || scraped.sourceName}:${item.name}:${price}`).toLowerCase();
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        accepted++;
+
+        const dealCategory = inferDealCategory(widgetId, item, { sourceSite: scraped.sourceSite });
+        if (widgetId.startsWith('electronics-') && dealCategory !== 'Electronics') continue;
+        deals.push({
+          id: crypto.createHash('sha1').update(dedupeKey).digest('hex').slice(0, 16),
+          name: item.name,
+          url: item.url ?? undefined,
+          image: item.image ?? undefined,
+          vendor: item._vendor ?? scraped.sourceName,
+          productType: item.productType ?? null,
+          price,
+          comparePrice: comparePrice > 0 ? comparePrice : null,
+          category: dealCategory,
+          subcategory: inferDealSubcategory(widgetId),
+          keyboardSubkind: dealCategory === 'Keyboards' ? inferKeyboardSubkind(item) : undefined,
+          stockStatus,
+          sourceWidgetId: widgetId,
+          sourceId: scraped.sourceId,
+          sourceName: scraped.sourceName,
+        });
+      }
+
+      sourceSummaries.push({
+        widgetId,
+        sourceId: scraped.sourceId,
+        name: scraped.sourceName,
+        count: scraped.data.length,
+        accepted,
+        skipped: skipCounts,
+        error: scraped.error,
+      });
+    }
+
+    const payload = {
       at: new Date().toISOString(),
       widgetIds: targetWidgetIds,
       items: deals,
       sources: sourceSummaries,
-    });
+    };
+
+    if (!hasLiveApiSource) {
+      await rSet(cacheKey, payload, FEED_DATA_CACHE_TTL_S);
+      localFeedCache.set(localKey, { at: Date.now(), payload });
+      console.log(`[cache] SET  aggregated ${cacheKey}`);
+    }
+
+    res.json({ ...payload, cached: false });
   } catch (err) {
     console.error('GET /feed-config/data-aggregated/deals error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -534,8 +696,6 @@ router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async 
 // GET /api/feed-config/data/:widgetId  — scrape enabled built-in + custom sources for a widget
 router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) => {
   const { widgetId } = req.params;
-  const cacheKey = `feed:${CACHE_VERSION}:widget:${req.user.id}:${widgetId}`;
-  const localKey  = `${req.user.id}:${widgetId}`;
 
   // Load user config first so we can honor live-fetch rules (e.g. Mouser no-cache)
   const [profileResult] = await Promise.all([
@@ -547,9 +707,12 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
   const widgetCfg = normalizeWidgetConfig(widgetId, userCfg[widgetId] ?? defaults[widgetId] ?? {}, defaults);
   const sources  = widgetCfg.sources ?? [];
   const custom   = widgetCfg.custom  ?? [];
-  const hasLiveMouserSource = sources.some(src => src.enabled && src.ruleType === 'mouser-api');
+  const hasLiveApiSource = sources.some(src => src.enabled && sourceUsesLiveApi(src));
+  const widgetScopeHash = hashCacheScope(widgetCacheScope(widgetId, sources, custom));
+  const cacheKey = `feed:${CACHE_VERSION}:widget:${widgetId}:${widgetScopeHash}`;
+  const widgetLocalCacheKey = `widget:${widgetId}:${widgetScopeHash}`;
 
-  if (!hasLiveMouserSource) {
+  if (!hasLiveApiSource) {
     // Serve Redis-cached result if still fresh
     const cachedRaw = await rGetJson(cacheKey);
     if (cachedRaw) {
@@ -557,13 +720,13 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
       return res.json({ sources: cachedRaw.results, at: cachedRaw.at, cached: true });
     }
     // Fallback: in-process Map (Redis unavailable)
-    const localCached = localFeedCache.get(localKey);
+    const localCached = localFeedCache.get(widgetLocalCacheKey);
     if (localCached && (Date.now() - localCached.at) < FEED_DATA_CACHE_TTL_MS) {
-      console.log(`[cache] HIT  local  ${localKey}`);
+      console.log(`[cache] HIT  local  ${widgetLocalCacheKey}`);
       return res.json({ sources: localCached.results, at: new Date(localCached.at).toISOString(), cached: true });
     }
   } else {
-    console.log(`[cache] BYPASS widget ${cacheKey} — mouser-api source enabled`);
+    console.log(`[cache] BYPASS widget ${cacheKey} — API source enabled`);
   }
 
   console.log(`[cache] MISS ${cacheKey}`);
@@ -663,6 +826,19 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
     } else {
       rule = scraper.BUILTIN_SOURCE_RULES[src.id];
       if (!rule) continue;
+
+      if (isApiRuleType(rule.ruleType)) {
+        const apiName = src.name ?? src.label ?? src.id;
+        const apiKey = `${rule.ruleType}:${src.id}`;
+        try {
+          const data = await scraper.runSource(rule, 'scheduled', { apiKeys });
+          results[apiKey] = { name: apiName, category: rule.category ?? null, data: filterItemsForWidget(widgetId, data, rule.category ?? null), error: null };
+        } catch (err) {
+          results[apiKey] = { name: apiName, category: rule.category ?? null, data: [], error: err.message };
+        }
+        continue;
+      }
+
       srcKey    = `feed:${CACHE_VERSION}:source:${src.id}`;
       resultKey = src.id;
       localKey  = src.id;
@@ -720,16 +896,12 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
   }
 
   const at = new Date().toISOString();
-  // Only cache if at least one source returned items — don't lock in 6 hrs of empty error results
-  const anyData = Object.values(results).some(r => r.data && r.data.length > 0);
-  if (anyData && !hasLiveMouserSource) {
+  if (!hasLiveApiSource) {
     await rSet(cacheKey, { at, results }, FEED_DATA_CACHE_TTL_S);
-    localFeedCache.set(localKey, { at: Date.now(), results });
+    localFeedCache.set(widgetLocalCacheKey, { at: Date.now(), results });
     console.log(`[cache] SET  widget ${cacheKey}`);
-  } else if (anyData && hasLiveMouserSource) {
-    console.log(`[cache] SKIP widget ${cacheKey} — mouser-api source enabled`);
   } else {
-    console.log(`[cache] SKIP widget ${cacheKey} — all sources empty/errored, will retry next request`);
+    console.log(`[cache] SKIP widget ${cacheKey} — API source enabled`);
   }
   res.json({ sources: results, at, cached: false });
 });
@@ -757,6 +929,10 @@ async function warmAllSources() {
 
     // Skip sources sharing a hostname already hit this run — scraper enforces per-host cooldown
     const rule = scraper.BUILTIN_SOURCE_RULES[sourceId];
+    if (isApiRuleType(rule?.ruleType)) {
+      console.log(`[cache] warm SKIP source ${sourceId} — API source (live-only)`);
+      continue;
+    }
     let hostname;
     try { hostname = new URL(rule.url).hostname; } catch { hostname = null; }
     if (hostname && hostsScrapedThisRun.has(hostname)) {
