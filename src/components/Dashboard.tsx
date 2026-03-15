@@ -16,8 +16,16 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+<<<<<<< Updated upstream
 import { getUser, getToken, clearToken, apiGet, apiPatch, apiPost, setUser, AuthUser } from '../lib/auth';
 import { useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
+=======
+import { getUser, getToken, clearToken, apiGet, apiPatch, apiPost, isDemoAccount } from '../lib/auth';
+import { FinanceRecentTransactionsWidget, FinanceBudgetWidget, FinanceSpendByCategoryWidget, FinanceAccountBalanceWidget } from './FinanceWidgets';
+import { useFeatures } from '../lib/features';
+import { useCommunityInsights, useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
+import { getFeedStockStatus } from '../lib/stockStatus';
+>>>>>>> Stashed changes
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
 export interface WidgetDef {
@@ -827,6 +835,7 @@ export default function Dashboard() {
   }
   const [now, setNow] = useState<Date | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+<<<<<<< Updated upstream
   const [accountVerified, setAccountVerified] = useState<boolean>(true);
   const [verifyCode, setVerifyCode] = useState('');
   const [verifyMessage, setVerifyMessage] = useState('');
@@ -834,6 +843,35 @@ export default function Dashboard() {
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendCooldownUntil, setResendCooldownUntil] = useState(0);
+=======
+
+  // Email-verification banner
+  const _localUser = getUser();
+  const [emailBannerDismissed, setEmailBannerDismissed] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('sd-email-banner-dismissed') === 'true'
+  );
+  const [resendMsg, setResendMsg] = useState('');
+  const showEmailBanner =
+    !emailBannerDismissed &&
+    !!_localUser &&
+    _localUser.email_verified === false &&
+    !isDemoAccount();
+
+  async function handleResendVerification() {
+    setResendMsg('');
+    try {
+      await apiPost('/api/auth/resend-verification', {});
+      setResendMsg('Verification email sent! Check your inbox.');
+    } catch (err: unknown) {
+      setResendMsg(err instanceof Error ? err.message : 'Failed to send email.');
+    }
+  }
+
+  function dismissEmailBanner() {
+    localStorage.setItem('sd-email-banner-dismissed', 'true');
+    setEmailBannerDismissed(true);
+  }
+>>>>>>> Stashed changes
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -1123,6 +1161,7 @@ export default function Dashboard() {
         </div>
       </header>
 
+<<<<<<< Updated upstream
       {accountVerified === false && (
         <div className="mx-4 mt-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/10 p-4">
           <div className="flex items-start gap-3">
@@ -1168,6 +1207,30 @@ export default function Dashboard() {
               {verifyMessage && <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">{verifyMessage}</p>}
               {verifyError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{verifyError}</p>}
             </div>
+=======
+      {/* ── Email verification banner ── */}
+      {showEmailBanner && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[18px] text-amber-500 shrink-0">mark_email_unread</span>
+            <span className="truncate">Please verify your email address to keep your account secure.</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleResendVerification}
+              className="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors"
+            >
+              Resend
+            </button>
+            {resendMsg && <span className="text-[11px] text-amber-700 dark:text-amber-300 max-w-40 truncate">{resendMsg}</span>}
+            <button
+              onClick={dismissEmailBanner}
+              className="p-1 rounded hover:bg-amber-200/50 dark:hover:bg-amber-800/40 transition-colors"
+              title="Dismiss"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+>>>>>>> Stashed changes
           </div>
         </div>
       )}

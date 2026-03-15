@@ -3,7 +3,16 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Sidebar, TopHeader } from './ProjectsOverview';
+<<<<<<< Updated upstream
 import { apiGet, apiPatch, getToken, API_BASE } from '../lib/auth';
+=======
+import { apiGet, apiPatch, apiPost, apiDelete, getToken, getUser, setToken, setUser, isDemoAccount, API_BASE } from '../lib/auth';
+import { usePlaidLink } from 'react-plaid-link';
+import { useFeatures } from '../lib/features';
+import { GoogleLogin } from '@react-oauth/google';
+
+const STORAGE_KEY_ONBOARDED = 'sd-onboarded';
+>>>>>>> Stashed changes
 import GitHubConnect from './GitHubConnect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -694,7 +703,617 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
   );
 }
 
+<<<<<<< Updated upstream
 // ─── Tab 5: API Keys ─────────────────────────────────────────────────────────
+=======
+// ─── Tab 5: Accounts (CSV budget & finance) ────────────────────────────────────────
+// (re-uses apiPost, apiGet which are already imported)
+function AccountsTab() {
+  const features = useFeatures();
+  const isDemo   = isDemoAccount();
+  const currentUser = getUser();
+
+  // ─── GitHub OAuth state ──────────────────────────────────────────────────
+  const [ghStatus, setGhStatus]   = React.useState<{ connected: boolean; githubUsername: string | null } | null>(null);
+  const [ghPhase, setGhPhase]     = React.useState<'idle' | 'code' | 'polling'>('idle');
+  const [ghCode, setGhCode]       = React.useState<{ user_code: string; verification_uri: string; device_code: string; interval: number } | null>(null);
+  const [ghMsg, setGhMsg]         = React.useState('');
+
+  const loadGhStatus = React.useCallback(() => {
+    if (!features.github_oauth || !getToken()) return;
+    apiGet<{ connected: boolean; githubUsername: string | null }>('/api/auth/github/status')
+      .then(setGhStatus).catch(() => {});
+  }, [features.github_oauth]);
+
+  useEffect(() => { loadGhStatus(); }, [loadGhStatus]);
+
+  async function startGhConnect() {
+    setGhMsg('');
+    setGhPhase('code');
+    try {
+      const data = await apiPost<{ user_code: string; verification_uri: string; device_code: string; interval: number }>(
+        '/api/auth/github/device/start', {}
+      );
+      setGhCode(data);
+      setGhPhase('polling');
+      pollGhConnect(data.device_code, data.interval ?? 5);
+    } catch (err: unknown) {
+      setGhMsg(err instanceof Error ? err.message : 'Failed to start GitHub link');
+      setGhPhase('idle');
+    }
+  }
+
+  async function pollGhConnect(device_code: string, interval: number) {
+    const max = Math.ceil(300 / interval);
+    for (let i = 0; i < max; i++) {
+      await new Promise(r => setTimeout(r, interval * 1000));
+      try {
+        const data = await apiPost<{ status: string; githubUsername?: string }>(
+          '/api/auth/github/device/poll', { device_code }
+        );
+        if (data.status === 'pending' || data.status === 'slow_down') continue;
+        if (data.status === 'success') {
+          setGhPhase('idle'); setGhCode(null); setGhMsg('');
+          loadGhStatus();
+          return;
+        }
+        setGhMsg(data.status === 'expired' ? 'Code expired. Try again.' : (data.status ?? 'Error'));
+        setGhPhase('idle'); return;
+      } catch { /* keep polling */ }
+    }
+    setGhMsg('Timed out. Please try again.');
+    setGhPhase('idle');
+  }
+
+  async function handleGhDisconnect() {
+    if (!window.confirm('Disconnect your GitHub account?')) return;
+    try {
+      await apiDelete('/api/auth/github/token');
+      loadGhStatus();
+    } catch { setGhMsg('Failed to disconnect'); }
+  }
+
+  // ─── Google OAuth state ──────────────────────────────────────────────────
+  const [googleLinked, setGoogleLinked]   = React.useState<boolean | null>(null);
+  const [googleMsg, setGoogleMsg]         = React.useState('');
+
+  React.useEffect(() => {
+    if (!features.google_oauth || !getToken() || isDemo) return;
+    apiGet<{ google_id: string | null }>('/api/auth/me').then(u => {
+      setGoogleLinked(!!(u as unknown as { google_id?: string | null }).google_id);
+    }).catch(() => {});
+  }, [features.google_oauth, isDemo]);
+
+  async function handleGoogleLink(credentialResponse: { credential?: string }) {
+    if (!credentialResponse.credential) return;
+    setGoogleMsg('');
+    try {
+      await apiPost('/api/auth/google/link', { credential: credentialResponse.credential });
+      setGoogleLinked(true);
+      setGoogleMsg('Google account linked.');
+    } catch (err: unknown) {
+      setGoogleMsg(err instanceof Error ? err.message : 'Failed to link Google account');
+    }
+  }
+
+  async function handleGoogleUnlink() {
+    if (!window.confirm('Unlink your Google account?')) return;
+    setGoogleMsg('');
+    try {
+      await apiDelete('/api/auth/google/link');
+      setGoogleLinked(false);
+      setGoogleMsg('Google account unlinked.');
+    } catch (err: unknown) {
+      setGoogleMsg(err instanceof Error ? err.message : 'Failed to unlink Google account');
+    }
+  }
+
+  // ─── Set Password state (for OAuth-only accounts) ─────────────────────────
+  const [newPassword, setNewPassword]   = React.useState('');
+  const [confirmPassword, setConfirmPw] = React.useState('');
+  const [pwSaving, setPwSaving]         = React.useState(false);
+  const [pwMsg, setPwMsg]               = React.useState<{ ok: boolean; text: string } | null>(null);
+  const hasPassword = currentUser?.has_password !== false;
+
+  // ─── Plaid state ──────────────────────────────────────────────────────────
+  type PlaidAccountRow = {
+    item_id: string;
+    institution_name: string;
+    last_synced_at: string | null;
+    account_id: string;
+    name: string;
+    type: string;
+    subtype: string;
+    mask: string | null;
+    available: number | null;
+    current: number | null;
+    iso_currency_code: string | null;
+  };
+
+  const [accounts, setAccounts]         = React.useState<PlaidAccountRow[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = React.useState(false);
+  const [linkToken, setLinkToken]       = React.useState<string | null>(null);
+  const [linkingItem, setLinkingItem]   = React.useState<string | null>(null);
+  const [syncing, setSyncing]           = React.useState<string | null>(null);
+  const [syncMsg, setSyncMsg]           = React.useState('');
+  const [plaidError, setPlaidError]     = React.useState('');
+
+  const loadAccounts = React.useCallback(() => {
+    if (!features.plaid || isDemo) return;
+    apiGet<PlaidAccountRow[]>('/api/plaid/accounts')
+      .then(rows => { setAccounts(rows); setAccountsLoaded(true); })
+      .catch(() => setAccountsLoaded(true));
+  }, [features.plaid, isDemo]);
+
+  useEffect(() => { loadAccounts(); }, [loadAccounts]);
+
+  const { open: openPlaidLink, ready: plaidReady } = usePlaidLink({
+    token: linkToken ?? '',
+    onSuccess: async (publicToken) => {
+      try {
+        await apiPost('/api/plaid/exchange', { public_token: publicToken });
+        setLinkToken(null);
+        loadAccounts();
+      } catch {
+        setPlaidError('Failed to link account.');
+      }
+    },
+  });
+
+  const handleAddAccount = async () => {
+    setPlaidError('');
+    try {
+      const res = await apiGet<{ link_token: string }>('/api/plaid/link-token');
+      setLinkToken(res.link_token);
+    } catch {
+      setPlaidError('Could not start account linking.');
+    }
+  };
+
+  // Open link when token is ready
+  useEffect(() => {
+    if (linkToken && plaidReady) openPlaidLink();
+  }, [linkToken, plaidReady, openPlaidLink]);
+
+  const handleSync = async (itemId: string) => {
+    setSyncing(itemId);
+    setSyncMsg('');
+    try {
+      const res = await apiPost<{ synced: number }>(`/api/plaid/sync/${itemId}`, {});
+      setSyncMsg(`Synced ${res.synced} transaction${res.synced !== 1 ? 's' : ''}.`);
+      loadAccounts();
+    } catch {
+      setSyncMsg('Sync failed.');
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const handleUnlink = async (itemId: string, name: string) => {
+    if (!window.confirm(`Unlink ${name}? Existing transactions will be kept.`)) return;
+    try {
+      await apiDelete(`/api/plaid/accounts/${itemId}`);
+      loadAccounts();
+    } catch {
+      setPlaidError('Failed to unlink account.');
+    }
+  };
+
+  // Group accounts by institution (item_id)
+  const institutions = React.useMemo(() => {
+    const map = new Map<string, { itemId: string; name: string; lastSynced: string | null; accounts: PlaidAccountRow[] }>();
+    for (const acct of accounts) {
+      if (!map.has(acct.item_id)) {
+        map.set(acct.item_id, { itemId: acct.item_id, name: acct.institution_name, lastSynced: acct.last_synced_at, accounts: [] });
+      }
+      map.get(acct.item_id)!.accounts.push(acct);
+    }
+    return [...map.values()];
+  }, [accounts]);
+
+  // ─── CSV state (unchanged from before) ───────────────────────────────────
+  const [importing, setImporting]       = React.useState(false);
+  const [importMsg, setImportMsg]       = React.useState<{ ok: boolean; text: string } | null>(null);
+  const [totalTx, setTotalTx]           = React.useState<number | null>(null);
+  const [clearing, setClearing]         = React.useState(false);
+  const fileRef                         = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    apiGet<{ month: string; summary: unknown[]; total_transactions: number }>('/api/finance/summary')
+      .then(d => setTotalTx(d.total_transactions))
+      .catch(() => {});
+  }, []);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const text = await file.text();
+      const res  = await fetch(`${API_BASE}/api/finance/import`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'text/plain',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+        body: text,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      setImportMsg({ ok: true, text: `Imported ${data.imported} transactions (detected format: ${data.format}).` });
+      setTotalTx(prev => (prev ?? 0) + data.imported);
+    } catch (err: unknown) {
+      setImportMsg({ ok: false, text: (err as Error)?.message ?? 'Import failed. Check the file format and try again.' });
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function handleClear() {
+    if (!window.confirm('Delete all imported transactions? This cannot be undone.')) return;
+    setClearing(true);
+    try {
+      const res  = await fetch(`${API_BASE}/api/finance/transactions`, {
+        method:  'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      setTotalTx(0);
+      setImportMsg({ ok: true, text: `Deleted ${data.deleted} transactions.` });
+    } catch (err: unknown) {
+      setImportMsg({ ok: false, text: (err as Error)?.message ?? 'Delete failed.' });
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setPwMsg({ ok: false, text: 'Passwords do not match.' });
+      return;
+    }
+    setPwSaving(true); setPwMsg(null);
+    try {
+      const data = await apiPost<{ token: string; user: import('../lib/auth').AuthUser }>('/api/auth/set-password', { password: newPassword });
+      setToken(data.token); setUser(data.user);
+      setPwMsg({ ok: true, text: 'Password set! You can now log in with email + password.' });
+      setNewPassword(''); setConfirmPw('');
+    } catch (err: unknown) {
+      setPwMsg({ ok: false, text: err instanceof Error ? err.message : 'Failed to set password.' });
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+
+      {/* ── Connected Accounts (GitHub / Google OAuth) ──────────────────── */}
+      {(features.github_oauth || features.google_oauth) && !isDemo && (
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-blue-500">link</span>
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Connected Accounts</h3>
+          </div>
+          <div className="p-4 space-y-4">
+            {/* GitHub */}
+            {features.github_oauth && (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg className="w-5 h-5 text-slate-700 dark:text-slate-300 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                  </svg>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">GitHub</p>
+                    {ghStatus?.connected && ghStatus.githubUsername && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">@{ghStatus.githubUsername}</p>
+                    )}
+                  </div>
+                </div>
+                {ghStatus?.connected ? (
+                  <button
+                    onClick={handleGhDisconnect}
+                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                ) : ghPhase === 'polling' && ghCode ? (
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <a
+                        href={ghCode.verification_uri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:underline block"
+                      >
+                        {ghCode.verification_uri}
+                      </a>
+                      <span className="font-mono text-sm font-bold text-slate-900 dark:text-slate-100">{ghCode.user_code}</span>
+                    </div>
+                    <button
+                      onClick={() => { setGhPhase('idle'); setGhCode(null); }}
+                      className="shrink-0 px-2 py-1 rounded text-xs text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={startGhConnect}
+                    disabled={ghPhase === 'code'}
+                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50 transition-colors"
+                  >
+                    Connect
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Google */}
+            {features.google_oauth && (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Google</p>
+                </div>
+                {googleLinked ? (
+                  <button
+                    onClick={handleGoogleUnlink}
+                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    Unlink
+                  </button>
+                ) : (
+                  <GoogleLogin
+                    onSuccess={handleGoogleLink}
+                    onError={() => setGoogleMsg('Google link failed.')}
+                    text="signin_with"
+                    size="medium"
+                    shape="rectangular"
+                  />
+                )}
+              </div>
+            )}
+
+            {(ghMsg || googleMsg) && (
+              <p className="text-xs text-red-500">{ghMsg || googleMsg}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Set Password (shown only when account has no password) ──────── */}
+      {!isDemo && !hasPassword && (
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-purple-500">lock</span>
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Set Password</h3>
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Your account was created via OAuth. Add a password to also log in with email.
+            </p>
+            <form onSubmit={handleSetPassword} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">New password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPw(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {pwMsg && (
+                <p className={`text-xs ${pwMsg.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{pwMsg.text}</p>
+              )}
+              <button
+                type="submit"
+                disabled={pwSaving}
+                className="w-full py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-50 transition-colors"
+              >
+                {pwSaving ? 'Saving…' : 'Set password'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Linked Accounts (Plaid) ───────────────────────────────────────── */}
+      {features.plaid && (
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px] text-green-500">account_balance</span>
+              <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Linked Accounts</h3>
+            </div>
+            {!isDemo && (
+              <button
+                onClick={handleAddAccount}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[15px]">add</span>
+                Add account
+              </button>
+            )}
+          </div>
+          <div className="p-4 space-y-3">
+            {isDemo ? (
+              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+                Bank account linking is not available in demo mode. Create a free account to connect real accounts.
+              </div>
+            ) : (
+              <>
+                {plaidError && (
+                  <p className="text-xs text-red-500">{plaidError}</p>
+                )}
+                {syncMsg && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">{syncMsg}</p>
+                )}
+                {accountsLoaded && institutions.length === 0 ? (
+                  <p className="text-xs text-slate-400">No accounts linked yet. Click &quot;Add account&quot; to connect your bank.</p>
+                ) : (
+                  institutions.map(inst => (
+                    <div key={inst.itemId} className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                      <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{inst.name}</p>
+                          {inst.lastSynced && (
+                            <p className="text-[11px] text-slate-400">
+                              Last synced {new Date(inst.lastSynced).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleSync(inst.itemId)}
+                            disabled={syncing === inst.itemId}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                          >
+                            <span className={`material-symbols-outlined text-[14px] ${syncing === inst.itemId ? 'animate-spin' : ''}`}>sync</span>
+                            Sync
+                          </button>
+                          <button
+                            onClick={() => handleUnlink(inst.itemId, inst.name)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">link_off</span>
+                            Unlink
+                          </button>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        {inst.accounts.map(acct => (
+                          <div key={acct.account_id} className="px-3 py-2 flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                                {acct.name}
+                                {acct.mask && <span className="ml-1 text-slate-400">···{acct.mask}</span>}
+                              </p>
+                              <p className="text-[11px] text-slate-400 capitalize">{acct.subtype || acct.type}</p>
+                            </div>
+                            {acct.current !== null && (
+                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: acct.iso_currency_code || 'USD' }).format(acct.current)}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Import card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-500">upload_file</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Import Bank CSV</h3>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Export a transaction CSV from your bank&apos;s website, then import it here.
+            ShopDeck auto-detects Chase, Bank of America, and Capital One formats.
+            Any CSV with Date, Description/Merchant, and Amount columns will also work.
+            Your data stays on ShopDeck&apos;s servers and is never shared.
+          </p>
+          {totalTx !== null && (
+            <p className="text-[11px] text-slate-400">{totalTx.toLocaleString()} transaction{totalTx !== 1 ? 's' : ''} stored.</p>
+          )}
+          {importMsg && (
+            <div className={`text-xs rounded-lg px-3 py-2 ${
+              importMsg.ok
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+            }`}>
+              {importMsg.text}
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl cursor-pointer text-sm font-semibold transition-colors ${
+              importing
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 pointer-events-none'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}>
+              <span className="material-symbols-outlined text-[18px]">{importing ? 'hourglass_empty' : 'upload'}</span>
+              {importing ? 'Importing…' : 'Choose CSV file'}
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,text/csv,text/plain"
+                className="sr-only"
+                onChange={handleFile}
+                disabled={importing}
+              />
+            </label>
+            {(totalTx ?? 0) > 0 && (
+              <button
+                onClick={handleClear}
+                disabled={clearing}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">delete</span>
+                {clearing ? 'Clearing…' : 'Clear all'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* How-to card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-slate-500">help_outline</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">How to export from your bank</h3>
+        </div>
+        <div className="p-4">
+          <ul className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Chase:</span> Account → Download Account Activity → CSV</li>
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Bank of America:</span> Accounts → Transactions → Download → CSV</li>
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Capital One:</span> Transactions → Download → CSV</li>
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Other banks:</span> Look for a &quot;Download&quot; or &quot;Export&quot; option on your transactions page. CSV format preferred over PDF or OFX.</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Privacy card */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        <span className="font-semibold text-slate-700 dark:text-slate-300">Privacy: </span>
+        CSV data is stored in your ShopDeck account only. It is never sold, shared with data brokers, or used to train models.
+        No live bank connection is made &mdash; all data comes from files you upload manually.
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab 4: API Keys ─────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
 function ApiKeysTab() {
   const [keys, setKeys] = React.useState({
     amazonAccessKey: '',

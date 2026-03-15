@@ -20,6 +20,32 @@ Scraping fragile HTML is a maintenance burden. Always check for a Shopify `produ
 - **Auth**: `getToken()` from `src/lib/auth.ts`, sent as `Authorization: Bearer <token>`
 - **Feed data API**: `GET /api/feed-config/data/:widgetId` — auth-protected, 6 hr in-memory cache
 
+## Auth System
+
+- **JWT** payload includes: `id`, `username`, `email`, `is_demo`, `email_verified`, `has_password`
+- **OAuth sign-in routes** (unauthenticated):
+  - `POST /api/auth/github/device/signin` — GitHub Device Flow complete sign-in
+  - `POST /api/auth/google` — Google ID-token sign-in (credential from `@react-oauth/google`)
+- **OAuth account-link routes** (requires JWT):
+  - `POST /api/auth/github/device/poll` — links GitHub to an existing session (used in Settings)
+  - `POST /api/auth/google/link` / `DELETE /api/auth/google/link`
+- **Email verification**:
+  - Tokens stored in `email_tokens` table (type: `'verification'` or `'email_change'`)
+  - `GET /api/auth/verify-email?token=` — verifies or applies email change
+  - `POST /api/auth/resend-verification` — rate-limited to 5/hr per user
+  - `POST /api/auth/change-email` — sends change-email token; re-verified before applying
+  - Hard-block enforced via `REQUIRE_EMAIL_VERIFICATION=true` env var (default off)
+  - Dashboard shows amber banner when `email_verified === false`; dismissable via `localStorage`
+- **Set-password flow**: OAuth-only accounts have `has_password=false`; use `POST /api/auth/set-password` to add a password. Updates `has_password` to `true` and returns a fresh JWT.
+- **Features endpoint** `GET /api/features` returns `{ plaid, github_oauth, google_oauth }` — controls which OAuth buttons are shown in Login and Settings
+- **Username assignment**: removed from Register form; auto-generated as `user_<hex8>` on registration; user sets a real username in the first onboarding step (`StepUsername`)
+- **Environment requirements**:
+  - `GOOGLE_CLIENT_ID` — enables Google login (backend)
+  - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` — same value, frontend `<GoogleOAuthProvider>`
+  - `SENDGRID_API_KEY` + `EMAIL_FROM` — enable real email sending (falls back to `console.log`)
+  - `FRONTEND_URL` — used to construct verification links in emails
+  - `REQUIRE_EMAIL_VERIFICATION` — `false` (default) or `true`
+
 ## Scraper Rule Types (`backend/scraper.js`)
 
 All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through `runSource()`. Rules may also carry a `postFilter: { requireAny, excludeAny }` for name-based post-processing.

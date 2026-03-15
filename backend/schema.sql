@@ -3,17 +3,37 @@
 
 -- ─── Users ────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-  id           TEXT PRIMARY KEY,
-  username     TEXT UNIQUE NOT NULL,
-  email        TEXT UNIQUE NOT NULL,
+  id            TEXT PRIMARY KEY,
+  username      TEXT UNIQUE NOT NULL,
+  email         TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+<<<<<<< Updated upstream
   account_verified BOOLEAN NOT NULL DEFAULT false,
   email_verified_at TIMESTAMPTZ,
   is_demo BOOLEAN NOT NULL DEFAULT false,
   github_token TEXT,
+=======
+  is_demo       BOOLEAN NOT NULL DEFAULT false,
+  email_verified BOOLEAN NOT NULL DEFAULT false,
+  has_password  BOOLEAN NOT NULL DEFAULT true,
+  google_id     TEXT UNIQUE,
+  github_token  TEXT,
+>>>>>>> Stashed changes
   github_username TEXT,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ─── Email verification / change tokens ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_tokens (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token      TEXT        UNIQUE NOT NULL,
+  type       TEXT        NOT NULL DEFAULT 'verification',
+  metadata   JSONB,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS email_tokens_token_idx ON email_tokens(token);
 
 -- ─── User profile (settings) ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_profiles (

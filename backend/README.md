@@ -38,6 +38,73 @@ Demo sessions are created on demand via `POST /api/auth/demo` — no seed file r
 
 ## Environment variables
 
+<<<<<<< Updated upstream
+=======
+Copy `backend/.env.example` to `backend/.env` and fill in the values relevant to your deployment. All variables have defaults suitable for local development with Docker Compose.
+
+### Core server
+
+| Variable | Default | Required | Description |
+|---|---|---|---|
+| `PORT` | `4000` | No | API listen port |
+| `NODE_ENV` | `development` | No | Set to `production` in production |
+| `CORS_ORIGIN` | _(empty)_ | No | Comma-separated browser origins allowed to call the API directly. Leave empty when the API is only accessed through the Next.js proxy (recommended). |
+
+### PostgreSQL
+
+| Variable | Default | Required | Description |
+|---|---|---|---|
+| `PGHOST` | `localhost` | No | Postgres host |
+| `PGPORT` | `5432` | No | Postgres port |
+| `PGDATABASE` | `shopdeck` | No | Database name |
+| `PGUSER` | `shopdeck` | No | Postgres user |
+| `POSTGRES_PASSWORD` | `shopdeck_dev` | **Yes (prod)** | Postgres password. Used by both the API pool and the postgres container init. |
+
+### Redis
+
+| Variable | Default | Required | Description |
+|---|---|---|---|
+| `REDIS_HOST` | `localhost` | No | Redis host |
+| `REDIS_PORT` | `6379` | No | Redis port |
+
+### Auth & security
+
+| Variable | Default | Required | Description |
+|---|---|---|---|
+| `JWT_SECRET` | `shopdeck-dev-secret-change-in-prod` | **Yes (prod)** | JWT signing secret. Use a long random string in production. |
+| `TOKEN_ENCRYPTION_KEY` | _(none)_ | **Yes** | 64-character hex string used to AES-256-GCM encrypt stored tokens and API keys. Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — must be stable; changing it invalidates all stored tokens. |
+
+### GitHub OAuth (optional)
+
+Leave both unset to disable GitHub login.
+
+| Variable | Description |
+|---|---|
+| `GITHUB_OAUTH_CLIENT_ID` | OAuth App client ID from github.com/settings/developers |
+| `GITHUB_OAUTH_CLIENT_SECRET` | OAuth App client secret |
+
+### Google OAuth (optional)
+
+Sign-in and account-linking with Google ID tokens. Leave unset to disable Google login.
+
+| Variable | Description |
+|---|---|
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID from [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials). Authorised JavaScript origins must include `FRONTEND_URL`. |
+
+Also set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to the same value in the frontend environment (root `.env` or deployment env vars).
+
+### Email verification (optional)
+
+| Variable | Default | Description |
+|---|---|---|
+| `SENDGRID_API_KEY` | _(none)_ | SendGrid API key. When unset, verification email content is printed to the console instead of sent. |
+| `EMAIL_FROM` | `noreply@shopdeck.app` | The "From" address used for all transactional emails. Must be a verified sender in your SendGrid account. |
+| `FRONTEND_URL` | `http://localhost:3000` | Public URL of the Next.js frontend. Used to construct the verification link in emails. |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | Set to `true` to hard-block login until the user verifies their email address. Default is soft-block: an amber banner is shown on the dashboard but login is allowed. |
+
+### AI assistant (optional)
+
+>>>>>>> Stashed changes
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `4000` | API listen port |

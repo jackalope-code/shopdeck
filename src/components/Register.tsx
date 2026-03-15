@@ -18,7 +18,6 @@ interface RegisterResponse {
 
 export default function Register() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [touched, setTouched] = useState(false);
@@ -37,7 +36,11 @@ export default function Register() {
     }
     setLoading(true);
     try {
+<<<<<<< Updated upstream
       const data = await apiPost<RegisterResponse>('/api/auth/register', { username, email, password });
+=======
+      const data = await apiPost<{ token: string; user: AuthUser }>('/api/auth/register', { email, password });
+>>>>>>> Stashed changes
       setToken(data.token);
       setUser(data.user);
       if (data.verification?.required) {
@@ -78,21 +81,6 @@ export default function Register() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Username
-              </label>
-              <input
-                type="text"
-                autoComplete="username"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="your_handle"
-                required
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Email

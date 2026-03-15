@@ -10,6 +10,7 @@
     "docker:services:dev": "docker compose -f docker-compose.yml -f docker-compose.services.yml up postgres redis"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
@@ -17,6 +18,7 @@
     "dotenv": "^17.3.1",
     "express": "^4.21.2",
     "express-rate-limit": "^8.3.1",
+    "google-auth-library": "^10.6.1",
     "ioredis": "^5.10.0",
     "jsonpath-plus": "^10.4.0",
     "jsonwebtoken": "^9.0.3",
