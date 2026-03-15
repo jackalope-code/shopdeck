@@ -829,6 +829,54 @@ const BUILTIN_SOURCE_RULES = {
     category: 'GPU',
   },
 
+  // ─── CPU vendors ──────────────────────────────────────────────────────────────
+
+  'microcenter-cpu': {
+    url: 'https://www.microcenter.com/category/4294966892/processors',
+    ruleType: 'css',
+    containerSelector: 'a.productClickItemV2',
+    fields: [
+      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
+      { selector: null,              fieldName: 'url',   attribute: 'href' },
+      { selector: null,              fieldName: 'price', attribute: 'data-price' },
+      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
+    ],
+    label: 'Microcenter — Processors',
+    vendor: 'Microcenter',
+    category: 'CPU',
+  },
+  'newegg-cpu': {
+    url: 'https://www.newegg.com/Desktop-CPU-Processor/SubCategory/ID-343',
+    ruleType: 'css',
+    containerSelector: 'div.item-cell',
+    fields: [
+      { selector: 'a.item-title',        fieldName: 'name' },
+      { selector: 'a.item-title',        fieldName: 'url',   attribute: 'href' },
+      { selector: 'a.item-img img',      fieldName: 'image', attribute: 'src' },
+      { selector: 'li.price-current',    fieldName: 'price' },
+    ],
+    label: 'Newegg — CPUs',
+    vendor: 'Newegg',
+    category: 'CPU',
+  },
+  'reddit-cpu': {
+    url: 'https://www.reddit.com/r/buildapcsales/search.rss?q=flair%3ACPU&sort=new&restrict_sr=1&limit=25',
+    ruleType: 'rss',
+    label: 'r/buildapcsales — CPUs',
+    vendor: 'Reddit',
+    category: 'CPU',
+    postFilter: {
+      requireAny: ['Ryzen', 'Core i', 'i3', 'i5', 'i7', 'i9', 'Intel', 'AM5', 'AM4', 'LGA'],
+    },
+  },
+  'camelcamel-cpu': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Processors.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — CPU Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'CPU',
+  },
+
   // ─── Keyboard vendors (Shopify products.json API) ──────────────────────────
   // Shopify's /products.json endpoint is a public, stable JSON API that returns
   // structured product data including CDN-hosted images — no HTML parsing needed.

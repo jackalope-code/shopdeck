@@ -8,6 +8,7 @@ import { getToken, apiPatch, isDemoAccount, clearToken } from '../lib/auth';
 const CATEGORIES = [
   { id: 'keyboards', label: 'Keyboard Enthusiast', icon: 'keyboard', description: 'Full boards, parts, switches, keycaps, accessories' },
   { id: 'electronics', label: 'Electronics Maker', icon: 'memory', description: 'Components, MCUs & sensors' },
+  { id: 'pc-building', label: 'PC Builder', icon: 'computer', description: 'CPUs, RAM, GPUs & component deals' },
   { id: '3dprinting', label: '3D Printing', icon: 'precision_manufacturing', description: 'Filament, printers & hardware' },
   { id: 'robotics', label: 'Robotics', icon: 'smart_toy', description: 'Actuators, sensors & kits' },
   { id: 'audio', label: 'Audio', icon: 'headset', description: 'DACs, amps & speakers' },
@@ -17,6 +18,7 @@ const CATEGORIES = [
 const CAT_WIDGET_MAP: Record<string, string[]> = {
   keyboards: ['Keyboards'],
   electronics: ['Electronics'],
+  'pc-building': ['PC Building'],
   '3dprinting': ['Overview'],
   robotics: ['Overview'],
   audio: ['Electronics'],

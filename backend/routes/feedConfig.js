@@ -268,6 +268,7 @@ function checkCustomRateLimit(userId) {
 
 const DEFAULT_AGGREGATED_DEALS_WIDGET_IDS = [
   'active-deals',
+  'pc-deals',
   'keyboard-sales',
   'electronics-sales',
   'electronics-microcontrollers',

@@ -4,7 +4,7 @@
       "sources": [
         { "id": "newegg-ram",      "name": "Newegg",            "enabled": true },
         { "id": "amazon-ram",      "name": "Amazon",            "enabled": false },
-        { "id": "microcenter-ram", "name": "Microcenter",       "enabled": false },
+        { "id": "microcenter-ram", "name": "Microcenter",       "enabled": true },
         { "id": "reddit-ram",      "name": "r/buildapcsales",   "enabled": true },
         { "id": "camelcamel-ram",  "name": "CamelCamelCamel",   "enabled": false }
       ],
@@ -14,7 +14,7 @@
       "sources": [
         { "id": "newegg-gpu",      "name": "Newegg",            "enabled": true },
         { "id": "amazon-gpu",      "name": "Amazon",            "enabled": false },
-        { "id": "microcenter-gpu", "name": "Microcenter",       "enabled": false },
+        { "id": "microcenter-gpu", "name": "Microcenter",       "enabled": true },
         { "id": "reddit-gpu",      "name": "r/buildapcsales",   "enabled": true },
         { "id": "camelcamel-gpu",  "name": "CamelCamelCamel",   "enabled": false }
       ],
@@ -250,6 +250,26 @@
         { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "digikey-audio", "name": "DigiKey Audio", "ruleType": "digikey-api", "keywords": "microphone audio codec amplifier", "enabled": true },
         { "id": "mouser-audio", "name": "Mouser Audio", "ruleType": "mouser-api", "keywords": "mems microphone", "enabled": true }
+      ],
+      "custom": []
+    },
+    "cpu-availability": {
+      "sources": [
+        { "id": "microcenter-cpu", "name": "Microcenter",       "enabled": true },
+        { "id": "newegg-cpu",      "name": "Newegg",            "enabled": true },
+        { "id": "reddit-cpu",      "name": "r/buildapcsales",   "enabled": true },
+        { "id": "camelcamel-cpu",  "name": "CamelCamelCamel",   "enabled": false }
+      ],
+      "custom": []
+    },
+    "pc-deals": {
+      "sources": [
+        { "id": "reddit-ram", "name": "r/buildapcsales — Memory",     "enabled": true },
+        { "id": "reddit-gpu", "name": "r/buildapcsales — Video Cards", "enabled": true },
+        { "id": "reddit-cpu", "name": "r/buildapcsales — CPUs",        "enabled": true },
+        { "id": "camelcamel-ram", "name": "CamelCamelCamel — Memory",   "enabled": false },
+        { "id": "camelcamel-gpu", "name": "CamelCamelCamel — GPUs",    "enabled": false },
+        { "id": "camelcamel-cpu", "name": "CamelCamelCamel — CPUs",    "enabled": false }
       ],
       "custom": []
     }

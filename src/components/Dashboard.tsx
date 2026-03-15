@@ -59,8 +59,10 @@ const BASE_WIDGETS: WidgetDef[] = [
   { id: 'keycaps-tracker', title: 'Keycaps Sales Tracker', category: 'Keyboards', icon: 'format_color_text', color: 'text-emerald-500', description: 'GMK, PBT and designer keycap set alerts.' },
   { id: 'keyboard-sales', title: 'Keyboard Sales', category: 'Keyboards', icon: 'sell', color: 'text-amber-500', description: 'Live keyboard discounts and clearance deals.' },
   { id: 'keyboard-comparison', title: 'Keyboard Comparison', category: 'Keyboards', icon: 'compare', color: 'text-emerald-400', description: 'Side-by-side keyboard spec comparison.' },
-  { id: 'ram-availability', title: 'RAM Availability', category: 'Electronics', icon: 'memory', color: 'text-purple-500', description: 'DDR4/DDR5 stock level monitor.' },
-  { id: 'gpu-availability', title: 'GPU Availability', category: 'Electronics', icon: 'videogame_asset', color: 'text-green-500', description: 'RTX/RX GPU stock level monitor across retailers.' },
+  { id: 'ram-availability', title: 'RAM Availability', category: 'PC Building', icon: 'memory', color: 'text-purple-500', description: 'DDR4/DDR5 stock level monitor.' },
+  { id: 'gpu-availability', title: 'GPU Availability', category: 'PC Building', icon: 'videogame_asset', color: 'text-green-500', description: 'RTX/RX GPU stock level monitor across retailers.' },
+  { id: 'cpu-availability', title: 'CPU Availability', category: 'PC Building', icon: 'memory_alt', color: 'text-blue-500', description: 'AMD Ryzen / Intel Core CPU stock monitor.' },
+  { id: 'pc-deals', title: 'PC Deals', category: 'PC Building', icon: 'sell', color: 'text-orange-500', description: 'Live PC component deals from r/buildapcsales and price trackers.' },
   { id: 'active-deals', title: 'Active Deals', category: 'Electronics', icon: 'sell', color: 'text-orange-500', description: 'Live price drops and limited-time offers.' },
   { id: 'electronics-watchlist',       title: 'Electronics Watchlist',       category: 'Electronics', icon: 'devices',               color: 'text-blue-400',   description: 'DigiKey / Mouser tracked parts.' },
   { id: 'electronics-new-drops',       title: 'Electronics New Drops',       category: 'Electronics', icon: 'new_releases',          color: 'text-green-500',  description: 'Latest component and maker releases.' },
@@ -1235,6 +1237,8 @@ function WidgetContent({ id }: { id: string }) {
     case 'keyboard-comparison': return <KeyboardComparisonWidget />;
     case 'ram-availability':   return <FeedListWidget widgetId="ram-availability" linkHref="/ram-availability-tracker" linkLabel="Open RAM tracker →" />;
     case 'gpu-availability':   return <FeedListWidget widgetId="gpu-availability" linkHref="/gpu-availability-tracker" linkLabel="Open GPU tracker →" />;
+    case 'cpu-availability':   return <FeedListWidget widgetId="cpu-availability" linkHref="/cpu-availability-tracker" linkLabel="Open CPU tracker →" />;
+    case 'pc-deals':           return <FeedListWidget widgetId="pc-deals" linkHref="/pc-building" linkLabel="View PC Building hub →" />;
     case 'active-deals':       return <FeedListWidget widgetId="active-deals" linkHref="/active-deals" linkLabel="View all deals →" />;
     case 'electronics-watchlist':        return <FeedListWidget widgetId="electronics-watchlist"        linkHref="/electronics" linkLabel="Manage watchlist →" />;
     case 'electronics-new-drops':        return <FeedListWidget widgetId="electronics-new-drops"        linkHref="/electronics" linkLabel="View all new drops →" />;
@@ -1512,15 +1516,23 @@ export default function Dashboard() {
   const [editMode, setEditMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const PC_BUILDING_LINKS = [
+    { href: '/pc-building',              label: 'PC Building Hub', icon: 'computer' },
+    { href: '/cpu-availability-tracker', label: 'CPU',             icon: 'memory_alt' },
+    { href: '/ram-availability-tracker', label: 'RAM',             icon: 'memory' },
+    { href: '/gpu-availability-tracker', label: 'GPU',             icon: 'videogame_asset' },
+  ];
+
+  const KEYBOARD_LINKS = [
+    { href: '/keyboard-comparison', label: 'Keyboards',  icon: 'compare' },
+    { href: '/keycaps-tracker',     label: 'Keycaps',    icon: 'format_color_text' },
+  ];
+
   const DASH_DRAWER_LINKS = [
     { href: '/community-insights',      label: 'Community Insights', icon: 'insights' },
     { href: '/recently-viewed',         label: 'Recently Viewed', icon: 'history' },
     { href: '/favorites',               label: 'Favorites', icon: 'favorite' },
     { href: '/electronics',              label: 'Electronics', icon: 'inventory_2' },
-    { href: '/ram-availability-tracker', label: 'RAM',         icon: 'memory' },
-    { href: '/gpu-availability-tracker', label: 'GPU',         icon: 'videogame_asset' },
-    { href: '/keyboard-comparison',      label: 'Keyboards',   icon: 'compare' },
-    { href: '/keycaps-tracker',          label: 'Keycaps',     icon: 'format_color_text' },
   ];
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -1810,6 +1822,34 @@ export default function Dashboard() {
                   ))}
                 </nav>
               </div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">PC Building</p>
+              <nav className="space-y-0.5 mb-4">
+                {PC_BUILDING_LINKS.map(l => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setDrawerOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">{l.icon}</span>
+                    {l.label}
+                  </Link>
+                ))}
+              </nav>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">Keyboards</p>
+              <nav className="space-y-0.5 mb-4">
+                {KEYBOARD_LINKS.map(l => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setDrawerOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-500 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">{l.icon}</span>
+                    {l.label}
+                  </Link>
+                ))}
+              </nav>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 mb-2">Trackers</p>
               <nav className="space-y-0.5">
                 {DASH_DRAWER_LINKS.map(l => (
