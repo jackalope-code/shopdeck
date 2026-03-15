@@ -68,7 +68,7 @@ export default function ClothesHub() {
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
       <TopNav active="Clothes" />
-      <header className="sticky top-14 z-50 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <header className="sticky top-14 z-20 bg-[#f5f7f8]/80 dark:bg-[#101922]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center px-4 py-3 gap-3 max-w-3xl mx-auto w-full">
           <Link href="/dashboard" className="flex size-10 items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors md:hidden">
             <span className="material-symbols-outlined">arrow_back</span>
