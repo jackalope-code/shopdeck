@@ -194,3 +194,48 @@ CREATE TABLE IF NOT EXISTS finance_budgets (
   monthly_limit NUMERIC(12,2) NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, category)
 );
+
+-- ─── Plaid bank account linking ───────────────────────────────────────────────
+-- One row per Plaid Item (= one institution login) per user.
+CREATE TABLE IF NOT EXISTS plaid_items (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_id             TEXT        NOT NULL UNIQUE,
+  access_token_enc    TEXT        NOT NULL,
+  institution_id      TEXT,
+  institution_name    TEXT,
+  transactions_cursor TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_synced_at      TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS plaid_items_user_idx ON plaid_items(user_id);
+
+-- One row per account within a Plaid Item (checking, savings, credit, etc.)
+CREATE TABLE IF NOT EXISTS plaid_accounts (
+  id          UUID  PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     TEXT  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_id     TEXT  NOT NULL REFERENCES plaid_items(item_id) ON DELETE CASCADE,
+  account_id  TEXT  NOT NULL UNIQUE,
+  name        TEXT  NOT NULL DEFAULT '',
+  type        TEXT,
+  subtype     TEXT,
+  mask        TEXT
+);
+CREATE INDEX IF NOT EXISTS plaid_accounts_user_idx ON plaid_accounts(user_id);
+
+-- Latest balance snapshot per account (upserted on every sync)
+CREATE TABLE IF NOT EXISTS plaid_balances (
+  account_id        TEXT          PRIMARY KEY REFERENCES plaid_accounts(account_id) ON DELETE CASCADE,
+  user_id           TEXT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  available         NUMERIC(12,2),
+  current           NUMERIC(12,2),
+  iso_currency_code TEXT,
+  last_synced_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+-- Extend finance_transactions to track Plaid-sourced rows for deduplication
+ALTER TABLE finance_transactions
+  ADD COLUMN IF NOT EXISTS plaid_transaction_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS finance_tx_plaid_dedup_idx
+  ON finance_transactions(user_id, plaid_transaction_id)
+  WHERE plaid_transaction_id IS NOT NULL;

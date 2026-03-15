@@ -4,7 +4,9 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Sidebar, TopHeader } from './ProjectsOverview';
-import { apiGet, apiPatch, apiPost, getToken, setToken, setUser, isDemoAccount, API_BASE } from '../lib/auth';
+import { apiGet, apiPatch, apiPost, apiDelete, getToken, setToken, setUser, isDemoAccount, API_BASE } from '../lib/auth';
+import { usePlaidLink } from 'react-plaid-link';
+import { useFeatures } from '../lib/features';
 
 const STORAGE_KEY_ONBOARDED = 'sd-onboarded';
 import GitHubConnect from './GitHubConnect';
@@ -958,6 +960,106 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
 // ─── Tab 5: Accounts (CSV budget & finance) ────────────────────────────────────────
 // (re-uses apiPost, apiGet which are already imported)
 function AccountsTab() {
+  const features = useFeatures();
+  const isDemo   = isDemoAccount();
+
+  // ─── Plaid state ──────────────────────────────────────────────────────────
+  type PlaidAccountRow = {
+    item_id: string;
+    institution_name: string;
+    last_synced_at: string | null;
+    account_id: string;
+    name: string;
+    type: string;
+    subtype: string;
+    mask: string | null;
+    available: number | null;
+    current: number | null;
+    iso_currency_code: string | null;
+  };
+
+  const [accounts, setAccounts]         = React.useState<PlaidAccountRow[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = React.useState(false);
+  const [linkToken, setLinkToken]       = React.useState<string | null>(null);
+  const [linkingItem, setLinkingItem]   = React.useState<string | null>(null);
+  const [syncing, setSyncing]           = React.useState<string | null>(null);
+  const [syncMsg, setSyncMsg]           = React.useState('');
+  const [plaidError, setPlaidError]     = React.useState('');
+
+  const loadAccounts = React.useCallback(() => {
+    if (!features.plaid || isDemo) return;
+    apiGet<PlaidAccountRow[]>('/api/plaid/accounts')
+      .then(rows => { setAccounts(rows); setAccountsLoaded(true); })
+      .catch(() => setAccountsLoaded(true));
+  }, [features.plaid, isDemo]);
+
+  useEffect(() => { loadAccounts(); }, [loadAccounts]);
+
+  const { open: openPlaidLink, ready: plaidReady } = usePlaidLink({
+    token: linkToken ?? '',
+    onSuccess: async (publicToken) => {
+      try {
+        await apiPost('/api/plaid/exchange', { public_token: publicToken });
+        setLinkToken(null);
+        loadAccounts();
+      } catch {
+        setPlaidError('Failed to link account.');
+      }
+    },
+  });
+
+  const handleAddAccount = async () => {
+    setPlaidError('');
+    try {
+      const res = await apiGet<{ link_token: string }>('/api/plaid/link-token');
+      setLinkToken(res.link_token);
+    } catch {
+      setPlaidError('Could not start account linking.');
+    }
+  };
+
+  // Open link when token is ready
+  useEffect(() => {
+    if (linkToken && plaidReady) openPlaidLink();
+  }, [linkToken, plaidReady, openPlaidLink]);
+
+  const handleSync = async (itemId: string) => {
+    setSyncing(itemId);
+    setSyncMsg('');
+    try {
+      const res = await apiPost<{ synced: number }>(`/api/plaid/sync/${itemId}`, {});
+      setSyncMsg(`Synced ${res.synced} transaction${res.synced !== 1 ? 's' : ''}.`);
+      loadAccounts();
+    } catch {
+      setSyncMsg('Sync failed.');
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const handleUnlink = async (itemId: string, name: string) => {
+    if (!window.confirm(`Unlink ${name}? Existing transactions will be kept.`)) return;
+    try {
+      await apiDelete(`/api/plaid/accounts/${itemId}`);
+      loadAccounts();
+    } catch {
+      setPlaidError('Failed to unlink account.');
+    }
+  };
+
+  // Group accounts by institution (item_id)
+  const institutions = React.useMemo(() => {
+    const map = new Map<string, { itemId: string; name: string; lastSynced: string | null; accounts: PlaidAccountRow[] }>();
+    for (const acct of accounts) {
+      if (!map.has(acct.item_id)) {
+        map.set(acct.item_id, { itemId: acct.item_id, name: acct.institution_name, lastSynced: acct.last_synced_at, accounts: [] });
+      }
+      map.get(acct.item_id)!.accounts.push(acct);
+    }
+    return [...map.values()];
+  }, [accounts]);
+
+  // ─── CSV state (unchanged from before) ───────────────────────────────────
   const [importing, setImporting]       = React.useState(false);
   const [importMsg, setImportMsg]       = React.useState<{ ok: boolean; text: string } | null>(null);
   const [totalTx, setTotalTx]           = React.useState<number | null>(null);
@@ -1019,6 +1121,97 @@ function AccountsTab() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+
+      {/* ── Linked Accounts (Plaid) ───────────────────────────────────────── */}
+      {features.plaid && (
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px] text-green-500">account_balance</span>
+              <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Linked Accounts</h3>
+            </div>
+            {!isDemo && (
+              <button
+                onClick={handleAddAccount}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[15px]">add</span>
+                Add account
+              </button>
+            )}
+          </div>
+          <div className="p-4 space-y-3">
+            {isDemo ? (
+              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+                Bank account linking is not available in demo mode. Create a free account to connect real accounts.
+              </div>
+            ) : (
+              <>
+                {plaidError && (
+                  <p className="text-xs text-red-500">{plaidError}</p>
+                )}
+                {syncMsg && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">{syncMsg}</p>
+                )}
+                {accountsLoaded && institutions.length === 0 ? (
+                  <p className="text-xs text-slate-400">No accounts linked yet. Click &quot;Add account&quot; to connect your bank.</p>
+                ) : (
+                  institutions.map(inst => (
+                    <div key={inst.itemId} className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                      <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{inst.name}</p>
+                          {inst.lastSynced && (
+                            <p className="text-[11px] text-slate-400">
+                              Last synced {new Date(inst.lastSynced).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleSync(inst.itemId)}
+                            disabled={syncing === inst.itemId}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                          >
+                            <span className={`material-symbols-outlined text-[14px] ${syncing === inst.itemId ? 'animate-spin' : ''}`}>sync</span>
+                            Sync
+                          </button>
+                          <button
+                            onClick={() => handleUnlink(inst.itemId, inst.name)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">link_off</span>
+                            Unlink
+                          </button>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        {inst.accounts.map(acct => (
+                          <div key={acct.account_id} className="px-3 py-2 flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                                {acct.name}
+                                {acct.mask && <span className="ml-1 text-slate-400">···{acct.mask}</span>}
+                              </p>
+                              <p className="text-[11px] text-slate-400 capitalize">{acct.subtype || acct.type}</p>
+                            </div>
+                            {acct.current !== null && (
+                              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: acct.iso_currency_code || 'USD' }).format(acct.current)}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Import card */}
       <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">

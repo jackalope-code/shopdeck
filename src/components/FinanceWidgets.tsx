@@ -1,6 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { apiGet, apiPatch, apiPut } from '../lib/auth';
+import { isDemoAccount } from '../lib/auth';
+import { useFeatures } from '../lib/features';
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 interface FinanceTransaction {
@@ -312,6 +314,90 @@ export function FinanceSpendByCategoryWidget() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Account Balances (Plaid) ─────────────────────────────────────────────────
+type PlaidAccountRow = {
+  item_id: string;
+  institution_name: string;
+  account_id: string;
+  name: string;
+  type: string;
+  subtype: string;
+  mask: string | null;
+  available: number | null;
+  current: number | null;
+  iso_currency_code: string | null;
+};
+
+export function FinanceAccountBalanceWidget() {
+  const features = useFeatures();
+  const isDemo   = isDemoAccount();
+  const [accounts, setAccounts] = useState<PlaidAccountRow[]>([]);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    if (!features.plaid || isDemo) { setLoading(false); return; }
+    apiGet<PlaidAccountRow[]>('/api/plaid/accounts')
+      .then(setAccounts)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [features.plaid, isDemo]);
+
+  if (isDemo) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
+        <span className="material-symbols-outlined text-3xl text-slate-400">lock</span>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Link a bank account to see live balances.
+        </p>
+        <a href="/register" className="text-xs text-blue-500 hover:underline">Create a free account</a>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-2">
+        {[0, 1, 2].map(i => <div key={i} className="h-12 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (!features.plaid) {
+    return <EmptyState icon="account_balance" message="Bank account linking is not enabled on this server." />;
+  }
+
+  if (!accounts.length) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
+        <span className="material-symbols-outlined text-3xl text-slate-400">account_balance</span>
+        <p className="text-sm text-slate-500 dark:text-slate-400">No accounts linked.</p>
+        <a href="/settings?tab=5" className="text-xs text-blue-500 hover:underline">Link a bank account in Settings</a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-700/50">
+      {accounts.map(acct => (
+        <div key={acct.account_id} className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+              {acct.name}
+              {acct.mask && <span className="ml-1 text-xs text-slate-400">···{acct.mask}</span>}
+            </p>
+            <p className="text-[11px] text-slate-400 capitalize">{acct.institution_name} · {acct.subtype || acct.type}</p>
+          </div>
+          {acct.current !== null && (
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
+              {new Intl.NumberFormat('en-US', { style: 'currency', currency: acct.iso_currency_code || 'USD' }).format(acct.current)}
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

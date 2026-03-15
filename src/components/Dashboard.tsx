@@ -18,7 +18,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch, isDemoAccount } from '../lib/auth';
-import { FinanceRecentTransactionsWidget, FinanceBudgetWidget, FinanceSpendByCategoryWidget } from './FinanceWidgets';
+import { FinanceRecentTransactionsWidget, FinanceBudgetWidget, FinanceSpendByCategoryWidget, FinanceAccountBalanceWidget } from './FinanceWidgets';
+import { useFeatures } from '../lib/features';
 import { useCommunityInsights, useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
 import { getFeedStockStatus } from '../lib/stockStatus';
 
@@ -31,6 +32,7 @@ export interface WidgetDef {
   icon: string;
   color: string;
   description: string;
+  requiresFeatures?: string[];
 }
 
 type CommunityMetric = 'views' | 'favorites';
@@ -174,6 +176,7 @@ const BASE_WIDGETS: WidgetDef[] = [
   { id: 'finance-recent-transactions', title: 'Recent Transactions',   category: 'Finance', icon: 'receipt_long',    color: 'text-blue-500',   description: 'Latest imported bank transactions.' },
   { id: 'finance-budget',              title: 'Monthly Budgets',        category: 'Finance', icon: 'savings',         color: 'text-emerald-500',description: 'Track spend vs budget per category.' },
   { id: 'finance-spend-by-category',   title: 'Spend by Category',      category: 'Finance', icon: 'bar_chart',       color: 'text-purple-500', description: 'Bar chart of this month\'s spending by ShopDeck category.' },
+  { id: 'finance-account-balance',     title: 'Account Balances',       category: 'Finance', icon: 'account_balance', color: 'text-teal-500',   description: 'Live balances from your linked bank accounts.', requiresFeatures: ['plaid'] },
 ];
 
 const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
@@ -1512,12 +1515,14 @@ function WidgetCard({ def, onRemove, ageIdx, editMode }: { def: WidgetDef; onRem
 function WidgetPicker({ onToggle, onClose, active }: { onToggle: (id: string) => void; onClose: () => void; active: string[] }) {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('All');
+  const features = useFeatures();
 
   const categories = ['All', ...Array.from(new Set(ALL_WIDGETS.map(w => w.category)))];
   const filtered = ALL_WIDGETS.filter(w => {
     const matchTab = tab === 'All' || w.category === tab;
     const matchSearch = !search || w.title.toLowerCase().includes(search.toLowerCase());
-    return matchTab && matchSearch;
+    const matchFeatures = !w.requiresFeatures || w.requiresFeatures.every(f => features[f as keyof typeof features]);
+    return matchTab && matchSearch && matchFeatures;
   });
 
   const grouped = categories

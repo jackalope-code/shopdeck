@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^3.0.3",
     "pg": "^8.20.0",
+    "plaid": "^41.4.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

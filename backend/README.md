@@ -160,6 +160,27 @@ Powers the Games / Video Game Deals widget. A free tier works without a key; the
 
 ---
 
+#### Plaid — optional bank account linking
+
+When all three vars are set, the `GET /api/features` endpoint returns `{ plaid: true }`. This unlocks:
+- A "Link a bank account" step at the end of onboarding (skipped for demo users)
+- A **Linked Accounts** section in Settings → Accounts (hidden for demo users)
+- The **Account Balances** widget in the dashboard widget picker
+
+A 12-hour background cron syncs transactions for all linked users automatically.
+
+In `NODE_ENV=development`, `PLAID_ENV` defaults to `sandbox` if unset, so local dev works without an extra env var.
+
+| Env var | Description |
+|---|---|
+| `PLAID_CLIENT_ID` | Client ID from [dashboard.plaid.com](https://dashboard.plaid.com/) |
+| `PLAID_SECRET` | Sandbox/development/production secret from the Plaid dashboard |
+| `PLAID_ENV` | `sandbox`, `development`, or `production` |
+
+> **Access tokens** are encrypted at rest using the same AES-256-GCM scheme as other stored credentials (`TOKEN_ENCRYPTION_KEY` in `.env`).
+
+---
+
 ## Scraper item fields
 
 The scraper adds computed stock fields to each Shopify-sourced item:

@@ -2,7 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ALL_WIDGETS } from './Dashboard';
-import { getToken, apiPatch, isDemoAccount, clearToken } from '../lib/auth';
+import { getToken, apiPatch, apiPost, apiGet, isDemoAccount, clearToken } from '../lib/auth';
+import { usePlaidLink } from 'react-plaid-link';
+import { useFeatures } from '../lib/features';
 
 // ─── Category definitions ────────────────────────────────────────────────────
 // Alphabetical order: Art, Audio, Automotive, Clothes, Crafts, Electronics,
@@ -167,7 +169,7 @@ const STORAGE_KEY_NOTIFS = 'sd-browser-alerts';
 
 type UserType = 'regular' | 'hobbyist' | 'seller' | 'creator';
 type ApiKeyFields = { cjApiKey: string; amazonAccessKey: string; amazonSecretKey: string; amazonPartnerTag: string };
-type OnboardingStep = 'type' | 1 | '1z' | 2 | 3 | 4 | 5;
+type OnboardingStep = 'type' | 1 | '1z' | 2 | 3 | 4 | 5 | 'plaid';
 
 // ─── Step 1z: Garden zone picker ─────────────────────────────────────────────
 function StepZone({
@@ -309,8 +311,8 @@ function StepUserType({ onSelect }: { onSelect: (type: UserType) => void }) {
 }
 
 // ─── Progress bar ─────────────────────────────────────────────────────────────
-function ProgressBar({ step, showApiKeyStep }: { step: OnboardingStep; showApiKeyStep: boolean }) {
-  const total = showApiKeyStep ? 6 : 5;
+function ProgressBar({ step, showApiKeyStep, showPlaidStep }: { step: OnboardingStep; showApiKeyStep: boolean; showPlaidStep: boolean }) {
+  const total = 5 + (showApiKeyStep ? 1 : 0) + (showPlaidStep ? 1 : 0);
   const pct =
     step === 'type' ? Math.round((1 / total) * 100) :
     step === 1      ? Math.round((2 / total) * 100) :
@@ -911,6 +913,130 @@ function StepApiKeys({
   );
 }
 
+// ─── Step Plaid: bank account linking ────────────────────────────────────────
+function StepPlaid({
+  isDemo,
+  onFinish,
+}: {
+  isDemo: boolean;
+  onFinish: () => void;
+}) {
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [linked, setLinked] = useState<{ name: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const { open, ready } = usePlaidLink({
+    token: linkToken ?? '',
+    onSuccess: async (publicToken) => {
+      try {
+        setLoading(true);
+        const res = await apiPost<{ institution_name: string; account_count: number }>(
+          '/api/plaid/exchange',
+          { public_token: publicToken },
+        );
+        setLinked({ name: res.institution_name || 'Your bank' });
+      } catch {
+        setError('Failed to link account. You can try again from Settings.');
+      } finally {
+        setLoading(false);
+      }
+    },
+  });
+
+  const handleConnect = async () => {
+    if (!linkToken) {
+      try {
+        setLoading(true);
+        const res = await apiGet<{ link_token: string }>('/api/plaid/link-token');
+        setLinkToken(res.link_token);
+      } catch {
+        setError('Could not start account linking. Please try again.');
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+    }
+    open();
+  };
+
+  if (isDemo) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 text-center">
+        <span className="material-symbols-outlined text-5xl text-slate-400">lock</span>
+        <div>
+          <p className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
+            Bank account linking is not available in demo mode
+          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Create a free account to connect your bank and track spending automatically.
+          </p>
+        </div>
+        <button
+          onClick={onFinish}
+          className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+        >
+          Finish Setup
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col px-6 py-8 gap-6 overflow-y-auto">
+      <div>
+        <p className="text-2xl font-bold text-slate-900 dark:text-slate-50 mb-1">Link a bank account</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Automatically import transactions and track your spending — no manual CSV uploads.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-800 dark:text-blue-300 flex gap-3">
+        <span className="material-symbols-outlined text-[18px] mt-0.5 shrink-0">shield</span>
+        <span>Your credentials are never stored. ShopDeck uses Plaid to connect securely — the same technology used by Venmo, Robinhood, and thousands of other apps.</span>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-500">{error}</p>
+      )}
+
+      {linked ? (
+        <div className="flex items-center gap-3 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-4">
+          <span className="material-symbols-outlined text-green-500">check_circle</span>
+          <div>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{linked.name} linked!</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Transactions will sync in the background.</p>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={handleConnect}
+          disabled={loading || (!!linkToken && !ready)}
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors w-full"
+        >
+          {loading && <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>}
+          Connect account
+        </button>
+      )}
+
+      <div className="mt-auto pt-4 flex flex-col items-center gap-3">
+        <button
+          onClick={onFinish}
+          className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+        >
+          Finish Setup
+        </button>
+        <button
+          onClick={onFinish}
+          className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        >
+          Skip for now →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Onboarding ──────────────────────────────────────────────────────────
 export default function Onboarding() {
   const router = useRouter();
@@ -934,16 +1060,19 @@ export default function Onboarding() {
       : 'unsupported'
   );
 
+  const features = useFeatures();
   const showApiKeyStep = userType === 'seller' || userType === 'creator';
-  const totalSteps = showApiKeyStep ? 6 : 5;
+  const showPlaidStep = features.plaid;
+  const totalSteps = 5 + (showApiKeyStep ? 1 : 0) + (showPlaidStep ? 1 : 0);
   const stepLabel =
-    step === 'type' ? '1' :
-    step === 1      ? '2' :
-    step === '1z'   ? '2.5' :
-    step === 2      ? '3' :
-    step === 3      ? '4' :
-    step === 4      ? '5' :
-    '6';
+    step === 'type'  ? '1' :
+    step === 1       ? '2' :
+    step === '1z'    ? '2.5' :
+    step === 2       ? '3' :
+    step === 3       ? '4' :
+    step === 4       ? '5' :
+    step === 5       ? '6' :
+    String(totalSteps);
 
   // Redirect if already onboarded
   useEffect(() => {
@@ -1042,7 +1171,7 @@ export default function Onboarding() {
         <div className="flex items-center gap-3">
           <span className="text-xs font-medium text-slate-400">{stepLabel} of {totalSteps}</span>
           <div className="w-32">
-            <ProgressBar step={step} showApiKeyStep={showApiKeyStep} />
+            <ProgressBar step={step} showApiKeyStep={showApiKeyStep} showPlaidStep={showPlaidStep} />
           </div>
           {isDemo && (
             <button
@@ -1104,17 +1233,27 @@ export default function Onboarding() {
             permState={notifPerm}
             onToggle={handleToggleNotif}
             onBack={() => setStep(3)}
-            onFinish={showApiKeyStep ? () => setStep(5) : handleFinish}
-            finishLabel={showApiKeyStep ? 'Continue' : undefined}
+            onFinish={
+              showApiKeyStep ? () => setStep(5) :
+              showPlaidStep  ? () => setStep('plaid') :
+              handleFinish
+            }
+            finishLabel={(showApiKeyStep || showPlaidStep) ? 'Continue' : undefined}
           />
         )}
         {step === 5 && (
           <StepApiKeys
             keys={apiKeys}
             setKeys={setApiKeys}
-            onSave={() => handleFinish(apiKeys)}
-            onSkip={() => handleFinish()}
+            onSave={() => showPlaidStep ? setStep('plaid') : handleFinish(apiKeys)}
+            onSkip={() => showPlaidStep ? setStep('plaid') : handleFinish()}
             onBack={() => setStep(4)}
+          />
+        )}
+        {step === 'plaid' && (
+          <StepPlaid
+            isDemo={isDemo}
+            onFinish={handleFinish}
           />
         )}
       </div>
