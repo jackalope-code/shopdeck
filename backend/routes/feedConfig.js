@@ -85,6 +85,33 @@ const KEYBOARD_WIDGET_IDS = new Set([
   'keycap-releases',
 ]);
 
+const ART_WIDGET_IDS = new Set(['art-supplies-new', 'art-supplies-deals', 'art-prints']);
+
+// Signals that an item is original artwork, a print, or a commission — not a supply product.
+const ART_PRINT_SIGNALS_RE = /\b(commission(?:s|ed|ing)?|for\s+hire|open\s+slots?|ych\b|your\s+char(?:acter)?|original\s+(?:art(?:work)?|painting|watercolor|gouache|illustration|drawing|sketch)|hand[\s-]?(?:drawn|painted)|gicl[eé]e|litho(?:graph)?|art\s+print|signed\s+(?:print|edition)|shop\s+update|prints?\s+(?:for\s+sale|available|shop)|illustration\s+for\s+(?:sale|hire)|painting\s+for\s+sale|digital\s+art\s+(?:for\s+sale|print)|artwork\s+for\s+sale)\b/i;
+
+// Signals that an item is a deal / discount on supplies.
+const ART_DEAL_SIGNALS_RE = /\b(\d+\s*%\s*off|on\s+sale|clearance|promo(?:tion)?|coupon|flash\s+(?:sale|deal)|price\s+drop|markdown|reduced\s+price)\b/i;
+
+/**
+ * Classify an art item into one of three sub-kinds:
+ *   'print'  — original artwork, prints for sale, commissions / for-hire
+ *   'deal'   — supply product with a discount/sale price
+ *   'supply' — new or general supply product (default)
+ *
+ * Priority: print > deal > supply.
+ */
+function inferArtSubkind(item = {}) {
+  const text = [item.name, item.productType, item.description, item.itemType]
+    .filter(Boolean)
+    .join(' ');
+  if (ART_PRINT_SIGNALS_RE.test(text)) return 'print';
+  const compareVal = parseFloat(String(item.comparePrice ?? '').replace(/[^0-9.]/g, '')) || 0;
+  const priceVal   = parseFloat(String(item.price       ?? '').replace(/[^0-9.]/g, '')) || 0;
+  if ((compareVal > 0 && compareVal > priceVal) || ART_DEAL_SIGNALS_RE.test(text)) return 'deal';
+  return 'supply';
+}
+
 function hasKeyboardPartsSignal(item = {}) {
   const text = [item.name, item.productType, item.tags, item.itemType]
     .filter(Boolean)
@@ -134,6 +161,17 @@ function applyZoneFilter(results, userZone) {
 
 function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
   const normalizedItems = items.map(item => normalizeStockFields(item));
+
+  if (ART_WIDGET_IDS.has(widgetId)) {
+    return normalizedItems.filter(item => {
+      const kind = inferArtSubkind(item);
+      if (widgetId === 'art-prints')          return kind === 'print';
+      if (widgetId === 'art-supplies-deals')  return kind === 'deal';
+      if (widgetId === 'art-supplies-new')    return kind === 'supply';
+      return true;
+    });
+  }
+
   if (!KEYBOARD_WIDGET_IDS.has(widgetId)) return normalizedItems;
 
   const normalizedKeyboardItems = normalizedItems.map(item => {

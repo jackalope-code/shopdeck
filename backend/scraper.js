@@ -627,130 +627,36 @@ const BUILTIN_SOURCE_RULES = {
   // ─── Electronics / maker vendors ──────────────────────────────────────────────
 
   'adafruit-new': {
-    url: 'https://www.adafruit.com/new/rss.xml',
+    // Adafruit migrated off Shopify; www.adafruit.com/new/rss.xml is gone.
+    // The blog new-products category feed is the official replacement.
+    url: 'https://blog.adafruit.com/category/new-products/feed/',
     ruleType: 'rss',
     label: 'Adafruit — New Products',
     vendor: 'Adafruit',
     category: 'Electronics',
   },
-  'adafruit-microcontrollers': {
-    url: 'https://www.adafruit.com/collections/microcontrollers/products.json?limit=50',
-    ruleType: 'jsonpath-multi',
-    containerPath: '$.products[*]',
-    fields: [
-      { path: '$.title',               fieldName: 'name' },
-      { path: '$.images[0].src',       fieldName: 'image' },
-      { path: '$.variants[0].price',   fieldName: 'price' },
-      { path: '$.handle',              fieldName: 'handle' },
-      { path: '$.product_type',        fieldName: 'productType' },
-      { path: '$.tags',                fieldName: 'tags' },
-    ],
-    baseUrl: 'https://www.adafruit.com/product/',
-    label: 'Adafruit — Microcontrollers',
-    vendor: 'Adafruit',
-    category: 'Electronics',
-  },
-  'adafruit-sensors': {
-    url: 'https://www.adafruit.com/collections/sensors-camera/products.json?limit=50',
-    ruleType: 'jsonpath-multi',
-    containerPath: '$.products[*]',
-    fields: [
-      { path: '$.title',               fieldName: 'name' },
-      { path: '$.images[0].src',       fieldName: 'image' },
-      { path: '$.variants[0].price',   fieldName: 'price' },
-      { path: '$.handle',              fieldName: 'handle' },
-      { path: '$.product_type',        fieldName: 'productType' },
-      { path: '$.tags',                fieldName: 'tags' },
-    ],
-    baseUrl: 'https://www.adafruit.com/product/',
-    label: 'Adafruit — Sensors',
-    vendor: 'Adafruit',
-    category: 'Electronics',
-  },
-  'adafruit-motors': {
-    url: 'https://www.adafruit.com/collections/motors-steppers-servos/products.json?limit=50',
-    ruleType: 'jsonpath-multi',
-    containerPath: '$.products[*]',
-    fields: [
-      { path: '$.title',               fieldName: 'name' },
-      { path: '$.images[0].src',       fieldName: 'image' },
-      { path: '$.variants[0].price',   fieldName: 'price' },
-      { path: '$.handle',              fieldName: 'handle' },
-      { path: '$.product_type',        fieldName: 'productType' },
-      { path: '$.tags',                fieldName: 'tags' },
-    ],
-    baseUrl: 'https://www.adafruit.com/product/',
-    label: 'Adafruit — Motors & Servos',
-    vendor: 'Adafruit',
-    category: 'Electronics',
-  },
-  'adafruit-passives': {
-    url: 'https://www.adafruit.com/collections/components/products.json?limit=50',
-    ruleType: 'jsonpath-multi',
-    containerPath: '$.products[*]',
-    fields: [
-      { path: '$.title',               fieldName: 'name' },
-      { path: '$.images[0].src',       fieldName: 'image' },
-      { path: '$.variants[0].price',   fieldName: 'price' },
-      { path: '$.handle',              fieldName: 'handle' },
-      { path: '$.product_type',        fieldName: 'productType' },
-      { path: '$.tags',                fieldName: 'tags' },
-    ],
-    baseUrl: 'https://www.adafruit.com/product/',
-    label: 'Adafruit — Passives & Components',
-    vendor: 'Adafruit',
-    category: 'Electronics',
-  },
-  'adafruit-breakout-boards': {
-    url: 'https://www.adafruit.com/collections/breakout-boards/products.json?limit=50',
-    ruleType: 'jsonpath-multi',
-    containerPath: '$.products[*]',
-    fields: [
-      { path: '$.title',               fieldName: 'name' },
-      { path: '$.images[0].src',       fieldName: 'image' },
-      { path: '$.variants[0].price',   fieldName: 'price' },
-      { path: '$.handle',              fieldName: 'handle' },
-      { path: '$.product_type',        fieldName: 'productType' },
-      { path: '$.tags',                fieldName: 'tags' },
-    ],
-    baseUrl: 'https://www.adafruit.com/product/',
-    label: 'Adafruit — Breakout Boards',
-    vendor: 'Adafruit',
-    category: 'Electronics',
-  },
-  'adafruit-sales': {
-    // Migrated from CSS scraper to Shopify products.json API (Adafruit is Shopify-powered).
-    // The /collections/on-sale endpoint is public and returns structured JSON.
-    url: 'https://www.adafruit.com/collections/on-sale/products.json?limit=50',
-    ruleType: 'jsonpath-multi',
-    containerPath: '$.products[*]',
-    fields: [
-      { path: '$.title',                            fieldName: 'name' },
-      { path: '$.images[0].src',                    fieldName: 'image' },
-      { path: '$.variants[0].price',                fieldName: 'price' },
-      { path: '$.variants[0].compare_at_price',     fieldName: 'comparePrice' },
-      { path: '$.handle',                           fieldName: 'handle' },
-      { path: '$.product_type',                     fieldName: 'productType' },
-    ],
-    baseUrl: 'https://www.adafruit.com/product/',
-    label: 'Adafruit — Sales',
-    vendor: 'Adafruit',
-    category: 'Electronics',
-  },
+  // adafruit-microcontrollers, adafruit-sensors, adafruit-motors, adafruit-passives,
+  // adafruit-breakout-boards, adafruit-sales: all used Shopify products.json endpoints
+  // which return HTTP 404 since Adafruit left Shopify. No category-level RSS feeds exist.
+  // Coverage is provided by adafruit-new (blog RSS covers all new products across categories).
+  /* 'adafruit-microcontrollers': { ... } */
+  /* 'adafruit-sensors': { ... } */
+  /* 'adafruit-motors': { ... } */
+  /* 'adafruit-passives': { ... } */
+  /* 'adafruit-breakout-boards': { ... } */
+  /* 'adafruit-sales': { ... } */
   'sparkfun-new': {
-    url: 'https://www.sparkfun.com/feeds/products',
+    // SparkFun migrated from /feeds/products (404) to Magento-backed site.
+    // Official new-products RSS now served via rss.app.
+    url: 'https://rss.app/feeds/fngzaYCJ3Jwtt5RK.xml',
     ruleType: 'rss',
-    label: 'Sparkfun — New Products',
-    vendor: 'Sparkfun',
+    label: 'SparkFun — New Products',
+    vendor: 'SparkFun',
     category: 'Electronics',
   },
-  'seeed-new': {
-    url: 'https://www.seeedstudio.com/blog/feed',
-    ruleType: 'rss',
-    label: 'Seeed Studio — New Products',
-    vendor: 'Seeed Studio',
-    category: 'Electronics',
-  },
+  // seeed-new: www.seeedstudio.com/blog/feed returns HTTP 403 for automated requests.
+  // No alternative public RSS endpoint found.
+  /* 'seeed-new': { url: 'https://www.seeedstudio.com/blog/feed', ruleType: 'rss', ... } */
 
   // ─── RAM vendors ──────────────────────────────────────────────────────────────
   // Consumer RAM sources. Amazon uses the PA API (keys must be set in app settings).
@@ -1331,8 +1237,13 @@ const BUILTIN_SOURCE_RULES = {
     ruleType: 'rss',
     label: 'r/artstore — New Posts',
     category: 'Art',
+    // Broad filter: keeps supply finds/hauls AND original art / commission posts.
     postFilter: {
-      requireAny: ['sale','deal','discount','haul','find','supplies'],
+      requireAny: [
+        'sale', 'deal', 'discount', 'haul', 'find', 'supplies',
+        'commission', 'commissions', 'for hire', 'original', 'print', 'prints',
+        'ych', 'open slots', 'shop update', 'illustration', 'painting',
+      ],
     },
   },
 

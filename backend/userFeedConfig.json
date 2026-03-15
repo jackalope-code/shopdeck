@@ -670,14 +670,16 @@
     "art-supplies-new": {
       "sources": [
         { "id": "dickblick-art", "name": "Dick Blick",      "enabled": true },
-        { "id": "amazon-art",    "name": "Amazon — Art",    "enabled": false }
+        { "id": "amazon-art",    "name": "Amazon — Art",    "enabled": false },
+        { "id": "reddit-art",    "name": "r/artstore",       "enabled": true }
       ],
       "custom": []
     },
     "art-supplies-deals": {
       "sources": [
         { "id": "dickblick-art", "name": "Dick Blick",      "enabled": true },
-        { "id": "amazon-art",    "name": "Amazon — Art",    "enabled": false }
+        { "id": "amazon-art",    "name": "Amazon — Art",    "enabled": false },
+        { "id": "reddit-art",    "name": "r/artstore",       "enabled": true }
       ],
       "custom": []
     },
