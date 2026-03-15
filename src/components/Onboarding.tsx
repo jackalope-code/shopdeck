@@ -27,6 +27,7 @@ const CATEGORIES = [
   { id: 'shoes',            label: 'Shoes',           icon: 'footprint',             description: 'Athletic, casual & shoe deals' },
   { id: 'sports',           label: 'Sports Equipment', icon: 'sports',              description: 'Baseball, basketball, soccer & more' },
   { id: '3dprinting',       label: '3D Printing',     icon: 'precision_manufacturing', description: 'Filament, printers & hardware' },
+  { id: 'finance',          label: 'Budget & Spending', icon: 'account_balance',         description: 'Import CSV transactions, set budgets & track spend' },
 ];
 
 // Map onboarding category → widget categories in registry
@@ -49,6 +50,7 @@ const CAT_WIDGET_MAP: Record<string, string[]> = {
   shoes:             ['Shoes'],
   sports:            ['Sports Equipment'],
   '3dprinting':      ['3D Printing'],
+  'finance':         ['Finance'],
 };
 
 type DashboardPreference = 'minimal' | 'balanced' | 'extensive';
@@ -144,6 +146,11 @@ const DASHBOARD_TIER_MAP: Record<string, Record<DashboardPreference, string[]>> 
     minimal:   ['3dp-printers', '3dp-filament'],
     balanced:  ['3dp-printers', '3dp-filament', '3dp-deals'],
     extensive: ['3dp-printers', '3dp-filament', '3dp-resins', '3dp-accessories', '3dp-deals'],
+  },
+  'finance': {
+    minimal:   ['finance-recent-transactions'],
+    balanced:  ['finance-recent-transactions', 'finance-budget'],
+    extensive: ['finance-recent-transactions', 'finance-budget', 'finance-spend-by-category'],
   },
 };
 

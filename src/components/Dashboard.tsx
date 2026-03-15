@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch, isDemoAccount } from '../lib/auth';
+import { FinanceRecentTransactionsWidget, FinanceBudgetWidget, FinanceSpendByCategoryWidget } from './FinanceWidgets';
 import { useCommunityInsights, useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
 import { getFeedStockStatus } from '../lib/stockStatus';
 
@@ -168,6 +169,11 @@ const BASE_WIDGETS: WidgetDef[] = [
   { id: 'needlework-crochet',   title: 'Crochet',                category: 'Needle Work', subcategory: 'Crochet',   icon: 'gesture',            color: 'text-pink-400',    description: 'Yarn, hooks & crochet supplies.' },
   { id: 'needlework-quilting',  title: 'Quilting',               category: 'Needle Work', subcategory: 'Quilting',  icon: 'grid_4x4',           color: 'text-rose-500',    description: 'Fabric, batting & quilting tools.' },
   { id: 'needlework-deals',     title: 'Needle Work Deals',      category: 'Needle Work',                   icon: 'sell',                color: 'text-amber-500',   description: 'Deals on yarn, hooks & sewing supplies.' },
+
+  // ─── Finance ─────────────────────────────────────────────────────────────────
+  { id: 'finance-recent-transactions', title: 'Recent Transactions',   category: 'Finance', icon: 'receipt_long',    color: 'text-blue-500',   description: 'Latest imported bank transactions.' },
+  { id: 'finance-budget',              title: 'Monthly Budgets',        category: 'Finance', icon: 'savings',         color: 'text-emerald-500',description: 'Track spend vs budget per category.' },
+  { id: 'finance-spend-by-category',   title: 'Spend by Category',      category: 'Finance', icon: 'bar_chart',       color: 'text-purple-500', description: 'Bar chart of this month\'s spending by ShopDeck category.' },
 ];
 
 const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [
@@ -1443,6 +1449,11 @@ function WidgetContent({ id }: { id: string }) {
     case 'needlework-crochet':   return <FeedListWidget widgetId="needlework-crochet"   linkHref="/needle-work" linkLabel="Browse crochet supplies →" />;
     case 'needlework-quilting':  return <FeedListWidget widgetId="needlework-quilting"  linkHref="/needle-work" linkLabel="Browse quilting supplies →" />;
     case 'needlework-deals':     return <FeedListWidget widgetId="needlework-deals"     linkHref="/needle-work" linkLabel="View needle work deals →" />;
+
+    // ─── Finance ─────────────────────────────────────────────────────────────
+    case 'finance-recent-transactions': return <FinanceRecentTransactionsWidget />;
+    case 'finance-budget':              return <FinanceBudgetWidget />;
+    case 'finance-spend-by-category':   return <FinanceSpendByCategoryWidget />;
 
     default:
       return <div className="p-4 text-sm text-slate-500">No content yet.</div>;

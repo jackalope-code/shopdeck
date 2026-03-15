@@ -103,7 +103,7 @@ const WIDGET_LABELS: Record<string, string> = {
   'electronics-watchlist': 'Electronics Watchlist',
 };
 
-const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences', 'API Keys'];
+const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences', 'API Keys', 'Accounts'];
 
 // ─── Demo account upgrade card ────────────────────────────────────────────────
 function DemoUpgradeCard() {
@@ -955,7 +955,153 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
   );
 }
 
-// ─── Tab 5: API Keys ─────────────────────────────────────────────────────────
+// ─── Tab 5: Accounts (CSV budget & finance) ────────────────────────────────────────
+// (re-uses apiPost, apiGet which are already imported)
+function AccountsTab() {
+  const [importing, setImporting]       = React.useState(false);
+  const [importMsg, setImportMsg]       = React.useState<{ ok: boolean; text: string } | null>(null);
+  const [totalTx, setTotalTx]           = React.useState<number | null>(null);
+  const [clearing, setClearing]         = React.useState(false);
+  const fileRef                         = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    apiGet<{ month: string; summary: unknown[]; total_transactions: number }>('/api/finance/summary')
+      .then(d => setTotalTx(d.total_transactions))
+      .catch(() => {});
+  }, []);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const text = await file.text();
+      const res  = await fetch(`${API_BASE}/api/finance/import`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'text/plain',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+        body: text,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      setImportMsg({ ok: true, text: `Imported ${data.imported} transactions (detected format: ${data.format}).` });
+      setTotalTx(prev => (prev ?? 0) + data.imported);
+    } catch (err: unknown) {
+      setImportMsg({ ok: false, text: (err as Error)?.message ?? 'Import failed. Check the file format and try again.' });
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function handleClear() {
+    if (!window.confirm('Delete all imported transactions? This cannot be undone.')) return;
+    setClearing(true);
+    try {
+      const res  = await fetch(`${API_BASE}/api/finance/transactions`, {
+        method:  'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      setTotalTx(0);
+      setImportMsg({ ok: true, text: `Deleted ${data.deleted} transactions.` });
+    } catch (err: unknown) {
+      setImportMsg({ ok: false, text: (err as Error)?.message ?? 'Delete failed.' });
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Import card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-500">upload_file</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Import Bank CSV</h3>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Export a transaction CSV from your bank&apos;s website, then import it here.
+            ShopDeck auto-detects Chase, Bank of America, and Capital One formats.
+            Any CSV with Date, Description/Merchant, and Amount columns will also work.
+            Your data stays on ShopDeck&apos;s servers and is never shared.
+          </p>
+          {totalTx !== null && (
+            <p className="text-[11px] text-slate-400">{totalTx.toLocaleString()} transaction{totalTx !== 1 ? 's' : ''} stored.</p>
+          )}
+          {importMsg && (
+            <div className={`text-xs rounded-lg px-3 py-2 ${
+              importMsg.ok
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+            }`}>
+              {importMsg.text}
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <label className={`flex items-center gap-2 px-4 py-2.5 rounded-xl cursor-pointer text-sm font-semibold transition-colors ${
+              importing
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 pointer-events-none'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}>
+              <span className="material-symbols-outlined text-[18px]">{importing ? 'hourglass_empty' : 'upload'}</span>
+              {importing ? 'Importing…' : 'Choose CSV file'}
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,text/csv,text/plain"
+                className="sr-only"
+                onChange={handleFile}
+                disabled={importing}
+              />
+            </label>
+            {(totalTx ?? 0) > 0 && (
+              <button
+                onClick={handleClear}
+                disabled={clearing}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">delete</span>
+                {clearing ? 'Clearing…' : 'Clear all'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* How-to card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-slate-500">help_outline</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">How to export from your bank</h3>
+        </div>
+        <div className="p-4">
+          <ul className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Chase:</span> Account → Download Account Activity → CSV</li>
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Bank of America:</span> Accounts → Transactions → Download → CSV</li>
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Capital One:</span> Transactions → Download → CSV</li>
+            <li><span className="font-semibold text-slate-700 dark:text-slate-300">Other banks:</span> Look for a &quot;Download&quot; or &quot;Export&quot; option on your transactions page. CSV format preferred over PDF or OFX.</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Privacy card */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        <span className="font-semibold text-slate-700 dark:text-slate-300">Privacy: </span>
+        CSV data is stored in your ShopDeck account only. It is never sold, shared with data brokers, or used to train models.
+        No live bank connection is made &mdash; all data comes from files you upload manually.
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab 4: API Keys ─────────────────────────────────────────────────────────
 function ApiKeysTab() {
   const [keys, setKeys] = React.useState({
     amazonAccessKey: '',
@@ -1234,6 +1380,7 @@ export default function Settings() {
           {tab === 2 && <AISettingsTab />}
           {tab === 3 && <PreferencesTab />}
           {tab === 4 && <ApiKeysTab />}
+          {tab === 5 && <AccountsTab />}
         </main>
       </div>
     </div>
