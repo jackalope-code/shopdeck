@@ -24,13 +24,56 @@ const CAT_WIDGET_MAP: Record<string, string[]> = {
   audio: ['Electronics'],
 };
 
+type DashboardPreference = 'minimal' | 'balanced' | 'extensive';
+
+// Per-category widget presets for each dashboard preference tier
+const DASHBOARD_TIER_MAP: Record<string, Record<DashboardPreference, string[]>> = {
+  'pc-building': {
+    minimal:   ['ram-availability', 'gpu-availability'],
+    balanced:  ['ram-availability', 'gpu-availability', 'pc-deals'],
+    extensive: ['ram-availability', 'gpu-availability', 'cpu-availability', 'pc-deals'],
+  },
+  keyboards: {
+    minimal:   ['keyboard-releases'],
+    balanced:  ['keyboard-releases', 'keyboard-sales', 'keycaps-tracker'],
+    extensive: ['keyboard-releases', 'keyboard-full-release', 'keyboard-parts-release', 'keyboard-switches', 'keyboard-accessories', 'keycaps-tracker', 'keyboard-sales', 'keyboard-comparison'],
+  },
+  electronics: {
+    minimal:   ['electronics-watchlist'],
+    balanced:  ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
+    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'electronics-microcontrollers', 'electronics-passives', 'electronics-sensors', 'electronics-motors', 'electronics-ics', 'electronics-encoders', 'active-deals'],
+  },
+  '3dprinting': {
+    minimal:   ['inventory-stats', 'active-projects'],
+    balanced:  ['inventory-stats', 'active-projects', 'recent-activity'],
+    extensive: ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products'],
+  },
+  robotics: {
+    minimal:   ['inventory-stats', 'active-projects'],
+    balanced:  ['inventory-stats', 'active-projects', 'recent-activity'],
+    extensive: ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products'],
+  },
+  audio: {
+    minimal:   ['electronics-watchlist'],
+    balanced:  ['electronics-watchlist', 'electronics-new-drops', 'active-deals'],
+    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
+  },
+};
+
+// Base widgets always included regardless of categories selected
+const TIER_BASE: Record<DashboardPreference, string[]> = {
+  minimal:   ['inventory-stats', 'active-projects'],
+  balanced:  ['inventory-stats', 'active-projects', 'recent-activity'],
+  extensive: ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products'],
+};
+
 const STORAGE_KEY_ONBOARDED = 'sd-onboarded';
 const STORAGE_KEY_WIDGETS = 'sd-active-widgets';
 const STORAGE_KEY_NOTIFS = 'sd-browser-alerts';
 
 // ─── Progress bar ─────────────────────────────────────────────────────────────
-function ProgressBar({ step }: { step: 1 | 2 | 3 }) {
-  const pct = step === 1 ? 33 : step === 2 ? 66 : 100;
+function ProgressBar({ step }: { step: 1 | 2 | 3 | 4 }) {
+  const pct = step === 1 ? 25 : step === 2 ? 50 : step === 3 ? 75 : 100;
   return (
     <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
       <div
@@ -118,7 +161,97 @@ function StepCategories({
   );
 }
 
-// ─── Step 2: widget selection ────────────────────────────────────────────────
+// ─── Step 2: dashboard view preference ─────────────────────────────────────
+const PREFERENCE_OPTIONS: { value: DashboardPreference; icon: string; label: string; description: string; recommended?: boolean }[] = [
+  { value: 'minimal',   icon: 'tune',      label: 'Minimal',   description: 'Core trackers only — clean and focused' },
+  { value: 'balanced',  icon: 'dashboard', label: 'Balanced',  description: 'Trackers + deals and new drops', recommended: true },
+  { value: 'extensive', icon: 'grid_view', label: 'Extensive', description: 'Every widget for your selected categories' },
+];
+
+function StepDashboardPreference({
+  selected,
+  onSelect,
+  onBack,
+  onContinue,
+}: {
+  selected: DashboardPreference;
+  onSelect: (p: DashboardPreference) => void;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  return (
+    <>
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold">How do you like your dashboard?</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Pick a starting layout. You&apos;ll fine-tune individual widgets in the next step.
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5">You can always add or remove widgets later.</p>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          {PREFERENCE_OPTIONS.map(opt => {
+            const active = selected === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => onSelect(opt.value)}
+                className={`w-full flex items-center gap-4 rounded-xl p-4 border-2 text-left transition-all ${
+                  active
+                    ? 'border-blue-500 bg-blue-500/5 dark:bg-blue-500/10'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-600'
+                }`}
+              >
+                <div className={`flex h-12 w-12 items-center justify-center rounded-xl shrink-0 transition-colors ${
+                  active ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                }`}>
+                  <span className="material-symbols-outlined text-2xl">{opt.icon}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className={`font-bold text-sm ${active ? 'text-blue-500' : ''}`}>{opt.label}</p>
+                    {opt.recommended && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{opt.description}</p>
+                </div>
+                {active && (
+                  <span className="ml-auto shrink-0 flex items-center justify-center size-5 rounded-full bg-blue-500 text-white">
+                    <span className="material-symbols-outlined text-[14px]">check</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Fixed footer */}
+      <div className="shrink-0 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101922] space-y-2">
+        <button
+          onClick={onContinue}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white hover:bg-blue-600 transition-colors"
+        >
+          Continue
+          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+        </button>
+        <button
+          onClick={onBack}
+          className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          ← Back
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── Step 3: widget selection ────────────────────────────────────────────────
 function StepWidgets({
   selectedCategoryIds,
   enabledWidgets,
@@ -333,9 +466,10 @@ function StepNotifications({
 // ─── Main Onboarding ──────────────────────────────────────────────────────────
 export default function Onboarding() {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isDemo, setIsDemo] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
+  const [dashPref, setDashPref] = useState<DashboardPreference>('balanced');
   const [enabledWidgets, setEnabledWidgets] = useState<string[]>([
     'active-projects', 'recent-activity', 'inventory-stats',
   ]);
@@ -360,16 +494,10 @@ export default function Onboarding() {
   const toggleWidget = (id: string) =>
     setEnabledWidgets(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]);
 
-  const handleContinue = () => {
-    // Auto-select a default widget per category
-    const suggested: string[] = [];
-    for (const catId of selectedCats) {
-      const wCats = CAT_WIDGET_MAP[catId] ?? [];
-      const first = ALL_WIDGETS.find(w => wCats.includes(w.category));
-      if (first && !enabledWidgets.includes(first.id)) suggested.push(first.id);
-    }
-    if (suggested.length) setEnabledWidgets(prev => [...prev, ...suggested]);
-    setStep(2);
+  const handlePreferenceContinue = (pref: DashboardPreference) => {
+    const catWidgets = selectedCats.flatMap(id => DASHBOARD_TIER_MAP[id]?.[pref] ?? []);
+    setEnabledWidgets([...new Set([...TIER_BASE[pref], ...catWidgets])]);
+    setStep(3);
   };
 
   const handleToggleNotif = async () => {
@@ -420,7 +548,7 @@ export default function Onboarding() {
           <span className="text-base">ShopDeck</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-slate-400">{step} of 3</span>
+          <span className="text-xs font-medium text-slate-400">{step} of 4</span>
           <div className="w-32">
             <ProgressBar step={step} />
           </div>
@@ -442,24 +570,32 @@ export default function Onboarding() {
           <StepCategories
             selected={selectedCats}
             onToggle={toggleCat}
-            onContinue={handleContinue}
+            onContinue={() => setStep(2)}
           />
         )}
         {step === 2 && (
+          <StepDashboardPreference
+            selected={dashPref}
+            onSelect={setDashPref}
+            onBack={() => setStep(1)}
+            onContinue={() => handlePreferenceContinue(dashPref)}
+          />
+        )}
+        {step === 3 && (
           <StepWidgets
             selectedCategoryIds={selectedCats}
             enabledWidgets={enabledWidgets}
             onToggle={toggleWidget}
-            onBack={() => setStep(1)}
-            onFinish={() => setStep(3)}
+            onBack={() => setStep(2)}
+            onFinish={() => setStep(4)}
           />
         )}
-        {step === 3 && (
+        {step === 4 && (
           <StepNotifications
             enabled={notifEnabled}
             permState={notifPerm}
             onToggle={handleToggleNotif}
-            onBack={() => setStep(2)}
+            onBack={() => setStep(3)}
             onFinish={handleFinish}
           />
         )}
