@@ -109,6 +109,29 @@ function looksLikeFullKeyboard(item = {}) {
   return /pre.?built|fully built|mechanical keyboard|\bkeyboard\b|alice|\btkl\b|\b65%\b|\b75%\b|\b60%\b/.test(text);
 }
 
+// Regex patterns used to detect USDA hardiness zone mentions in product names.
+// Matches patterns like: "Zone 5", "zones 3-7", "Hardy to Zone 6", "USDA Zone 4"
+const ZONE_PATTERN = /(?:hardy\s+(?:to\s+)?)?(?:usda\s+)?zones?\s+(\d+)(?:\s*[-–]\s*(\d+))?/i;
+
+/**
+ * Remove items from garden sources whose minimum hardiness zone exceeds the user's zone.
+ * Items with no zone mention are kept. Modifies the results object in place.
+ */
+function applyZoneFilter(results, userZone) {
+  for (const key of Object.keys(results)) {
+    const src = results[key];
+    if (!src || !Array.isArray(src.data)) continue;
+    if (src.category !== 'Garden') continue;
+    src.data = src.data.filter(item => {
+      const name = String(item.name ?? '');
+      const m = ZONE_PATTERN.exec(name);
+      if (!m) return true; // no zone mention — keep
+      const minZone = parseInt(m[1], 10);
+      return minZone <= userZone;
+    });
+  }
+}
+
 function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
   const normalizedItems = items.map(item => normalizeStockFields(item));
   if (!KEYBOARD_WIDGET_IDS.has(widgetId)) return normalizedItems;
@@ -605,6 +628,8 @@ router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async 
       mouser_api_key: decryptedApiKeys.mouser_api_key ?? process.env.MOUSER_API_KEY ?? undefined,
       digikey_client_id: decryptedApiKeys.digikey_client_id ?? process.env.DIGIKEY_CLIENT_ID ?? undefined,
       digikey_client_secret: decryptedApiKeys.digikey_client_secret ?? process.env.DIGIKEY_CLIENT_SECRET ?? undefined,
+      cj_api_key: decryptedApiKeys.cj_api_key ?? process.env.CJ_API_KEY ?? undefined,
+      walmart_impact_api_key: decryptedApiKeys.walmart_impact_api_key ?? process.env.WALMART_IMPACT_API_KEY ?? undefined,
     };
 
     const widgetEntries = targetWidgetIds.map(widgetId => {
@@ -757,7 +782,7 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
 
   // Load user config first so we can honor live-fetch rules (e.g. Mouser no-cache)
   const [profileResult] = await Promise.all([
-    db.query('SELECT feed_config, api_keys FROM user_profiles WHERE user_id=$1', [req.user.id]),
+    db.query('SELECT feed_config, api_keys, planting_zone, hide_outdoor_plants FROM user_profiles WHERE user_id=$1', [req.user.id]),
   ]);
   const profile = profileResult.rows[0] ?? {};
   const defaults = readDefaults();
@@ -809,6 +834,8 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
     mouser_api_key: decryptedApiKeys.mouser_api_key ?? process.env.MOUSER_API_KEY ?? undefined,
     digikey_client_id: decryptedApiKeys.digikey_client_id ?? process.env.DIGIKEY_CLIENT_ID ?? undefined,
     digikey_client_secret: decryptedApiKeys.digikey_client_secret ?? process.env.DIGIKEY_CLIENT_SECRET ?? undefined,
+    cj_api_key: decryptedApiKeys.cj_api_key ?? process.env.CJ_API_KEY ?? undefined,
+    walmart_impact_api_key: decryptedApiKeys.walmart_impact_api_key ?? process.env.WALMART_IMPACT_API_KEY ?? undefined,
   };
 
   const results = {};
@@ -959,6 +986,15 @@ router.get('/data/:widgetId', verifyToken, widgetDataLimiter, async (req, res) =
   } else {
     console.log(`[cache] SKIP widget ${cacheKey} — API source enabled`);
   }
+
+  // Apply planting-zone filter: when a user sets hideOutdoorPlants=true and has a zone,
+  // remove items whose name contains a hardiness zone marker for a zone higher than theirs.
+  const plantingZone = profile.planting_zone ?? null;
+  const hideOutdoorPlants = profile.hide_outdoor_plants ?? false;
+  if (plantingZone && hideOutdoorPlants) {
+    applyZoneFilter(results, plantingZone);
+  }
+
   res.json({ sources: results, at, cached: false });
 });
 

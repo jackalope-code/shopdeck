@@ -133,6 +133,8 @@ ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_view_history BOOLEAN NO
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_favorites BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ram_alert_states JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS gpu_alert_states JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS planting_zone INT CHECK (planting_zone BETWEEN 1 AND 13);
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS hide_outdoor_plants BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_category TEXT;
 ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_subcategory TEXT;
 ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS analytics_category TEXT;

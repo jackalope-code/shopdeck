@@ -26,6 +26,7 @@ export interface WidgetDef {
   id: string;
   title: string;
   category: string;
+  subcategory?: string;
   icon: string;
   color: string;
   description: string;
@@ -75,6 +76,93 @@ const BASE_WIDGETS: WidgetDef[] = [
   { id: 'electronics-encoders',        title: 'Encoders & Potentiometers',   category: 'Electronics', icon: 'rotate_right',          color: 'text-pink-500',   description: 'Rotary encoders and potentiometers.' },
   { id: 'inventory-stats', title: 'Inventory Stats', category: 'Overview', icon: 'inventory_2', color: 'text-blue-500', description: 'High-level stock and project counts.' },
   { id: 'vendor-performance', title: 'Vendor Performance', category: 'Overview', icon: 'storefront', color: 'text-yellow-500', description: 'Fulfillment rates across top vendors.' },
+
+  // ─── Garden ───────────────────────────────────────────────────────────────────
+  { id: 'garden-new-arrivals',  title: 'Garden New Arrivals',   category: 'Garden',                        icon: 'new_releases',        color: 'text-green-500',   description: 'New plants, seeds & tools from top garden retailers.' },
+  { id: 'garden-deals',         title: 'Garden Deals',          category: 'Garden',                        icon: 'sell',                color: 'text-amber-500',   description: 'Discounts & sales on garden products.' },
+  { id: 'garden-houseplants',   title: 'Houseplants',           category: 'Garden',  subcategory: 'Houseplants', icon: 'potted_plant',  color: 'text-emerald-500', description: 'Indoor plants and houseplant care supplies.' },
+  { id: 'garden-trees-shrubs',  title: 'Trees & Shrubs',        category: 'Garden',  subcategory: 'Trees & Shrubs', icon: 'park',       color: 'text-teal-500',    description: 'Hardy trees and shrubs — zone-filtered when your zone is set.' },
+  { id: 'garden-perennials',    title: 'Perennials',            category: 'Garden',  subcategory: 'Perennials', icon: 'grass',          color: 'text-green-400',   description: 'Perennial plants — zone-filtered to your hardiness zone.' },
+  { id: 'garden-seeds',         title: 'Seeds',                 category: 'Garden',  subcategory: 'Seeds',    icon: 'compost',          color: 'text-lime-500',    description: 'Vegetable, flower & herb seeds.' },
+  { id: 'garden-tools',         title: 'Garden Tools',          category: 'Garden',  subcategory: 'Tools',    icon: 'construction',     color: 'text-orange-400',  description: 'Pruners, spades, trowels & garden tools.' },
+
+  // ─── Groceries ────────────────────────────────────────────────────────────────
+  { id: 'grocery-deals',        title: 'Weekly Deals',          category: 'Groceries',                     icon: 'sell',                color: 'text-amber-500',   description: 'Kroger weekly sales and promotions.' },
+  { id: 'grocery-produce',      title: 'Fresh Produce',         category: 'Groceries',                     icon: 'nutrition',           color: 'text-green-500',   description: 'Fresh fruits, vegetables and produce.' },
+  { id: 'grocery-staples',      title: 'Pantry Staples',        category: 'Groceries',                     icon: 'kitchen',             color: 'text-yellow-600',  description: 'Pantry essentials and dry goods.' },
+  { id: 'grocery-meat-seafood', title: 'Meat & Seafood',        category: 'Groceries',                     icon: 'set_meal',            color: 'text-red-500',     description: 'Fresh meat and seafood from Kroger.' },
+
+  // ─── Sports Equipment ─────────────────────────────────────────────────────────
+  { id: 'sports-baseball',      title: 'Baseball',              category: 'Sports Equipment', subcategory: 'Baseball',   icon: 'sports_baseball',     color: 'text-red-600',     description: 'Baseball bats, gloves & equipment.' },
+  { id: 'sports-basketball',    title: 'Basketball',            category: 'Sports Equipment', subcategory: 'Basketball', icon: 'sports_basketball',   color: 'text-orange-500',  description: 'Basketballs, hoops & gear.' },
+  { id: 'sports-football',      title: 'Football',              category: 'Sports Equipment', subcategory: 'Football',   icon: 'sports_football',     color: 'text-slate-700',   description: 'Footballs, pads & equipment.' },
+  { id: 'sports-soccer',        title: 'Soccer',                category: 'Sports Equipment', subcategory: 'Soccer',     icon: 'sports_soccer',       color: 'text-green-600',   description: 'Soccer balls, cleats & gear.' },
+  { id: 'sports-volleyball',    title: 'Volleyball',            category: 'Sports Equipment', subcategory: 'Volleyball', icon: 'sports_volleyball',   color: 'text-yellow-500',  description: 'Volleyballs, nets & accessories.' },
+  { id: 'sports-deals',         title: 'Sports Deals',          category: 'Sports Equipment',              icon: 'sell',                color: 'text-amber-500',   description: 'Deals across all sports categories.' },
+  { id: 'sports-new-releases',  title: 'New Equipment',         category: 'Sports Equipment',              icon: 'new_releases',        color: 'text-blue-500',    description: 'Latest sports equipment releases.' },
+
+  // ─── 3D Printing ─────────────────────────────────────────────────────────────
+  { id: '3dp-printers',         title: '3D Printers',           category: '3D Printing',                   icon: 'print',               color: 'text-blue-500',    description: 'FDM and resin 3D printer deals and releases.' },
+  { id: '3dp-filament',         title: 'Filament',              category: '3D Printing',                   icon: 'cable',               color: 'text-yellow-400',  description: 'PLA, PETG, ABS and specialty filament.' },
+  { id: '3dp-resins',           title: 'Resins',                category: '3D Printing',                   icon: 'science',             color: 'text-purple-500',  description: 'Standard and engineering resins for SLA/MSLA printers.' },
+  { id: '3dp-accessories',      title: 'Accessories & Upgrades', category: '3D Printing',                  icon: 'build',               color: 'text-slate-400',   description: 'Nozzles, build plates, enclosures & upgrades.' },
+  { id: '3dp-deals',            title: '3D Printing Deals',     category: '3D Printing',                   icon: 'sell',                color: 'text-amber-500',   description: 'Sales on printers, filament & accessories.' },
+
+  // ─── Automotive ──────────────────────────────────────────────────────────────
+  { id: 'auto-parts',           title: 'Auto Parts',            category: 'Automotive',                    icon: 'directions_car',      color: 'text-blue-500',    description: 'OEM and aftermarket auto parts.' },
+  { id: 'auto-tools',           title: 'Tools & Equipment',     category: 'Automotive',                    icon: 'build',               color: 'text-orange-400',  description: 'Jacks, ratchets & diagnostic tools.' },
+  { id: 'auto-accessories',     title: 'Car Accessories',       category: 'Automotive',                    icon: 'auto_awesome',        color: 'text-teal-400',    description: 'Interior, exterior & tech accessories.' },
+  { id: 'auto-deals',           title: 'Auto Deals',            category: 'Automotive',                    icon: 'sell',                color: 'text-amber-500',   description: 'Deals on parts, tools & accessories.' },
+
+  // ─── Games ───────────────────────────────────────────────────────────────────
+  { id: 'games-video-deals',    title: 'Video Game Deals',      category: 'Games',                         icon: 'sports_esports',      color: 'text-purple-500',  description: 'Steam, Epic, Humble & more game deals.' },
+  { id: 'games-video-new',      title: 'New Video Games',       category: 'Games',                         icon: 'new_releases',        color: 'text-blue-500',    description: 'New releases across PC, console & mobile.' },
+  { id: 'games-board-new',      title: 'New Board Games',       category: 'Games',  subcategory: 'Board Games', icon: 'casino',        color: 'text-green-500',   description: 'New board game releases from BGG hotness.' },
+  { id: 'games-board-deals',    title: 'Board Game Deals',      category: 'Games',  subcategory: 'Board Games', icon: 'sell',          color: 'text-amber-500',   description: 'Discounts on board games and expansions.' },
+  { id: 'games-tabletop',       title: 'Tabletop & RPG',        category: 'Games',  subcategory: 'Tabletop/RPG', icon: 'casino',       color: 'text-red-500',     description: 'Tabletop RPGs, miniatures & accessories.' },
+  { id: 'games-deals',          title: 'All Games Deals',       category: 'Games',                         icon: 'sell',                color: 'text-orange-400',  description: 'Combined deals across video and board games.' },
+
+  // ─── Home ────────────────────────────────────────────────────────────────────
+  { id: 'home-decor',           title: 'Home Decor',            category: 'Home',                          icon: 'home',                color: 'text-rose-500',    description: 'Decor, rugs, lighting & accents.' },
+  { id: 'home-furniture',       title: 'Furniture',             category: 'Home',                          icon: 'chair',               color: 'text-amber-800',   description: 'Sofas, tables, chairs & shelving.' },
+  { id: 'home-kitchen',         title: 'Kitchen & Appliances',  category: 'Home',                          icon: 'kitchen',             color: 'text-yellow-600',  description: 'Cookware, appliances & kitchen gadgets.' },
+  { id: 'home-deals',           title: 'Home Deals',            category: 'Home',                          icon: 'sell',                color: 'text-amber-500',   description: 'Deals across home decor, furniture & kitchen.' },
+
+  // ─── Home Improvement ────────────────────────────────────────────────────────
+  { id: 'homeimprove-tools',     title: 'Power & Hand Tools',    category: 'Home Improvement', subcategory: 'Tools',       icon: 'hardware',            color: 'text-orange-500',  description: 'Drills, saws, wrenches & hand tools.' },
+  { id: 'homeimprove-materials', title: 'Building Materials',    category: 'Home Improvement', subcategory: 'Materials',   icon: 'foundation',          color: 'text-slate-500',   description: 'Lumber, drywall, concrete & building supplies.' },
+  { id: 'homeimprove-plumbing',  title: 'Plumbing',              category: 'Home Improvement', subcategory: 'Plumbing',    icon: 'water_pump',          color: 'text-blue-400',    description: 'Pipes, fittings, faucets & plumbing supplies.' },
+  { id: 'homeimprove-electrical',title: 'Electrical',            category: 'Home Improvement', subcategory: 'Electrical',  icon: 'electrical_services', color: 'text-yellow-400',  description: 'Wire, breakers, outlets & electrical supplies.' },
+  { id: 'homeimprove-deals',     title: 'DIY Deals',             category: 'Home Improvement',              icon: 'sell',                color: 'text-amber-500',   description: 'Deals on tools and home improvement supplies.' },
+
+  // ─── Clothes ─────────────────────────────────────────────────────────────────
+  { id: 'clothes-mens',         title: "Men's Clothing",         category: 'Clothes',  subcategory: "Men's",     icon: 'man',                 color: 'text-blue-500',    description: "Men's fashion deals and new arrivals." },
+  { id: 'clothes-womens',       title: "Women's Clothing",       category: 'Clothes',  subcategory: "Women's",   icon: 'woman',               color: 'text-pink-500',    description: "Women's fashion deals and new arrivals." },
+  { id: 'clothes-activewear',   title: 'Activewear',             category: 'Clothes',  subcategory: 'Activewear', icon: 'fitness_center',     color: 'text-green-500',   description: 'Sports and exercise apparel deals.' },
+  { id: 'clothes-deals',        title: 'Clothing Deals',         category: 'Clothes',                       icon: 'sell',                color: 'text-amber-500',   description: 'Deals across all clothing categories.' },
+  { id: 'clothes-new',          title: 'New Arrivals',           category: 'Clothes',                       icon: 'new_releases',        color: 'text-slate-400',   description: 'Latest fashion arrivals from top retailers.' },
+
+  // ─── Shoes ───────────────────────────────────────────────────────────────────
+  { id: 'shoes-athletic',       title: 'Athletic & Running',    category: 'Shoes',  subcategory: 'Athletic', icon: 'sprint',               color: 'text-blue-500',    description: 'Running shoes, cross-trainers & athletic footwear.' },
+  { id: 'shoes-casual',         title: 'Casual & Lifestyle',    category: 'Shoes',  subcategory: 'Casual',   icon: 'footprint',            color: 'text-slate-400',   description: 'Sneakers, boots & everyday shoes.' },
+  { id: 'shoes-deals',          title: 'Shoe Deals',            category: 'Shoes',                          icon: 'sell',                 color: 'text-amber-500',   description: 'Deals across all footwear types.' },
+  { id: 'shoes-new',            title: 'New Releases',          category: 'Shoes',                          icon: 'new_releases',         color: 'text-green-500',   description: 'Latest sneaker and shoe releases.' },
+
+  // ─── Art ─────────────────────────────────────────────────────────────────────
+  { id: 'art-supplies-new',     title: 'New Art Supplies',       category: 'Art',                           icon: 'palette',             color: 'text-purple-500',  description: 'New paints, canvases, brushes & art supplies.' },
+  { id: 'art-supplies-deals',   title: 'Art Supply Deals',       category: 'Art',                           icon: 'sell',                color: 'text-amber-500',   description: 'Deals on art materials and supplies.' },
+  { id: 'art-prints',           title: 'Prints & Originals',     category: 'Art',                           icon: 'image',               color: 'text-rose-400',    description: 'Art prints, originals & wall art.' },
+
+  // ─── Crafts ──────────────────────────────────────────────────────────────────
+  { id: 'crafts-pottery',       title: 'Pottery',                category: 'Crafts', subcategory: 'Pottery',  icon: 'blur_circular',       color: 'text-orange-400',  description: 'Clay, kilns & pottery supplies.' },
+  { id: 'crafts-weaving',       title: 'Weaving & Fiber Arts',   category: 'Crafts', subcategory: 'Weaving',  icon: 'grid_on',             color: 'text-teal-500',    description: 'Looms, yarn & weaving supplies.' },
+  { id: 'crafts-deals',         title: 'Craft Deals',            category: 'Crafts',                        icon: 'sell',                color: 'text-amber-500',   description: 'Deals on craft supplies from JOANN, Michaels & more.' },
+
+  // ─── Needle Work ─────────────────────────────────────────────────────────────
+  { id: 'needlework-knitting',  title: 'Knitting',               category: 'Needle Work', subcategory: 'Knitting',  icon: 'texture',            color: 'text-purple-400',  description: 'Yarn, needles & knitting patterns.' },
+  { id: 'needlework-crochet',   title: 'Crochet',                category: 'Needle Work', subcategory: 'Crochet',   icon: 'gesture',            color: 'text-pink-400',    description: 'Yarn, hooks & crochet supplies.' },
+  { id: 'needlework-quilting',  title: 'Quilting',               category: 'Needle Work', subcategory: 'Quilting',  icon: 'grid_4x4',           color: 'text-rose-500',    description: 'Fabric, batting & quilting tools.' },
+  { id: 'needlework-deals',     title: 'Needle Work Deals',      category: 'Needle Work',                   icon: 'sell',                color: 'text-amber-500',   description: 'Deals on yarn, hooks & sewing supplies.' },
 ];
 
 const COMMUNITY_WIDGET_CONFIGS: CommunityWidgetConfig[] = [

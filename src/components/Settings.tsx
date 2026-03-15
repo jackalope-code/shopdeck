@@ -107,6 +107,8 @@ function PreferencesTab() {
   const [notifEnabled, setNotifEnabled] = React.useState(false);
   const [shareViewHistory, setShareViewHistory] = React.useState(true);
   const [shareFavorites, setShareFavorites] = React.useState(true);
+  const [plantingZone, setPlantingZone] = React.useState<number | null>(null);
+  const [hideOutdoorPlants, setHideOutdoorPlants] = React.useState(false);
   const [perm, setPerm] = React.useState<NotificationPermission | 'unsupported'>(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
     return Notification.permission;
@@ -115,11 +117,13 @@ function PreferencesTab() {
   // Load from profile API on mount
   useEffect(() => {
     if (!getToken()) return;
-    apiGet<{ profile: { browserAlerts?: boolean; shareViewHistory?: boolean; shareFavorites?: boolean } }>('/api/profile')
+    apiGet<{ profile: { browserAlerts?: boolean; shareViewHistory?: boolean; shareFavorites?: boolean; plantingZone?: number | null; hideOutdoorPlants?: boolean } }>('/api/profile')
       .then(data => {
         if (data?.profile?.browserAlerts != null) setNotifEnabled(data.profile.browserAlerts);
         if (data?.profile?.shareViewHistory != null) setShareViewHistory(data.profile.shareViewHistory);
         if (data?.profile?.shareFavorites != null) setShareFavorites(data.profile.shareFavorites);
+        if (data?.profile?.plantingZone !== undefined) setPlantingZone(data.profile.plantingZone ?? null);
+        if (data?.profile?.hideOutdoorPlants != null) setHideOutdoorPlants(data.profile.hideOutdoorPlants);
       })
       .catch(() => {});
   }, []);
@@ -272,6 +276,62 @@ function PreferencesTab() {
               </div>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Garden / Planting Zone card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-green-600">yard</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Garden &amp; Planting Zone</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              USDA Hardiness Zone
+            </label>
+            <select
+              value={plantingZone ?? ''}
+              onChange={e => {
+                const val = e.target.value === '' ? null : Number(e.target.value);
+                setPlantingZone(val);
+                apiPatch('/api/profile', { plantingZone: val }).catch(() => {});
+              }}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">Not set</option>
+              {Array.from({ length: 13 }, (_, i) => i + 1).map(z => (
+                <option key={z} value={z}>Zone {z}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-400">Used to filter plants and seeds that won&apos;t survive in your climate.</p>
+          </div>
+          <button
+            onClick={() => {
+              const next = !hideOutdoorPlants;
+              setHideOutdoorPlants(next);
+              apiPatch('/api/profile', { hideOutdoorPlants: next }).catch(() => {});
+            }}
+            className={`w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+              hideOutdoorPlants
+                ? 'border-green-500 bg-green-500/5'
+                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+            }`}
+          >
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-colors ${
+              hideOutdoorPlants ? 'bg-green-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+            }`}>
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: hideOutdoorPlants ? "'FILL' 1" : "'FILL' 0" }}>filter_alt</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${ hideOutdoorPlants ? 'text-green-700 dark:text-green-400' : 'text-slate-700 dark:text-slate-200' }`}>Hide out-of-zone plants</p>
+              <p className="text-xs text-slate-400 mt-0.5">Suppress plants and seeds listed outside your hardiness zone in Garden feeds.</p>
+            </div>
+            <div className="ml-2 shrink-0 relative inline-flex items-center rounded-full pointer-events-none" style={{ width: 44, height: 24 }}>
+              <span className="block rounded-full transition-colors" style={{ width: 44, height: 24, background: hideOutdoorPlants ? '#22c55e' : undefined }} />
+              <span className={`absolute block rounded-full bg-white shadow transition-transform ${ hideOutdoorPlants ? 'translate-x-5' : 'translate-x-0.5' }`} style={{ width: 20, height: 20, top: 2, left: 2 }} />
+            </div>
+          </button>
         </div>
       </div>
     </div>
@@ -769,6 +829,10 @@ function ApiKeysTab() {
     amazonSecretKey: '',
     amazonPartnerTag: '',
     neweggApiKey: '',
+    cjApiKey: '',
+    krogerClientId: '',
+    krogerClientSecret: '',
+    itadApiKey: '',
   });
   const [loaded, setLoaded] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -852,6 +916,55 @@ function ApiKeysTab() {
             here enables higher rate limits and affiliate commission on purchases.
           </p>
           {field('Newegg Affiliate Key', 'neweggApiKey', 'your-newegg-key', 'From the Newegg affiliate program dashboard')}
+        </div>
+      </div>
+
+      {/* CJ Affiliate API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-500">hub</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">CJ Affiliate API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Enables live product feeds from Home Depot, Lowe&apos;s, DICK&apos;s Sporting Goods, Zappos, Dick Blick, JOANN, and other CJ-affiliated retailers.
+            Requires a <a href="https://developers.cj.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">CJ Affiliate personal access token</a>.
+          </p>
+          {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'From your CJ developer account — stored encrypted', true)}
+        </div>
+      </div>
+
+      {/* Kroger API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-700">local_grocery_store</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Kroger Product API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Powers Grocery feed widgets (weekly deals, produce, pantry staples). Register at the{' '}
+            <a href="https://developer.kroger.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Kroger Developer Portal</a> and create a public application.
+          </p>
+          {field('Client ID', 'krogerClientId', 'your-kroger-client-id', 'OAuth2 Client ID from the Kroger Developer Portal')}
+          {field('Client Secret', 'krogerClientSecret', '••••••••', 'OAuth2 Client Secret — stored encrypted', true)}
+        </div>
+      </div>
+
+      {/* IsThereAnyDeal API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-purple-500">videogame_asset</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">IsThereAnyDeal API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Enables personalized game-deal alerts from ITAD. Without a key the Games feed uses r/GameDeals RSS only.
+            Register at <a href="https://isthereanydeal.com/dev/app/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">isthereanydeal.com/dev</a>.
+          </p>
+          {field('ITAD API Key', 'itadApiKey', 'your-itad-api-key', 'From your IsThereAnyDeal developer account — stored encrypted', true)}
         </div>
       </div>
 

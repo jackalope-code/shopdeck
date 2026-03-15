@@ -13,6 +13,8 @@ function ensureProfileColumns() {
     ensureProfileColumnsPromise = Promise.all([
       db.query('ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_view_history BOOLEAN NOT NULL DEFAULT true'),
       db.query('ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_favorites BOOLEAN NOT NULL DEFAULT true'),
+      db.query('ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS planting_zone INT CHECK (planting_zone BETWEEN 1 AND 13)'),
+      db.query('ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS hide_outdoor_plants BOOLEAN NOT NULL DEFAULT false'),
     ]);
   }
   return ensureProfileColumnsPromise;
@@ -32,6 +34,8 @@ const FIELD_MAP = {
   gpuAlertStates:  'gpu_alert_states',
   shareViewHistory:'share_view_history',
   shareFavorites:  'share_favorites',
+  plantingZone:    'planting_zone',
+  hideOutdoorPlants:'hide_outdoor_plants',
 };
 
 // Map PG row columns back to the camelCase profile shape the frontend expects
@@ -55,6 +59,8 @@ function rowToProfile(row) {
     gpuAlertStates: row.gpu_alert_states,
     shareViewHistory: row.share_view_history,
     shareFavorites: row.share_favorites,
+    plantingZone:    row.planting_zone    ?? null,
+    hideOutdoorPlants: row.hide_outdoor_plants ?? false,
   };
 }
 

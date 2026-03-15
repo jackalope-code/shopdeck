@@ -5,58 +5,145 @@ import { ALL_WIDGETS } from './Dashboard';
 import { getToken, apiPatch, isDemoAccount, clearToken } from '../lib/auth';
 
 // ─── Category definitions ────────────────────────────────────────────────────
+// Alphabetical order: Art, Audio, Automotive, Clothes, Crafts, Electronics,
+// Garden, Games, Groceries, Home, Home Improvement, Keyboards, Needle Work,
+// PC Building, Robotics, Shoes, Sports Equipment, 3D Printing
 const CATEGORIES = [
-  { id: 'keyboards', label: 'Keyboard Enthusiast', icon: 'keyboard', description: 'Full boards, parts, switches, keycaps, accessories' },
-  { id: 'electronics', label: 'Electronics Maker', icon: 'memory', description: 'Components, MCUs & sensors' },
-  { id: 'pc-building', label: 'PC Builder', icon: 'computer', description: 'CPUs, RAM, GPUs & component deals' },
-  { id: '3dprinting', label: '3D Printing', icon: 'precision_manufacturing', description: 'Filament, printers & hardware' },
-  { id: 'robotics', label: 'Robotics', icon: 'smart_toy', description: 'Actuators, sensors & kits' },
-  { id: 'audio', label: 'Audio', icon: 'headset', description: 'DACs, amps & speakers' },
+  { id: 'art',              label: 'Art',             icon: 'palette',                description: 'Art supplies, prints & originals' },
+  { id: 'audio',            label: 'Audio',           icon: 'headset',                description: 'DACs, amps & speakers' },
+  { id: 'automotive',       label: 'Automotive',      icon: 'directions_car',         description: 'Auto parts, tools & accessories' },
+  { id: 'clothes',          label: 'Clothes',         icon: 'checkroom',              description: 'Men\'s, women\'s & activewear deals' },
+  { id: 'crafts',           label: 'Crafts',          icon: 'blur_circular',          description: 'Pottery, weaving & fiber arts' },
+  { id: 'electronics',      label: 'Electronics Maker', icon: 'memory',              description: 'Components, MCUs & sensors' },
+  { id: 'garden',           label: 'Garden',          icon: 'yard',                   description: 'Plants, seeds, tools & zone-aware tracking' },
+  { id: 'games',            label: 'Games',           icon: 'sports_esports',         description: 'Video game & board game deals' },
+  { id: 'groceries',        label: 'Groceries',       icon: 'local_grocery_store',    description: 'Weekly deals, produce & pantry staples' },
+  { id: 'home',             label: 'Home',            icon: 'home',                   description: 'Home decor, furniture & kitchen' },
+  { id: 'home-improvement', label: 'Home Improvement', icon: 'handyman',             description: 'Tools, building materials & DIY' },
+  { id: 'keyboards',        label: 'Keyboard Enthusiast', icon: 'keyboard',          description: 'Full boards, parts, switches, keycaps, accessories' },
+  { id: 'needle-work',      label: 'Needle Work',     icon: 'texture',               description: 'Knitting, crochet, quilting & yarn' },
+  { id: 'pc-building',      label: 'PC Builder',      icon: 'computer',              description: 'CPUs, RAM, GPUs & component deals' },
+  { id: 'robotics',         label: 'Robotics',        icon: 'smart_toy',             description: 'Actuators, sensors & kits' },
+  { id: 'shoes',            label: 'Shoes',           icon: 'footprint',             description: 'Athletic, casual & shoe deals' },
+  { id: 'sports',           label: 'Sports Equipment', icon: 'sports',              description: 'Baseball, basketball, soccer & more' },
+  { id: '3dprinting',       label: '3D Printing',     icon: 'precision_manufacturing', description: 'Filament, printers & hardware' },
 ];
 
 // Map onboarding category → widget categories in registry
 const CAT_WIDGET_MAP: Record<string, string[]> = {
-  keyboards: ['Keyboards'],
-  electronics: ['Electronics'],
-  'pc-building': ['PC Building'],
-  '3dprinting': ['Overview'],
-  robotics: ['Overview'],
-  audio: ['Electronics'],
+  art:               ['Art'],
+  audio:             ['Electronics'],
+  automotive:        ['Automotive'],
+  clothes:           ['Clothes'],
+  crafts:            ['Crafts'],
+  electronics:       ['Electronics'],
+  garden:            ['Garden'],
+  games:             ['Games'],
+  groceries:         ['Groceries'],
+  home:              ['Home'],
+  'home-improvement':['Home Improvement'],
+  keyboards:         ['Keyboards'],
+  'needle-work':     ['Needle Work'],
+  'pc-building':     ['PC Building'],
+  robotics:          ['Overview'],
+  shoes:             ['Shoes'],
+  sports:            ['Sports Equipment'],
+  '3dprinting':      ['3D Printing'],
 };
 
 type DashboardPreference = 'minimal' | 'balanced' | 'extensive';
 
 // Per-category widget presets for each dashboard preference tier
 const DASHBOARD_TIER_MAP: Record<string, Record<DashboardPreference, string[]>> = {
-  'pc-building': {
-    minimal:   ['ram-availability', 'gpu-availability'],
-    balanced:  ['ram-availability', 'gpu-availability', 'pc-deals'],
-    extensive: ['ram-availability', 'gpu-availability', 'cpu-availability', 'pc-deals'],
+  art: {
+    minimal:   ['art-supplies-deals'],
+    balanced:  ['art-supplies-deals', 'art-supplies-new'],
+    extensive: ['art-supplies-deals', 'art-supplies-new', 'art-prints'],
   },
-  keyboards: {
-    minimal:   ['keyboard-releases'],
-    balanced:  ['keyboard-releases', 'keyboard-sales', 'keycaps-tracker'],
-    extensive: ['keyboard-releases', 'keyboard-full-release', 'keyboard-parts-release', 'keyboard-switches', 'keyboard-accessories', 'keycaps-tracker', 'keyboard-sales', 'keyboard-comparison'],
+  audio: {
+    minimal:   ['electronics-watchlist'],
+    balanced:  ['electronics-watchlist', 'electronics-new-drops', 'active-deals'],
+    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
+  },
+  automotive: {
+    minimal:   ['auto-deals'],
+    balanced:  ['auto-deals', 'auto-parts'],
+    extensive: ['auto-deals', 'auto-parts', 'auto-tools', 'auto-accessories'],
+  },
+  clothes: {
+    minimal:   ['clothes-deals'],
+    balanced:  ['clothes-deals', 'clothes-new'],
+    extensive: ['clothes-deals', 'clothes-new', 'clothes-mens', 'clothes-womens', 'clothes-activewear'],
+  },
+  crafts: {
+    minimal:   ['crafts-deals'],
+    balanced:  ['crafts-deals', 'crafts-pottery'],
+    extensive: ['crafts-deals', 'crafts-pottery', 'crafts-weaving'],
   },
   electronics: {
     minimal:   ['electronics-watchlist'],
     balanced:  ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
     extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'electronics-microcontrollers', 'electronics-passives', 'electronics-sensors', 'electronics-motors', 'electronics-ics', 'electronics-encoders', 'active-deals'],
   },
-  '3dprinting': {
-    minimal:   ['inventory-stats', 'active-projects'],
-    balanced:  ['inventory-stats', 'active-projects', 'recent-activity'],
-    extensive: ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products'],
+  garden: {
+    minimal:   ['garden-new-arrivals', 'garden-houseplants'],
+    balanced:  ['garden-new-arrivals', 'garden-houseplants', 'garden-deals', 'garden-seeds'],
+    extensive: ['garden-new-arrivals', 'garden-houseplants', 'garden-deals', 'garden-seeds', 'garden-trees-shrubs', 'garden-perennials', 'garden-tools'],
+  },
+  games: {
+    minimal:   ['games-video-deals'],
+    balanced:  ['games-video-deals', 'games-board-deals'],
+    extensive: ['games-video-deals', 'games-video-new', 'games-board-deals', 'games-board-new', 'games-tabletop', 'games-deals'],
+  },
+  groceries: {
+    minimal:   ['grocery-deals'],
+    balanced:  ['grocery-deals', 'grocery-produce'],
+    extensive: ['grocery-deals', 'grocery-produce', 'grocery-staples', 'grocery-meat-seafood'],
+  },
+  home: {
+    minimal:   ['home-deals'],
+    balanced:  ['home-deals', 'home-decor'],
+    extensive: ['home-deals', 'home-decor', 'home-furniture', 'home-kitchen'],
+  },
+  'home-improvement': {
+    minimal:   ['homeimprove-deals'],
+    balanced:  ['homeimprove-deals', 'homeimprove-tools'],
+    extensive: ['homeimprove-deals', 'homeimprove-tools', 'homeimprove-materials', 'homeimprove-plumbing', 'homeimprove-electrical'],
+  },
+  keyboards: {
+    minimal:   ['keyboard-releases'],
+    balanced:  ['keyboard-releases', 'keyboard-sales', 'keycaps-tracker'],
+    extensive: ['keyboard-releases', 'keyboard-full-release', 'keyboard-parts-release', 'keyboard-switches', 'keyboard-accessories', 'keycaps-tracker', 'keyboard-sales', 'keyboard-comparison'],
+  },
+  'needle-work': {
+    minimal:   ['needlework-deals'],
+    balanced:  ['needlework-deals', 'needlework-knitting'],
+    extensive: ['needlework-deals', 'needlework-knitting', 'needlework-crochet', 'needlework-quilting'],
+  },
+  'pc-building': {
+    minimal:   ['ram-availability', 'gpu-availability'],
+    balanced:  ['ram-availability', 'gpu-availability', 'pc-deals'],
+    extensive: ['ram-availability', 'gpu-availability', 'cpu-availability', 'pc-deals'],
   },
   robotics: {
     minimal:   ['inventory-stats', 'active-projects'],
     balanced:  ['inventory-stats', 'active-projects', 'recent-activity'],
     extensive: ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products'],
   },
-  audio: {
-    minimal:   ['electronics-watchlist'],
-    balanced:  ['electronics-watchlist', 'electronics-new-drops', 'active-deals'],
-    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
+  shoes: {
+    minimal:   ['shoes-deals'],
+    balanced:  ['shoes-deals', 'shoes-new'],
+    extensive: ['shoes-deals', 'shoes-new', 'shoes-athletic', 'shoes-casual'],
+  },
+  sports: {
+    minimal:   ['sports-new-releases', 'sports-deals'],
+    balanced:  ['sports-new-releases', 'sports-deals', 'sports-baseball', 'sports-basketball'],
+    extensive: ['sports-new-releases', 'sports-deals', 'sports-baseball', 'sports-basketball', 'sports-football', 'sports-soccer', 'sports-volleyball'],
+  },
+  '3dprinting': {
+    minimal:   ['3dp-printers', '3dp-filament'],
+    balanced:  ['3dp-printers', '3dp-filament', '3dp-deals'],
+    extensive: ['3dp-printers', '3dp-filament', '3dp-resins', '3dp-accessories', '3dp-deals'],
   },
 };
 
@@ -71,9 +158,111 @@ const STORAGE_KEY_ONBOARDED = 'sd-onboarded';
 const STORAGE_KEY_WIDGETS = 'sd-active-widgets';
 const STORAGE_KEY_NOTIFS = 'sd-browser-alerts';
 
+type OnboardingStep = 1 | '1z' | 2 | 3 | 4;
+
+// ─── Step 1z: Garden zone picker ─────────────────────────────────────────────
+function StepZone({
+  zone,
+  hideOutdoor,
+  onZoneChange,
+  onHideChange,
+  onBack,
+  onContinue,
+}: {
+  zone: number | null;
+  hideOutdoor: boolean;
+  onZoneChange: (z: number | null) => void;
+  onHideChange: (v: boolean) => void;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  return (
+    <>
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">What's your planting zone?</h1>
+          <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+            ShopDeck uses your USDA Hardiness Zone to filter seeds and plants that won't survive your climate.
+            You can always skip this and update it later in Settings.
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+            USDA Hardiness Zone
+          </label>
+          <select
+            value={zone ?? ''}
+            onChange={e => onZoneChange(e.target.value === '' ? null : Number(e.target.value))}
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">I'm not sure / skip</option>
+            {Array.from({ length: 13 }, (_, i) => i + 1).map(z => (
+              <option key={z} value={z}>Zone {z}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-slate-400">
+            Not sure of your zone? Look it up at{' '}
+            <a
+              href="https://planthardiness.ars.usda.gov/"
+              target="_blank"
+              rel="noreferrer"
+              className="text-green-600 hover:underline"
+            >
+              planthardiness.ars.usda.gov
+            </a>.
+          </p>
+        </div>
+
+        {zone !== null && (
+          <button
+            onClick={() => onHideChange(!hideOutdoor)}
+            className={`w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+              hideOutdoor
+                ? 'border-green-500 bg-green-500/5'
+                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+            }`}
+          >
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-colors ${
+              hideOutdoor ? 'bg-green-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+            }`}>
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: hideOutdoor ? "'FILL' 1" : "'FILL' 0" }}>filter_alt</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${ hideOutdoor ? 'text-green-700 dark:text-green-400' : 'text-slate-700 dark:text-slate-200' }`}>Hide out-of-zone plants</p>
+              <p className="text-xs text-slate-400 mt-0.5">Suppress plants and seeds listed outside Zone {zone} in Garden feeds.</p>
+            </div>
+            <div className="ml-2 shrink-0 relative inline-flex items-center rounded-full pointer-events-none" style={{ width: 44, height: 24 }}>
+              <span className="block rounded-full transition-colors" style={{ width: 44, height: 24, background: hideOutdoor ? '#22c55e' : undefined }} />
+              <span className={`absolute block rounded-full bg-white shadow transition-transform ${ hideOutdoor ? 'translate-x-5' : 'translate-x-0.5' }`} style={{ width: 20, height: 20, top: 2, left: 2 }} />
+            </div>
+          </button>
+        )}
+      </div>
+
+      <div className="shrink-0 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101922] flex gap-3">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          Back
+        </button>
+        <button
+          onClick={onContinue}
+          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white hover:bg-blue-600 transition-colors"
+        >
+          Continue
+          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
 // ─── Progress bar ─────────────────────────────────────────────────────────────
-function ProgressBar({ step }: { step: 1 | 2 | 3 | 4 }) {
-  const pct = step === 1 ? 25 : step === 2 ? 50 : step === 3 ? 75 : 100;
+function ProgressBar({ step }: { step: OnboardingStep }) {
+  const pct = step === 1 ? 20 : step === '1z' ? 40 : step === 2 ? 60 : step === 3 ? 80 : 100;
   return (
     <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
       <div
@@ -94,6 +283,21 @@ function StepCategories({
   onToggle: (id: string) => void;
   onContinue: () => void;
 }) {
+  const [search, setSearch] = useState('');
+  const searchLower = search.toLowerCase();
+
+  // Selected categories are always shown first so they can be deselected even when filtering.
+  const filtered = search
+    ? [
+        ...CATEGORIES.filter(c => selected.includes(c.id)),
+        ...CATEGORIES.filter(
+          c =>
+            !selected.includes(c.id) &&
+            (c.label.toLowerCase().includes(searchLower) || c.description.toLowerCase().includes(searchLower))
+        ),
+      ]
+    : CATEGORIES;
+
   return (
     <>
       {/* Scrollable body */}
@@ -106,8 +310,36 @@ function StepCategories({
           <p className="text-[11px] text-slate-400 mt-0.5">You can change these in Settings at any time.</p>
         </div>
 
+        {/* Search input */}
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400 pointer-events-none">
+            search
+          </span>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search categories…"
+            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-9 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          )}
+        </div>
+
+        {search && (
+          <p className="text-[11px] text-slate-400 -mt-2">
+            Showing {filtered.length} of {CATEGORIES.length}
+          </p>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-          {CATEGORIES.map(cat => {
+          {filtered.map(cat => {
             const active = selected.includes(cat.id);
             return (
               <button
@@ -466,7 +698,9 @@ function StepNotifications({
 // ─── Main Onboarding ──────────────────────────────────────────────────────────
 export default function Onboarding() {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<OnboardingStep>(1);
+  const [plantingZone, setPlantingZone] = useState<number | null>(null);
+  const [hideOutdoorPlants, setHideOutdoorPlants] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [dashPref, setDashPref] = useState<DashboardPreference>('balanced');
@@ -500,6 +734,14 @@ export default function Onboarding() {
     setStep(3);
   };
 
+  const handleCategoryStep1Continue = () => {
+    if (selectedCats.includes('garden')) {
+      setStep('1z');
+    } else {
+      setStep(2);
+    }
+  };
+
   const handleToggleNotif = async () => {
     if (notifPerm === 'unsupported') return;
     if (!notifEnabled) {
@@ -528,7 +770,12 @@ export default function Onboarding() {
     // Sync to server so the API profile doesn't override localStorage on Dashboard load
     // Demo accounts have no backend profile — skip the write.
     if (getToken() && !isDemoAccount()) {
-      apiPatch('/api/profile', { activeWidgets: enabledWidgets }).catch(() => {});
+      const profilePatch: Record<string, unknown> = { activeWidgets: enabledWidgets };
+      if (plantingZone !== null) {
+        profilePatch.plantingZone = plantingZone;
+        profilePatch.hideOutdoorPlants = hideOutdoorPlants;
+      }
+      apiPatch('/api/profile', profilePatch).catch(() => {});
     }
     // Dev-only: loop back to / so the always-onboarding demo flag can retrigger
     if (process.env.NODE_ENV !== 'production' &&
@@ -548,7 +795,7 @@ export default function Onboarding() {
           <span className="text-base">ShopDeck</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-slate-400">{step} of 4</span>
+          <span className="text-xs font-medium text-slate-400">{step === '1z' ? '1.5' : step} of 4</span>
           <div className="w-32">
             <ProgressBar step={step} />
           </div>
@@ -570,6 +817,16 @@ export default function Onboarding() {
           <StepCategories
             selected={selectedCats}
             onToggle={toggleCat}
+            onContinue={handleCategoryStep1Continue}
+          />
+        )}
+        {step === '1z' && (
+          <StepZone
+            zone={plantingZone}
+            hideOutdoor={hideOutdoorPlants}
+            onZoneChange={setPlantingZone}
+            onHideChange={setHideOutdoorPlants}
+            onBack={() => setStep(1)}
             onContinue={() => setStep(2)}
           />
         )}

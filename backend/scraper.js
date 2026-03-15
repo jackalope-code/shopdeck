@@ -446,9 +446,16 @@ function applyPostFilter(items, postFilter) {
  *   user-rss         — User-supplied RSS URL; validated against SSRF before fetching (Phase 3)
  *   digikey-api      — Digikey Product Search API v4, OAuth2 CC flow (Phase 4)
  *   mouser-api       — Mouser Search API v2; NO caching per Mouser ToS §4 (Phase 4)
+ *   cj-api           — Commission Junction Affiliate Product Catalog API (Phase 0.2)
+ *   walmart-api      — Walmart affiliate via Impact Radius; falls back to CJ if no key (Phase 0.3)
+ *   kroger-api       — Kroger Developer API, OAuth2 CC flow (Phase 0.4)
+ *   isthereanydeals-api — IsThereAnyDeal.com game deals API (Phase 0.5)
  *   webhook-buffer   — Reads Redis ring buffer for a webhook source (Phase 5)
  *   manual-list      — Reads user-curated items from Postgres (Phase 6)
  */
+const { scrapeCjApi }     = require('./lib/cjClient');
+const { scrapeKrogerApi } = require('./lib/krogerClient');
+
 const RULE_TYPE_HANDLERS = {
   'css':              (opts, mode)          => scrapeHtml(opts, mode),
   'jsonpath':         (opts, mode)          => scrapeJson(opts, mode),
@@ -466,6 +473,69 @@ const RULE_TYPE_HANDLERS = {
   'digikey-api': (opts, mode, context) => scrapeDigikeyApi(opts, mode, context),
   // mouser-api: simple API key; NO source cache per Mouser ToS §4 (feedConfig bypasses cache).
   'mouser-api':  (opts, mode, context) => scrapeMouserApi(opts, mode, context),
+  // cj-api: CJ Affiliate Product Catalog API. Server key (CJ_API_KEY) or per-user key.
+  'cj-api': (opts, mode, context) => scrapeCjApi(opts, mode, context),
+  // walmart-api: Walmart Impact Radius affiliate. Falls back gracefully to empty if no key.
+  // CJ covers Walmart products by default; this is a supplemental source for direct Walmart keys.
+  'walmart-api': async (opts, mode, context) => {
+    const apiKey = context?.apiKeys?.walmart_impact_api_key || process.env.WALMART_IMPACT_API_KEY;
+    if (!apiKey) return []; // graceful fallback — CJ covers Walmart
+    // Impact Radius Product API endpoint
+    const { keywords, limit = 20 } = opts;
+    if (!keywords) throw new Error('walmart-api requires opts.keywords');
+    const params = new URLSearchParams({
+      keyword: keywords,
+      maxResults: String(Math.min(Number(limit) || 20, 50)),
+    });
+    const url = `https://affiliate.walmart.com/productSearch?${params.toString()}`;
+    let body;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) return [];
+      body = await res.json();
+    } catch { return []; }
+    const items = body?.items ?? [];
+    return items.map(p => ({
+      name:   p.name ?? '',
+      price:  p.salePrice != null ? String(p.salePrice) : p.msrp != null ? String(p.msrp) : undefined,
+      url:    p.productUrl ?? undefined,
+      image:  p.thumbnailImage ?? undefined,
+      vendor: 'Walmart',
+    })).filter(i => i.name);
+  },
+  // kroger-api: OAuth2 CC flow; token cached in-process.
+  'kroger-api': (opts, mode, context) => scrapeKrogerApi(opts, mode, context),
+  // isthereanydeals-api: free public API with optional key for broader shop coverage.
+  'isthereanydeals-api': async (opts, _mode, _context) => {
+    const { shops, limit = 20 } = opts;
+    const apiKey = process.env.ITAD_API_KEY;
+    const params = new URLSearchParams({
+      limit: String(Math.min(Number(limit) || 20, 50)),
+    });
+    if (apiKey) params.set('key', apiKey);
+    if (shops) params.set('shops', shops);
+    const url = `https://api.isthereanydeal.com/deals/v2?${params.toString()}`;
+    let body;
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) return [];
+      body = await res.json();
+    } catch { return []; }
+    const deals = body?.list ?? body?.data ?? [];
+    return deals.map(d => ({
+      name:   d.title ?? d.game?.title ?? '',
+      price:  d.deal?.price?.amount != null ? String(d.deal.price.amount) : undefined,
+      comparePrice: d.deal?.regular?.amount != null ? String(d.deal.regular.amount) : undefined,
+      url:    d.deal?.url ?? d.url ?? undefined,
+      vendor: d.shop?.name ?? undefined,
+    })).filter(i => i.name);
+  },
   // webhook-buffer: reads the Redis ring buffer populated by inbound POST /api/webhooks/:id/ingest.
   // No HTTP fetch — reads local Redis only. feedConfig bypasses source cache.
   'webhook-buffer': async (opts) => {
@@ -543,63 +613,16 @@ async function scratchBatch(sources) {
 
 // ─── Built-in source rules ────────────────────────────────────────────────────
 // Maps a feed-config source ID to its ready-to-run scraping definition.
-// These selectors target Microcenter category listing pages (h2.h_name a is the
-// product-name anchor inside each result card). Adjust if Microcenter ever
-// redesigns their listing markup.
-// Each built-in rule uses containerSelector + fields to extract name, image, price and URL
-// per product card in a single page pass. The image field uses src with data-src fallback
-// (handled in scrapeHtml) to support Microcenter's lazy-loaded thumbnails.
+// All sources in this file must have verified ToS/robots.txt permission.
+// CSS scrapers are a last resort — prefer official APIs, RSS, and JSON endpoints.
 const BUILTIN_SOURCE_RULES = {
-  'microcenter-ram': {
-    url: 'https://www.microcenter.com/category/4294967029/memory',
-    ruleType: 'css',
-    containerSelector: 'a.productClickItemV2',
-    fields: [
-      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
-      { selector: null,              fieldName: 'url',   attribute: 'href' },
-      { selector: null,              fieldName: 'price', attribute: 'data-price' },
-      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
-    ],
-    label: 'Microcenter — Memory',
-  },
-  'microcenter-gpu': {
-    url: 'https://www.microcenter.com/category/4294966937/video-cards',
-    ruleType: 'css',
-    containerSelector: 'a.productClickItemV2',
-    fields: [
-      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
-      { selector: null,              fieldName: 'url',   attribute: 'href' },
-      { selector: null,              fieldName: 'price', attribute: 'data-price' },
-      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
-    ],
-    label: 'Microcenter — Video Cards',
-  },
-  'microcenter-keyboards': {
-    url: 'https://www.microcenter.com/category/4294966635/keyboards',
-    ruleType: 'css',
-    containerSelector: 'a.productClickItemV2',
-    fields: [
-      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
-      { selector: null,              fieldName: 'url',   attribute: 'href' },
-      { selector: null,              fieldName: 'price', attribute: 'data-price' },
-      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
-    ],
-    label: 'Microcenter — Keyboards',
-  },
-  'microcenter-electronics': {
-    url: 'https://www.microcenter.com/category/4294966773/development-boards-kits',
-    ruleType: 'css',
-    containerSelector: 'a.productClickItemV2',
-    fields: [
-      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
-      { selector: null,              fieldName: 'url',   attribute: 'href' },
-      { selector: null,              fieldName: 'price', attribute: 'data-price' },
-      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
-    ],
-    label: 'Microcenter — Dev Boards & Kits',
-    vendor: 'Microcenter',
-    category: 'Electronics',
-  },
+  // MicroCenter CSS scrapers disabled: MicroCenter ToS prohibits automated access.
+  // Coverage for keyboards, RAM, GPU, and electronics is provided by API and RSS sources.
+  // TODO: replace with an official MicroCenter API or affiliate feed if one becomes available.
+  /* 'microcenter-ram': { ... } */
+  /* 'microcenter-gpu': { ... } */
+  /* 'microcenter-keyboards': { ... } */
+  /* 'microcenter-electronics': { ... } */
 
   // ─── Electronics / maker vendors ──────────────────────────────────────────────
 
@@ -696,17 +719,20 @@ const BUILTIN_SOURCE_RULES = {
     category: 'Electronics',
   },
   'adafruit-sales': {
-    url: 'https://www.adafruit.com/category/1028',
-    ruleType: 'css',
-    containerSelector: 'li[itemscope][itemtype="https://schema.org/Product"]',
+    // Migrated from CSS scraper to Shopify products.json API (Adafruit is Shopify-powered).
+    // The /collections/on-sale endpoint is public and returns structured JSON.
+    url: 'https://www.adafruit.com/collections/on-sale/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
     fields: [
-      { selector: 'h2 a[itemprop="name"]',        fieldName: 'name' },
-      { selector: 'h2 a[itemprop="name"]',        fieldName: 'url',          attribute: 'href' },
-      { selector: 'img.productThumb',              fieldName: 'image',        attribute: 'src' },
-      { selector: '.red-sale-price',               fieldName: 'price' },
-      { selector: '.normal-price span',            fieldName: 'comparePrice' },
-      { selector: '.stock span',                   fieldName: 'availability' },
+      { path: '$.title',                            fieldName: 'name' },
+      { path: '$.images[0].src',                    fieldName: 'image' },
+      { path: '$.variants[0].price',                fieldName: 'price' },
+      { path: '$.variants[0].compare_at_price',     fieldName: 'comparePrice' },
+      { path: '$.handle',                           fieldName: 'handle' },
+      { path: '$.product_type',                     fieldName: 'productType' },
     ],
+    baseUrl: 'https://www.adafruit.com/product/',
     label: 'Adafruit — Sales',
     vendor: 'Adafruit',
     category: 'Electronics',
@@ -732,17 +758,11 @@ const BUILTIN_SOURCE_RULES = {
   // B&H uses their public search HTML. Reddit + CamelCamelCamel use public RSS feeds.
 
   'newegg-ram': {
-    // N=100007611 restricts to the DRAM product type facet within Desktop Memory,
-    // filtering out flash storage and SD cards that Newegg co-lists in SubCategory/ID-147.
-    url: 'https://www.newegg.com/Desktop-Memory/SubCategory/ID-147?N=100007611',
-    ruleType: 'css',
-    containerSelector: 'div.item-cell',
-    fields: [
-      { selector: 'a.item-title',        fieldName: 'name' },
-      { selector: 'a.item-title',        fieldName: 'url',   attribute: 'href' },
-      { selector: 'a.item-img img',      fieldName: 'image', attribute: 'src' },
-      { selector: 'li.price-current',    fieldName: 'price' },
-    ],
+    // Migrated from CSS scraper to newegg-search-api (Newegg ToS prohibits HTML scraping).
+    // N=100007611 facet restricts results to DRAM within Desktop Memory category.
+    ruleType: 'newegg-search-api',
+    keywords: 'DDR5 DDR4 desktop memory RAM',
+    categoryId: '100007611',
     label: 'Newegg — RAM',
     vendor: 'Newegg',
     category: 'RAM',
@@ -791,15 +811,9 @@ const BUILTIN_SOURCE_RULES = {
   // ─── GPU vendors ──────────────────────────────────────────────────────────────
 
   'newegg-gpu': {
-    url: 'https://www.newegg.com/Desktop-Graphics-Cards/SubCategory/ID-48',
-    ruleType: 'css',
-    containerSelector: 'div.item-cell',
-    fields: [
-      { selector: 'a.item-title',        fieldName: 'name' },
-      { selector: 'a.item-title',        fieldName: 'url',   attribute: 'href' },
-      { selector: 'a.item-img img',      fieldName: 'image', attribute: 'src' },
-      { selector: 'li.price-current',    fieldName: 'price' },
-    ],
+    // Migrated from CSS scraper to newegg-search-api (Newegg ToS prohibits HTML scraping).
+    ruleType: 'newegg-search-api',
+    keywords: 'NVIDIA AMD RTX RX graphics card GPU',
     label: 'Newegg — GPUs',
     vendor: 'Newegg',
     category: 'GPU',
@@ -831,33 +845,20 @@ const BUILTIN_SOURCE_RULES = {
 
   // ─── CPU vendors ──────────────────────────────────────────────────────────────
 
-  'microcenter-cpu': {
-    url: 'https://www.microcenter.com/category/4294966892/processors',
-    ruleType: 'css',
-    containerSelector: 'a.productClickItemV2',
-    fields: [
-      { selector: null,              fieldName: 'name',  attribute: 'data-name' },
-      { selector: null,              fieldName: 'url',   attribute: 'href' },
-      { selector: null,              fieldName: 'price', attribute: 'data-price' },
-      { selector: 'img.img-100',     fieldName: 'image', attribute: 'src' },
-    ],
-    label: 'Microcenter — Processors',
-    vendor: 'Microcenter',
-    category: 'CPU',
-  },
+  // microcenter-cpu disabled: MicroCenter ToS prohibits automated access.
+  // Coverage provided by amazon-api (amazon-cpu) and newegg-search-api (newegg-cpu).
+  /* 'microcenter-cpu': { ... } */
+
   'newegg-cpu': {
-    url: 'https://www.newegg.com/Desktop-CPU-Processor/SubCategory/ID-343',
-    ruleType: 'css',
-    containerSelector: 'div.item-cell',
-    fields: [
-      { selector: 'a.item-title',        fieldName: 'name' },
-      { selector: 'a.item-title',        fieldName: 'url',   attribute: 'href' },
-      { selector: 'a.item-img img',      fieldName: 'image', attribute: 'src' },
-      { selector: 'li.price-current',    fieldName: 'price' },
-    ],
+    // Migrated from CSS scraper to newegg-search-api (Newegg ToS prohibits HTML scraping).
+    ruleType: 'newegg-search-api',
+    keywords: 'Ryzen Intel Core processor CPU desktop',
     label: 'Newegg — CPUs',
     vendor: 'Newegg',
     category: 'CPU',
+    postFilter: {
+      requireAny: ['Ryzen', 'Core i', 'i3', 'i5', 'i7', 'i9', 'Intel', 'AM5', 'AM4', 'LGA', 'processor', 'CPU'],
+    },
   },
   'reddit-cpu': {
     url: 'https://www.reddit.com/r/buildapcsales/search.rss?q=flair%3ACPU&sort=new&restrict_sr=1&limit=25',
@@ -875,6 +876,526 @@ const BUILTIN_SOURCE_RULES = {
     label: 'CamelCamelCamel — CPU Price Drops',
     vendor: 'CamelCamelCamel',
     category: 'CPU',
+  },
+
+  // ─── Garden ─────────────────────────────────────────────────────────────────
+  // CJ Affiliate product search API for garden/plant retailers (key required).
+  // Amazon PA API for deals and tools. Public RSS feeds require no key.
+
+  'homedepot-garden': {
+    ruleType: 'cj-api',
+    advertiserIds: '3171350',
+    keywords: 'plants flowers garden shrubs perennials',
+    label: 'Home Depot — Garden',
+    category: 'Garden',
+  },
+  'homedepot-houseplants': {
+    ruleType: 'cj-api',
+    advertiserIds: '3171350',
+    keywords: 'houseplants indoor plants succulents ferns',
+    label: 'Home Depot — Houseplants',
+    category: 'Garden',
+  },
+  'lowes-garden': {
+    ruleType: 'cj-api',
+    advertiserIds: '2454600',
+    keywords: 'plants flowers garden perennials annuals',
+    label: "Lowe's — Garden",
+    category: 'Garden',
+  },
+  'lowes-seeds': {
+    ruleType: 'cj-api',
+    advertiserIds: '2454600',
+    keywords: 'seeds seed packets vegetable herb flower',
+    label: "Lowe's — Seeds",
+    category: 'Garden',
+  },
+  'burpee-seeds': {
+    ruleType: 'cj-api',
+    keywords: 'seeds vegetable herb flower heirloom',
+    label: 'Burpee — Seeds',
+    category: 'Garden',
+  },
+  'amazon-garden': {
+    ruleType: 'amazon-api',
+    keywords: 'garden plants flowers perennials shrubs',
+    searchIndex: 'Garden',
+    label: 'Amazon — Garden',
+    category: 'Garden',
+  },
+  'amazon-seeds': {
+    ruleType: 'amazon-api',
+    keywords: 'vegetable flower seeds garden heirloom packets',
+    searchIndex: 'Garden',
+    label: 'Amazon — Seeds',
+    category: 'Garden',
+  },
+  'amazon-garden-tools': {
+    ruleType: 'amazon-api',
+    keywords: 'garden tools pruners spade trowel gloves kneeler',
+    searchIndex: 'Garden',
+    label: 'Amazon — Garden Tools',
+    category: 'Garden',
+  },
+  'reddit-gardening': {
+    url: 'https://www.reddit.com/r/gardening/new/.rss',
+    ruleType: 'rss',
+    label: 'r/gardening — New Posts',
+    category: 'Garden',
+    postFilter: {
+      requireAny: ['plant','garden','seed','flower','shrub','tree','perennial','annual','houseplant','fern','succulent','herb','bulb'],
+    },
+  },
+  'reddit-vegetablegardening': {
+    url: 'https://www.reddit.com/r/vegetablegardening/new/.rss',
+    ruleType: 'rss',
+    label: 'r/vegetablegardening — New Posts',
+    category: 'Garden',
+  },
+  'camelcamel-garden': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Garden.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Garden Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Garden',
+  },
+
+  // ─── Groceries ───────────────────────────────────────────────────────────────
+  // Kroger Developer API (OAuth2 client credentials, keys in user settings or env).
+  // Open Food Facts uses a public JSON API — no key needed.
+
+  'kroger-weekly-deals': {
+    ruleType: 'kroger-api',
+    keywords: 'weekly deals sale',
+    onSale: true,
+    label: 'Kroger — Weekly Deals',
+    category: 'Groceries',
+  },
+  'kroger-produce': {
+    ruleType: 'kroger-api',
+    keywords: 'fresh produce vegetables fruit',
+    department: 'PRODUCE',
+    label: 'Kroger — Produce',
+    category: 'Groceries',
+  },
+  'kroger-meat': {
+    ruleType: 'kroger-api',
+    keywords: 'meat poultry beef chicken pork',
+    department: 'MEAT',
+    label: 'Kroger — Meat & Seafood',
+    category: 'Groceries',
+  },
+  'kroger-staples': {
+    ruleType: 'kroger-api',
+    keywords: 'pasta rice bread cereal canned',
+    label: 'Kroger — Pantry Staples',
+    category: 'Groceries',
+  },
+
+  // ─── Sports Equipment ────────────────────────────────────────────────────────
+  // CJ Affiliate for sporting goods retailers. Amazon PA API for deals.
+  // Reddit sports subreddits for community deal finds.
+
+  'dickssporting-sports': {
+    ruleType: 'cj-api',
+    advertiserIds: '3149228',
+    keywords: 'sports equipment fitness outdoor',
+    label: "DICK'S Sporting Goods — Sports",
+    category: 'Sports Equipment',
+  },
+  'academy-sports': {
+    ruleType: 'cj-api',
+    advertiserIds: '4401887',
+    keywords: 'sports fitness outdoor camping',
+    label: 'Academy Sports — Sports',
+    category: 'Sports Equipment',
+  },
+  'amazon-sports': {
+    ruleType: 'amazon-api',
+    keywords: 'sports fitness exercise outdoor equipment',
+    searchIndex: 'SportingGoods',
+    label: 'Amazon — Sports & Fitness',
+    category: 'Sports Equipment',
+  },
+  'amazon-camping': {
+    ruleType: 'amazon-api',
+    keywords: 'camping hiking backpacking tent sleeping bag',
+    searchIndex: 'SportingGoods',
+    label: 'Amazon — Camping & Hiking',
+    category: 'Sports Equipment',
+  },
+  'reddit-frugalathlete': {
+    url: 'https://www.reddit.com/r/frugalmalefashion/new/.rss',
+    ruleType: 'rss',
+    label: 'r/frugalathlete — Deals',
+    category: 'Sports Equipment',
+    postFilter: {
+      requireAny: ['sport','fitness','running','cycling','hiking','gym','workout','athletic'],
+    },
+  },
+  'camelcamel-sports': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Sports.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Sports Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Sports Equipment',
+  },
+
+  // ─── 3D Printing ─────────────────────────────────────────────────────────────
+  // Amazon PA API + community RSS for 3D printing supplies and printers.
+  // MatterHackers uses Shopify products.json.
+
+  'amazon-3dprint-filament': {
+    ruleType: 'amazon-api',
+    keywords: 'PLA ABS PETG TPU filament 3D printer',
+    searchIndex: 'Industrial',
+    label: 'Amazon — 3D Printer Filament',
+    category: '3D Printing',
+  },
+  'amazon-3dprint-printers': {
+    ruleType: 'amazon-api',
+    keywords: 'FDM resin 3D printer Bambu Prusa Creality Ender',
+    searchIndex: 'Industrial',
+    label: 'Amazon — 3D Printers',
+    category: '3D Printing',
+  },
+  'matterhackers-new': {
+    url: 'https://www.matterhackers.com/collections/all/products.json?limit=50',
+    ruleType: 'jsonpath-multi',
+    containerPath: '$.products[*]',
+    fields: [
+      { path: '$.title',               fieldName: 'name' },
+      { path: '$.images[0].src',       fieldName: 'image' },
+      { path: '$.variants[0].price',   fieldName: 'price' },
+      { path: '$.handle',              fieldName: 'handle' },
+      { path: '$.product_type',        fieldName: 'productType' },
+    ],
+    baseUrl: 'https://www.matterhackers.com/products/',
+    label: 'MatterHackers — New Products',
+    category: '3D Printing',
+    vendor: 'MatterHackers',
+  },
+  'reddit-3dprinting': {
+    url: 'https://www.reddit.com/r/3Dprinting/new/.rss',
+    ruleType: 'rss',
+    label: 'r/3Dprinting — New Posts',
+    category: '3D Printing',
+  },
+  'prusa-blog': {
+    url: 'https://blog.prusa3d.com/feed/',
+    ruleType: 'rss',
+    label: 'Prusa — Blog',
+    category: '3D Printing',
+    vendor: 'Prusa',
+  },
+  'camelcamel-3dprint': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Industrial.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Industrial Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: '3D Printing',
+  },
+
+  // ─── Automotive ───────────────────────────────────────────────────────────────
+  // CJ Affiliate for auto parts retailers. Amazon Automotive category.
+  // Reddit community for deals.
+
+  'rockauto-parts': {
+    ruleType: 'cj-api',
+    keywords: 'auto parts car parts engine brakes suspension',
+    label: 'RockAuto — Auto Parts',
+    category: 'Automotive',
+  },
+  'amazon-automotive': {
+    ruleType: 'amazon-api',
+    keywords: 'car parts accessories automotive tools',
+    searchIndex: 'Automotive',
+    label: 'Amazon — Automotive',
+    category: 'Automotive',
+  },
+  'reddit-justrolledintotheshop': {
+    url: 'https://www.reddit.com/r/MechanicAdvice/new/.rss',
+    ruleType: 'rss',
+    label: 'r/MechanicAdvice — New Posts',
+    category: 'Automotive',
+  },
+  'camelcamel-automotive': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Automotive.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Automotive Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Automotive',
+  },
+
+  // ─── Games ────────────────────────────────────────────────────────────────────
+  // IsThereAnyDeal API (free tier, optional key) for video games.
+  // BGG RSS for board games.
+
+  'itad-deals': {
+    ruleType: 'isthereanydeals-api',
+    limit: 30,
+    label: 'IsThereAnyDeal — PC Game Deals',
+    category: 'Games',
+  },
+  'amazon-videogames': {
+    ruleType: 'amazon-api',
+    keywords: 'video games console PC games',
+    searchIndex: 'VideoGames',
+    label: 'Amazon — Video Games',
+    category: 'Games',
+  },
+  'reddit-gamedeals': {
+    url: 'https://www.reddit.com/r/GameDeals/new/.rss',
+    ruleType: 'rss',
+    label: 'r/GameDeals — New Deals',
+    category: 'Games',
+  },
+  'reddit-boardgames': {
+    url: 'https://www.reddit.com/r/boardgames/new/.rss',
+    ruleType: 'rss',
+    label: 'r/boardgames — New Posts',
+    category: 'Games',
+    postFilter: {
+      requireAny: ['deal','sale','discount','buy','cheap','price','found','lgs'],
+    },
+  },
+  'bgg-hotness': {
+    url: 'https://boardgamegeek.com/rss/boardgamegeek',
+    ruleType: 'rss',
+    label: 'BoardGameGeek — Hotness',
+    category: 'Games',
+    vendor: 'BGG',
+  },
+  'camelcamel-games': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/VideoGames.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Video Game Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Games',
+  },
+
+  // ─── Home ─────────────────────────────────────────────────────────────────────
+  // CJ Affiliate for home goods retailers. Amazon Home category.
+
+  'wayfair-home': {
+    ruleType: 'cj-api',
+    advertiserIds: '3741976',
+    keywords: 'furniture home decor bedding lighting',
+    label: 'Wayfair — Home',
+    category: 'Home',
+  },
+  'amazon-home': {
+    ruleType: 'amazon-api',
+    keywords: 'home decor furniture living room bedroom kitchen',
+    searchIndex: 'HomeGarden',
+    label: 'Amazon — Home',
+    category: 'Home',
+  },
+  'reddit-malelivingspace': {
+    url: 'https://www.reddit.com/r/malelivingspace/new/.rss',
+    ruleType: 'rss',
+    label: 'r/malelivingspace — Inspiration',
+    category: 'Home',
+  },
+  'camelcamel-home': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/HomeGarden.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Home & Garden Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Home',
+  },
+
+  // ─── Home Improvement ────────────────────────────────────────────────────────
+  // CJ Affiliate for home improvement retailers. Amazon Tools category.
+
+  'homedepot-tools': {
+    ruleType: 'cj-api',
+    advertiserIds: '3171350',
+    keywords: 'power tools drills saws hand tools hardware',
+    label: 'Home Depot — Tools & Hardware',
+    category: 'Home Improvement',
+  },
+  'lowes-tools': {
+    ruleType: 'cj-api',
+    advertiserIds: '2454600',
+    keywords: 'power tools drills saws hand tools hardware',
+    label: "Lowe's — Tools & Hardware",
+    category: 'Home Improvement',
+  },
+  'amazon-tools': {
+    ruleType: 'amazon-api',
+    keywords: 'power tools hand tools hardware home improvement',
+    searchIndex: 'Tools',
+    label: 'Amazon — Tools & Home Improvement',
+    category: 'Home Improvement',
+  },
+  'reddit-homeimprovement': {
+    url: 'https://www.reddit.com/r/HomeImprovement/new/.rss',
+    ruleType: 'rss',
+    label: 'r/HomeImprovement — New Posts',
+    category: 'Home Improvement',
+  },
+  'camelcamel-tools': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Tools.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Tools Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Home Improvement',
+  },
+
+  // ─── Clothes ─────────────────────────────────────────────────────────────────
+  // CJ Affiliate for clothing retailers. Reddit frugal fashion communities.
+
+  'amazon-clothes': {
+    ruleType: 'amazon-api',
+    keywords: 'clothing apparel men women fashion deals',
+    searchIndex: 'Fashion',
+    label: 'Amazon — Clothing',
+    category: 'Clothes',
+  },
+  'reddit-frugalmalefashion': {
+    url: 'https://www.reddit.com/r/frugalmalefashion/new/.rss',
+    ruleType: 'rss',
+    label: 'r/frugalmalefashion — Deals',
+    category: 'Clothes',
+  },
+  'reddit-femalefashionadvice': {
+    url: 'https://www.reddit.com/r/femalefashionadvice/new/.rss',
+    ruleType: 'rss',
+    label: 'r/femalefashionadvice — New Posts',
+    category: 'Clothes',
+    postFilter: {
+      requireAny: ['deal','sale','discount','haul','find','budget'],
+    },
+  },
+  'camelcamel-clothes': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Apparel.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Apparel Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Clothes',
+  },
+
+  // ─── Shoes ───────────────────────────────────────────────────────────────────
+  // CJ Affiliate for shoe retailers. Reddit sneaker/shoe communities.
+
+  'zappos-shoes': {
+    ruleType: 'cj-api',
+    advertiserIds: '2189285',
+    keywords: 'shoes sneakers boots sandals athletic',
+    label: 'Zappos — Shoes',
+    category: 'Shoes',
+  },
+  'amazon-shoes': {
+    ruleType: 'amazon-api',
+    keywords: 'shoes sneakers running shoes boots casual',
+    searchIndex: 'Shoes',
+    label: 'Amazon — Shoes',
+    category: 'Shoes',
+  },
+  'reddit-frugalsneakers': {
+    url: 'https://www.reddit.com/r/frugalmalefashion/new/.rss',
+    ruleType: 'rss',
+    label: 'r/frugal Sneakers — Deals',
+    category: 'Shoes',
+    postFilter: {
+      requireAny: ['shoe','sneaker','boot','sandal','nike','adidas','new balance','asics','hoka'],
+    },
+  },
+  'camelcamel-shoes': {
+    url: 'https://camelcamelcamel.com/top_drops/usd/daily/10/Shoes.rss',
+    ruleType: 'rss',
+    label: 'CamelCamelCamel — Shoes Price Drops',
+    vendor: 'CamelCamelCamel',
+    category: 'Shoes',
+  },
+
+  // ─── Art ─────────────────────────────────────────────────────────────────────
+  // CJ Affiliate + Amazon for art supplies.
+
+  'dickblick-art': {
+    ruleType: 'cj-api',
+    keywords: 'art supplies paint canvas brush drawing',
+    label: "Dick Blick — Art Supplies",
+    category: 'Art',
+  },
+  'amazon-art': {
+    ruleType: 'amazon-api',
+    keywords: 'art supplies paint canvas drawing sketching',
+    searchIndex: 'ArtsAndCrafts',
+    label: 'Amazon — Art Supplies',
+    category: 'Art',
+  },
+  'reddit-art': {
+    url: 'https://www.reddit.com/r/artstore/new/.rss',
+    ruleType: 'rss',
+    label: 'r/artstore — New Posts',
+    category: 'Art',
+    postFilter: {
+      requireAny: ['sale','deal','discount','haul','find','supplies'],
+    },
+  },
+
+  // ─── Crafts ──────────────────────────────────────────────────────────────────
+  // CJ Affiliate + Amazon for craft supplies.
+
+  'joann-crafts': {
+    ruleType: 'cj-api',
+    keywords: 'craft supplies fabric yarn ribbon scrapbooking',
+    label: 'JOANN — Crafts',
+    category: 'Crafts',
+  },
+  'amazon-crafts': {
+    ruleType: 'amazon-api',
+    keywords: 'craft supplies scrapbooking paper DIY hobby',
+    searchIndex: 'ArtsAndCrafts',
+    label: 'Amazon — Crafts',
+    category: 'Crafts',
+  },
+  'reddit-crafts': {
+    url: 'https://www.reddit.com/r/crafts/new/.rss',
+    ruleType: 'rss',
+    label: 'r/crafts — New Posts',
+    category: 'Crafts',
+    postFilter: {
+      requireAny: ['sale','deal','haul','find','supplies','diy'],
+    },
+  },
+
+  // ─── Needle Work ─────────────────────────────────────────────────────────────
+  // Amazon + CJ Affiliate for sewing, knitting, embroidery, and cross stitch.
+
+  'amazon-knitting': {
+    ruleType: 'amazon-api',
+    keywords: 'knitting yarn needles crochet hook patterns',
+    searchIndex: 'ArtsAndCrafts',
+    label: 'Amazon — Knitting & Crochet',
+    category: 'Needle Work',
+  },
+  'amazon-sewing': {
+    ruleType: 'amazon-api',
+    keywords: 'sewing fabric thread machine patterns quilting',
+    searchIndex: 'ArtsAndCrafts',
+    label: 'Amazon — Sewing & Quilting',
+    category: 'Needle Work',
+  },
+  'reddit-knitting': {
+    url: 'https://www.reddit.com/r/knitting/new/.rss',
+    ruleType: 'rss',
+    label: 'r/knitting — New Posts',
+    category: 'Needle Work',
+    postFilter: {
+      requireAny: ['sale','deal','haul','find','yarn','supplies'],
+    },
+  },
+  'reddit-sewing': {
+    url: 'https://www.reddit.com/r/sewing/new/.rss',
+    ruleType: 'rss',
+    label: 'r/sewing — New Posts',
+    category: 'Needle Work',
+    postFilter: {
+      requireAny: ['sale','deal','haul','find','fabric','supplies'],
+    },
   },
 
   // ─── Keyboard vendors (Shopify products.json API) ──────────────────────────
