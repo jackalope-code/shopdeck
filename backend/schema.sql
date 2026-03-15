@@ -169,3 +169,28 @@ UPDATE webhooks
   SET secret = NULL
   WHERE secret IS NOT NULL
     AND secret !~ '^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$';
+
+-- ─── Finance (CSV-imported transactions & budgets) ───────────────────────────
+CREATE TABLE IF NOT EXISTS finance_transactions (
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  transaction_date   DATE        NOT NULL,
+  merchant_name      TEXT        NOT NULL DEFAULT '',
+  amount             NUMERIC(12,2) NOT NULL,
+  raw_category       TEXT,
+  shopdeck_category  TEXT,
+  user_label         TEXT,
+  import_source      TEXT        NOT NULL DEFAULT 'csv',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS finance_transactions_user_date_idx
+  ON finance_transactions(user_id, transaction_date DESC);
+CREATE INDEX IF NOT EXISTS finance_transactions_user_category_idx
+  ON finance_transactions(user_id, shopdeck_category);
+
+CREATE TABLE IF NOT EXISTS finance_budgets (
+  user_id       TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category      TEXT        NOT NULL,
+  monthly_limit NUMERIC(12,2) NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, category)
+);

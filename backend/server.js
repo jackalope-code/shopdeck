@@ -19,6 +19,7 @@ const favoritesRouter = require('./routes/favorites');
 const communityInsightsRouter = require('./routes/communityInsights');
 const webhooksRouter = require('./routes/webhooks');
 const manualListsRouter = require('./routes/manualLists');
+const financeRouter     = require('./routes/finance');
 const cron = require('node-cron');
 const scraper = require('./scraper');
 const db = require('./db');
@@ -60,6 +61,7 @@ app.use('/api/favorites', favoritesRouter);
 app.use('/api/community-insights', communityInsightsRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/manual-lists', manualListsRouter);
+app.use('/api/finance',      financeRouter);
 app.use('/api', apiRouter);
 
 // Catch-all for unknown API routes — always return JSON
