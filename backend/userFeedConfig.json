@@ -122,14 +122,18 @@
         { "id": "adafruit-motors",           "name": "Adafruit Motors",             "enabled": true },
         { "id": "adafruit-passives",         "name": "Adafruit Passives",           "enabled": true },
         { "id": "adafruit-breakout-boards",  "name": "Adafruit Breakout Boards",    "enabled": true },
+        { "id": "sparkfun-new",              "name": "Sparkfun New Products",       "enabled": true },
+        { "id": "seeed-new",                 "name": "Seeed Studio New Products",   "enabled": true },
         { "id": "mouser-electronics", "name": "Mouser Electronics", "ruleType": "mouser-api", "keywords": "development board", "enabled": true },
-        { "id": "microcenter-electronics",   "name": "Microcenter",                 "enabled": true }
+        { "id": "digikey-new-drops", "name": "DigiKey New Drops", "ruleType": "digikey-api", "keywords": "new microcontroller sensor development board module",        "enabled": true }
       ],
       "custom": []
     },
     "electronics-new-drops": {
       "sources": [
         { "id": "adafruit-new", "name": "Adafruit New Products", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-new-drops",  "name": "Mouser New Drops",  "ruleType": "mouser-api",  "keywords": "development board", "enabled": true },
         { "id": "digikey-new-drops", "name": "DigiKey New Drops", "ruleType": "digikey-api", "keywords": "new microcontroller sensor development board module",        "enabled": true }
       ],
@@ -138,6 +142,8 @@
     "electronics-sales": {
       "sources": [
         { "id": "adafruit-sales",  "name": "Adafruit Sales",  "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-sales",  "name": "Mouser Deals",  "ruleType": "mouser-api",  "keywords": "sensor module", "enabled": true },
         { "id": "digikey-sales", "name": "DigiKey Deals", "ruleType": "digikey-api", "keywords": "sale discount microcontroller sensor LED", "enabled": true }
       ],
@@ -146,6 +152,8 @@
     "electronics-microcontrollers": {
       "sources": [
         { "id": "adafruit-microcontrollers", "name": "Adafruit Microcontrollers", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-mcus",  "name": "Mouser MCUs",  "ruleType": "mouser-api",  "keywords": "STM32", "enabled": true },
         { "id": "digikey-mcus", "name": "DigiKey MCUs", "ruleType": "digikey-api", "keywords": "microcontroller ESP32 Arduino RP2040 STM32 ATmega",          "enabled": true }
       ],
@@ -154,6 +162,8 @@
     "electronics-passives": {
       "sources": [
         { "id": "adafruit-passives", "name": "Adafruit Passives", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-passives",  "name": "Mouser Passives",  "ruleType": "mouser-api",  "keywords": "resistor", "enabled": true },
         { "id": "digikey-passives", "name": "DigiKey Passives", "ruleType": "digikey-api", "keywords": "resistor capacitor inductor passive component 0603 0402",      "enabled": true }
       ],
@@ -162,6 +172,8 @@
     "electronics-sensors": {
       "sources": [
         { "id": "adafruit-sensors", "name": "Adafruit Sensors", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-sensors",  "name": "Mouser Sensors",  "ruleType": "mouser-api",  "keywords": "temperature sensor", "enabled": true },
         { "id": "digikey-sensors", "name": "DigiKey Sensors", "ruleType": "digikey-api", "keywords": "temperature humidity motion accelerometer gyroscope sensor module",        "enabled": true }
       ],
@@ -170,6 +182,8 @@
     "electronics-motors": {
       "sources": [
         { "id": "adafruit-motors", "name": "Adafruit Motors", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-motors",  "name": "Mouser Motors",  "ruleType": "mouser-api",  "keywords": "servo motor", "enabled": true },
         { "id": "digikey-motors", "name": "DigiKey Motors", "ruleType": "digikey-api", "keywords": "stepper servo DC motor brushless actuator",           "enabled": true }
       ],
@@ -178,6 +192,8 @@
     "electronics-ics": {
       "sources": [
         { "id": "adafruit-breakout-boards", "name": "Adafruit Breakout Boards", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-ics",  "name": "Mouser ICs",  "ruleType": "mouser-api",  "keywords": "555 timer", "enabled": true },
         { "id": "digikey-ics", "name": "DigiKey ICs", "ruleType": "digikey-api", "keywords": "IC integrated circuit op-amp logic gate timer 555",        "enabled": true }
       ],
@@ -185,6 +201,8 @@
     },
     "electronics-encoders": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-encoders",  "name": "Mouser Encoders",  "ruleType": "mouser-api",  "keywords": "rotary encoder", "enabled": true },
         { "id": "digikey-encoders", "name": "DigiKey Encoders", "ruleType": "digikey-api", "keywords": "rotary encoder potentiometer electromechanical panel",          "enabled": true }
       ],
@@ -192,30 +210,45 @@
     },
     "electronics-power": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-power", "name": "DigiKey Power", "ruleType": "digikey-api", "keywords": "buck converter regulator power module", "enabled": true },
         { "id": "mouser-power", "name": "Mouser Power", "ruleType": "mouser-api", "keywords": "buck converter", "enabled": true }
       ],
       "custom": []
     },
     "electronics-connectors": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-connectors", "name": "DigiKey Connectors", "ruleType": "digikey-api", "keywords": "usb-c connector header terminal", "enabled": true },
         { "id": "mouser-connectors", "name": "Mouser Connectors", "ruleType": "mouser-api", "keywords": "usb-c connector", "enabled": true }
       ],
       "custom": []
     },
     "electronics-displays": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-displays", "name": "DigiKey Displays", "ruleType": "digikey-api", "keywords": "oled lcd display module", "enabled": true },
         { "id": "mouser-displays", "name": "Mouser Displays", "ruleType": "mouser-api", "keywords": "oled display", "enabled": true }
       ],
       "custom": []
     },
     "electronics-wireless": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-wireless", "name": "DigiKey Wireless", "ruleType": "digikey-api", "keywords": "wifi bluetooth lora wireless module", "enabled": true },
         { "id": "mouser-wireless", "name": "Mouser Wireless", "ruleType": "mouser-api", "keywords": "wifi module", "enabled": true }
       ],
       "custom": []
     },
     "electronics-audio": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-audio", "name": "DigiKey Audio", "ruleType": "digikey-api", "keywords": "microphone audio codec amplifier", "enabled": true },
         { "id": "mouser-audio", "name": "Mouser Audio", "ruleType": "mouser-api", "keywords": "mems microphone", "enabled": true }
       ],
       "custom": []

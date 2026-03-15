@@ -74,7 +74,7 @@ type TabId = typeof TABS[number]['id'];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = ['All Categories', 'Microcontrollers', 'Passives', 'Sensors', 'Motors', 'ICs', 'Connectors', 'Displays', 'Wireless', 'Audio', 'Power', 'Development Boards'];
-const VENDORS    = ['All Vendors', 'Adafruit', 'Mouser', 'DigiKey', 'Microcenter'];
+const VENDORS    = ['All Vendors', 'Adafruit', 'Seeed Studio', 'Sparkfun', 'Mouser', 'DigiKey'];
 const PER_PAGE   = 24;
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────

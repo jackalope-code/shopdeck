@@ -14,6 +14,36 @@ const { decryptMap } = require('../lib/tokenCrypto');
 const { classifyKeyboardItem, inferKeyboardSubkind } = require('../lib/productTaxonomy');
 const { normalizeStockFields, inferStockStatus } = require('../lib/stockAnalysis');
 
+const ELECTRONICS_SOURCE_ALLOWLIST = new Set(['adafruit', 'seeed-studio', 'sparkfun', 'mouser-api', 'digikey-api']);
+
+function inferSourceSite(src = {}, rule = null) {
+  const text = [
+    src.id,
+    src.name,
+    src.label,
+    src.ruleType,
+    src.url,
+    rule?.vendor,
+    rule?.label,
+    rule?.url,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (text.includes('adafruit')) return 'adafruit';
+  if (text.includes('seeed')) return 'seeed-studio';
+  if (text.includes('sparkfun')) return 'sparkfun';
+  if (src.ruleType === 'mouser-api' || text.includes('mouser')) return 'mouser-api';
+  if (src.ruleType === 'digikey-api' || text.includes('digikey') || text.includes('digi-key')) return 'digikey-api';
+  return null;
+}
+
+function isElectronicsSourceAllowed(src = {}, rule = null) {
+  const sourceSite = inferSourceSite(src, rule);
+  return sourceSite ? ELECTRONICS_SOURCE_ALLOWLIST.has(sourceSite) : false;
+}
+
 // Max 5 test-rule requests per user per minute (keyed on user ID; route is auth-gated).
 const testLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -124,7 +154,7 @@ const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
 // Old versioned keys are never written again and expire naturally via their TTL.
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 
 // Fallback in-process Maps (used if Redis is unavailable)
 const localFeedCache   = new Map();
@@ -200,10 +230,13 @@ function inferCategoryFromItem(item = {}) {
   return null;
 }
 
-function inferDealCategory(widgetId, item = {}) {
+function inferDealCategory(widgetId, item = {}, sourceInfo = {}) {
   const inferred = inferCategoryFromItem(item);
   if (widgetId.startsWith('keyboard-') || widgetId === 'active-deals') return inferred ?? 'Keyboards';
-  if (widgetId.startsWith('electronics-')) return inferred ?? 'Electronics';
+  if (widgetId.startsWith('electronics-')) {
+    const sourceSite = String(sourceInfo.sourceSite || item._sourceSite || '').toLowerCase();
+    return ELECTRONICS_SOURCE_ALLOWLIST.has(sourceSite) ? 'Electronics' : null;
+  }
   return inferred;
 }
 
@@ -221,6 +254,8 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
   let error = null;
   let sourceName = src.name ?? src.label ?? src.id ?? 'source';
   let sourceCategory = null;
+  let sourceSite = null;
+  let resolvedRule = null;
 
   try {
     if (src.ruleType === 'user-rss') {
@@ -264,6 +299,7 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
     } else {
       const rule = scraper.BUILTIN_SOURCE_RULES[src.id];
       if (!rule) return null;
+      resolvedRule = rule;
       sourceCategory = rule.category ?? null;
       sourceName = src.name ?? src.label ?? src.id;
       data = await scraper.runSource(rule, 'scheduled', { apiKeys });
@@ -272,12 +308,26 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
     error = err.message;
   }
 
+  sourceSite = inferSourceSite(src, resolvedRule);
+  if (String(widgetId).startsWith('electronics-') && !isElectronicsSourceAllowed(src, resolvedRule)) {
+    return {
+      sourceId: src.id ?? `${src.ruleType}:${src.keywords ?? src.url ?? ''}`,
+      sourceName,
+      sourceCategory,
+      sourceSite,
+      data: [],
+      error: 'Source is not in electronics allowlist',
+    };
+  }
+
   const filtered = filterItemsForWidget(widgetId, data, sourceCategory);
+  const withSourceSite = filtered.map(item => ({ ...item, _sourceSite: sourceSite ?? undefined }));
   return {
     sourceId: src.id ?? `${src.ruleType}:${src.keywords ?? src.url ?? ''}`,
     sourceName,
     sourceCategory,
-    data: filtered,
+    sourceSite,
+    data: withSourceSite,
     error,
   };
 }
@@ -436,7 +486,8 @@ router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async 
           seen.add(dedupeKey);
           accepted++;
 
-          const dealCategory = inferDealCategory(widgetId, item);
+          const dealCategory = inferDealCategory(widgetId, item, { sourceSite: scraped.sourceSite });
+          if (widgetId.startsWith('electronics-') && dealCategory !== 'Electronics') continue;
           deals.push({
             id: crypto.createHash('sha1').update(dedupeKey).digest('hex').slice(0, 16),
             name: item.name,

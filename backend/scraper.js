@@ -711,6 +711,20 @@ const BUILTIN_SOURCE_RULES = {
     vendor: 'Adafruit',
     category: 'Electronics',
   },
+  'sparkfun-new': {
+    url: 'https://www.sparkfun.com/feeds/products',
+    ruleType: 'rss',
+    label: 'Sparkfun — New Products',
+    vendor: 'Sparkfun',
+    category: 'Electronics',
+  },
+  'seeed-new': {
+    url: 'https://www.seeedstudio.com/blog/feed',
+    ruleType: 'rss',
+    label: 'Seeed Studio — New Products',
+    vendor: 'Seeed Studio',
+    category: 'Electronics',
+  },
 
   // ─── RAM vendors ──────────────────────────────────────────────────────────────
   // Consumer RAM sources. Amazon uses the PA API (keys must be set in app settings).
