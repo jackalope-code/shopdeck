@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
 import { useCommunityInsights, useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
+import { getFeedStockStatus } from '../lib/stockStatus';
 
 // ─── Widget registry ──────────────────────────────────────────────────────────
 export interface WidgetDef {
@@ -1091,24 +1092,24 @@ function KeyboardReleasesWidget() {
       {top.map((item, i) => {
         const currentPrice = parseNumericPrice(item.price);
         const price = currentPrice > 0 ? `$${currentPrice.toFixed(0)}` : '—';
+        const normalizedStock = getFeedStockStatus(item);
         const stockStatus =
-          item.anyAvailable === 'false' ? 'out' :
-          item.partialStock === 'true'  ? 'partial' :
-          item.lowStock === 'true'      ? 'low' :
-          item.anyAvailable === 'true'  ? 'in' :
-          undefined;
+          normalizedStock === 'out-of-stock' ? 'out' :
+          normalizedStock === 'partial-stock' ? 'partial' :
+          normalizedStock === 'low-stock' ? 'low' :
+          normalizedStock === 'in-stock' ? 'in' :
+          'unknown';
 
-        const stockBadge = stockStatus
-          ? {
-              label: stockStatus === 'out' ? 'Out of Stock' : stockStatus === 'partial' ? 'Limited Stock' : stockStatus === 'low' ? 'Low Stock' : 'In Stock',
-              className: `px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
-                stockStatus === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' :
-                stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
-                                             'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
-              }`,
-            }
-          : undefined;
+        const stockBadge = {
+          label: stockStatus === 'out' ? 'Out of Stock' : stockStatus === 'partial' ? 'Limited Stock' : stockStatus === 'low' ? 'Low Stock' : stockStatus === 'in' ? 'In Stock' : 'Stock Unknown',
+          className: `px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+            stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
+            stockStatus === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' :
+            stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
+            stockStatus === 'in'      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' :
+                                         'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+          }`,
+        };
 
         const itemKey = item.url ?? `${item._vendor ?? 'vendor'}:${item.name}:${i}`;
 

@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFavorites, VariantDetail } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
+import { getFeedStockStatus } from '../lib/stockStatus';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out';
+type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out' | 'unknown';
 type BrandFilter = 'All Sets' | 'GMK' | 'PBTFans' | 'KAT' | 'DCX' | 'Drop';
 
 interface KeycapSet {
@@ -31,6 +32,7 @@ const STATUS_BADGE: Record<KeycapStatus, string> = {
   'limited': 'bg-slate-800 text-white',
   'ic': 'bg-blue-500 text-white',
   'sold-out': 'bg-red-500 text-white',
+  'unknown': 'bg-slate-500 text-white',
 };
 
 const STATUS_TEXT: Record<KeycapStatus, string> = {
@@ -39,6 +41,7 @@ const STATUS_TEXT: Record<KeycapStatus, string> = {
   'limited': 'text-orange-500',
   'ic': 'text-blue-400',
   'sold-out': 'text-red-500',
+  'unknown': 'text-slate-500',
 };
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -77,6 +80,7 @@ function KeycapCard({ set }: { set: KeycapSet }) {
             : set.status === 'group-buy' ? 'Group Buy'
             : set.status === 'limited' ? `Limited`
             : set.status === 'ic' ? 'IC'
+            : set.status === 'unknown' ? 'Unknown'
             : 'Sold Out'}
         </div>
         {/* Favorite button */}
@@ -176,11 +180,17 @@ export default function KeycapsTracker() {
   const { loading, items: feedItems } = useFeedData('keycap-releases');
 
   const ALL_SETS: KeycapSet[] = feedItems.map((item, idx) => {
-    const outOfStock = item.anyAvailable === 'false';
-    const lowStock = item.lowStock === 'true';
-    const partialStock = item.partialStock === 'true';
-    const status: KeycapStatus = outOfStock ? 'sold-out' : ((lowStock || partialStock) ? 'limited' : 'in-stock');
-    const statusLabel = outOfStock ? 'Sold Out' : ((lowStock || partialStock) ? 'Low Stock' : 'In Stock');
+    const normalizedStock = getFeedStockStatus(item);
+    const status: KeycapStatus =
+      normalizedStock === 'out-of-stock' ? 'sold-out' :
+      (normalizedStock === 'low-stock' || normalizedStock === 'partial-stock') ? 'limited' :
+      normalizedStock === 'in-stock' ? 'in-stock' :
+      'unknown';
+    const statusLabel =
+      normalizedStock === 'out-of-stock' ? 'Sold Out' :
+      (normalizedStock === 'low-stock' || normalizedStock === 'partial-stock') ? 'Low Stock' :
+      normalizedStock === 'in-stock' ? 'In Stock' :
+      'Stock Unknown';
     return {
       id: `live-${idx}`,
       name: item.name,

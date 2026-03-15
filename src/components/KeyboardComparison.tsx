@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFavorites, FeedItem, VariantDetail } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
+import { getFeedStockStatus } from '../lib/stockStatus';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Keyboard {
@@ -11,7 +12,7 @@ interface Keyboard {
   maker: string;
   price: number;
   url?: string;
-  availability: 'in-stock' | 'out-of-stock' | 'pre-order' | 'restocking' | 'low-stock';
+  availability: 'in-stock' | 'out-of-stock' | 'pre-order' | 'restocking' | 'low-stock' | 'unknown';
   tier: string;
   tierColor: string;
   gradient: string;
@@ -37,6 +38,7 @@ const AVAILABILITY_STYLE: Record<string, string> = {
   'pre-order': 'text-blue-400',
   'restocking': 'text-amber-500',
   'low-stock': 'text-orange-500',
+  'unknown': 'text-slate-500',
 };
 
 const AVAILABILITY_LABEL: Record<string, string> = {
@@ -45,6 +47,7 @@ const AVAILABILITY_LABEL: Record<string, string> = {
   'pre-order': 'Pre-Order',
   'restocking': 'Restocking Soon',
   'low-stock': 'Low Stock',
+  'unknown': 'Stock Unknown',
 };
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -181,11 +184,12 @@ function buildSpecsFromItem(item: FeedItem): SpecRow[] {
 
 function itemToKeyboard(item: FeedItem, id: 'a' | 'b'): Keyboard {
   const price = parseFloat((item.price ?? '0').replace(/[^0-9.]/g, '')) || 0;
-  const outOfStock = item.anyAvailable === 'false';
-  const lowStockOrPartial = item.lowStock === 'true' || item.partialStock === 'true';
-  const availability: Keyboard['availability'] = outOfStock
-    ? 'out-of-stock'
-    : (lowStockOrPartial ? 'low-stock' : 'in-stock');
+  const normalizedStock = getFeedStockStatus(item);
+  const availability: Keyboard['availability'] =
+    normalizedStock === 'out-of-stock' ? 'out-of-stock' :
+    (normalizedStock === 'low-stock' || normalizedStock === 'partial-stock') ? 'low-stock' :
+    normalizedStock === 'in-stock' ? 'in-stock' :
+    'unknown';
   return {
     id,
     name: item.name,

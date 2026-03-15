@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFavorites, FeedItem } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
+import { getFeedStockStatus } from '../lib/stockStatus';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type KeyboardSubkind = 'modular-kit' | 'diy-kit' | 'barebones' | 'prebuilt';
@@ -59,11 +60,12 @@ const SUBKIND_LABEL: Record<KeyboardSubkind, string> = {
 };
 
 function stockLabel(item: FeedItem): { text: string; color: string } {
-  if (item.anyAvailable === 'false') return { text: 'Out of Stock', color: 'text-red-500' };
-  if (item.lowStock === 'true') return { text: 'Low Stock', color: 'text-orange-500' };
-  if (item.partialStock === 'true') return { text: 'Partial Stock', color: 'text-amber-500' };
-  if (item.anyAvailable === 'true') return { text: 'In Stock', color: 'text-emerald-500' };
-  return { text: 'Check Store', color: 'text-slate-400' };
+  const status = getFeedStockStatus(item);
+  if (status === 'out-of-stock') return { text: 'Out of Stock', color: 'text-red-500' };
+  if (status === 'low-stock') return { text: 'Low Stock', color: 'text-orange-500' };
+  if (status === 'partial-stock') return { text: 'Partial Stock', color: 'text-amber-500' };
+  if (status === 'in-stock') return { text: 'In Stock', color: 'text-emerald-500' };
+  return { text: 'Stock Unknown', color: 'text-slate-400' };
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────

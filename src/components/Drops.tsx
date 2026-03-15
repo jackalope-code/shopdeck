@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFavorites } from '../lib/ShopdataContext';
 import HistoryAwareLink from './HistoryAwareLink';
+import { getFeedStockStatus } from '../lib/stockStatus';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DropStatus = 'group-buy' | 'in-stock' | 'ic' | 'sold-out' | 'sale';
@@ -15,7 +16,7 @@ interface Drop {
   vendor: string;
   category: DropCategory;
   status: DropStatus;
-  stockStatus?: 'in' | 'partial' | 'low' | 'out';
+  stockStatus?: 'in' | 'partial' | 'low' | 'out' | 'unknown';
   price: string;
   daysLeft?: number;
   discount?: number;
@@ -129,9 +130,10 @@ function DropCard({ drop }: { drop: Drop }) {
                 drop.stockStatus === 'out'     ? 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400' :
                 drop.stockStatus === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' :
                 drop.stockStatus === 'low'     ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' :
-                                                 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+                drop.stockStatus === 'in'      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' :
+                                                 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
               }`}>
-                {drop.stockStatus === 'out' ? 'Out of Stock' : drop.stockStatus === 'partial' ? 'Limited Stock' : drop.stockStatus === 'low' ? 'Low Stock' : 'In Stock'}
+                {drop.stockStatus === 'out' ? 'Out of Stock' : drop.stockStatus === 'partial' ? 'Limited Stock' : drop.stockStatus === 'low' ? 'Low Stock' : drop.stockStatus === 'in' ? 'In Stock' : 'Stock Unknown'}
               </span>
             )}
           </div>
@@ -181,12 +183,13 @@ export default function Drops() {
       (item._vendor ?? '').toLowerCase().includes('keycap') ? 'Keycaps' :
       (item._vendor ?? '').toLowerCase().includes('switch') ? 'Switches' :
       'Keyboards';
+    const normalizedStock = getFeedStockStatus(item);
     const stockStatus =
-      item.anyAvailable === 'false' ? 'out' :
-      item.partialStock === 'true'  ? 'partial' :
-      item.lowStock === 'true'      ? 'low' :
-      item.anyAvailable === 'true'  ? 'in' :
-      undefined;
+      normalizedStock === 'out-of-stock' ? 'out' :
+      normalizedStock === 'partial-stock' ? 'partial' :
+      normalizedStock === 'low-stock' ? 'low' :
+      normalizedStock === 'in-stock' ? 'in' :
+      'unknown';
     return {
       id: `live-${(item._vendor ?? '').toLowerCase().replace(/\s+/g, '-')}-${item.handle ?? item.name}`,
       name: item.name,

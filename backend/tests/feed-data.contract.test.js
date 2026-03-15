@@ -56,6 +56,9 @@ describe('feed data contracts', () => {
     const filtered = filterItemsForWidget('ram-availability', items, 'electronics');
 
     expect(filtered).toHaveLength(2);
-    expect(filtered).toEqual(items);
+    expect(filtered[0].name).toBe('DDR5 32GB Kit');
+    expect(filtered[1].name).toBe('RTX 5080');
+    expect(filtered[0].stockStatus).toBe('unknown');
+    expect(filtered[1].stockStatus).toBe('unknown');
   });
 });

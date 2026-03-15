@@ -12,6 +12,7 @@ const db = require('../db');
 const redis = require('../redis');
 const { decryptMap } = require('../lib/tokenCrypto');
 const { classifyKeyboardItem, inferKeyboardSubkind } = require('../lib/productTaxonomy');
+const { normalizeStockFields, inferStockStatus } = require('../lib/stockAnalysis');
 
 // Max 5 test-rule requests per user per minute (keyed on user ID; route is auth-gated).
 const testLimiter = rateLimit({
@@ -79,8 +80,10 @@ function looksLikeFullKeyboard(item = {}) {
 }
 
 function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
-  if (!KEYBOARD_WIDGET_IDS.has(widgetId)) return items;
-  const normalizedKeyboardItems = items.map(item => {
+  const normalizedItems = items.map(item => normalizeStockFields(item));
+  if (!KEYBOARD_WIDGET_IDS.has(widgetId)) return normalizedItems;
+
+  const normalizedKeyboardItems = normalizedItems.map(item => {
     const keyboardSubkind = inferKeyboardSubkind(item);
     if (!keyboardSubkind) return item;
     return { ...item, keyboardSubkind };
@@ -121,7 +124,7 @@ const FEED_DATA_CACHE_TTL_MS = FEED_DATA_CACHE_TTL_S * 1000;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
 // Old versioned keys are never written again and expire naturally via their TTL.
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 
 // Fallback in-process Maps (used if Redis is unavailable)
 const localFeedCache   = new Map();
@@ -403,12 +406,14 @@ router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async 
         const scraped = await scrapeSourceForWidget({ src, widgetId, apiKeys, userId: req.user.id });
         if (!scraped) continue;
 
-        const skipCounts = { outOfStock: 0, noPrice: 0, belowThreshold: 0, noDiscount: 0 };
+        const skipCounts = { outOfStock: 0, unknownStock: 0, noPrice: 0, belowThreshold: 0, noDiscount: 0 };
         let accepted = 0;
 
         for (const item of scraped.data) {
           // 1. Stock gate — hide out-of-stock items
-          if (item.anyAvailable === 'false') { skipCounts.outOfStock++; continue; }
+          const stockStatus = inferStockStatus(item);
+          if (stockStatus === 'out-of-stock') { skipCounts.outOfStock++; continue; }
+          if (stockStatus === 'unknown') { skipCounts.unknownStock++; continue; }
 
           const price = parseMoney(item.price);
           const comparePrice = parseMoney(item.comparePrice);
@@ -444,6 +449,7 @@ router.get('/data-aggregated/deals', verifyToken, aggregatedDealsLimiter, async 
             category: dealCategory,
             subcategory: inferDealSubcategory(widgetId),
             keyboardSubkind: dealCategory === 'Keyboards' ? inferKeyboardSubkind(item) : undefined,
+            stockStatus,
             sourceWidgetId: widgetId,
             sourceId: scraped.sourceId,
             sourceName: scraped.sourceName,
