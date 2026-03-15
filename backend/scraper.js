@@ -1025,7 +1025,7 @@ const BUILTIN_SOURCE_RULES = {
     category: 'Sports Equipment',
   },
   'reddit-frugalathlete': {
-    url: 'https://www.reddit.com/r/frugalmalefashion/new/.rss',
+    url: 'https://www.reddit.com/r/frugalathlete/new/.rss',
     ruleType: 'rss',
     label: 'r/frugalathlete — Deals',
     category: 'Sports Equipment',

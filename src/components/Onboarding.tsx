@@ -83,7 +83,7 @@ const DASHBOARD_TIER_MAP: Record<string, Record<DashboardPreference, string[]>> 
   electronics: {
     minimal:   ['electronics-watchlist'],
     balanced:  ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
-    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'electronics-microcontrollers', 'electronics-passives', 'electronics-sensors', 'electronics-motors', 'electronics-ics', 'electronics-encoders', 'active-deals'],
+    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'electronics-microcontrollers', 'electronics-passives', 'electronics-sensors', 'electronics-motors', 'electronics-ics', 'electronics-encoders', 'electronics-power', 'electronics-connectors', 'electronics-displays', 'electronics-wireless', 'electronics-audio', 'active-deals'],
   },
   garden: {
     minimal:   ['garden-new-arrivals', 'garden-houseplants'],
@@ -277,14 +277,30 @@ function ProgressBar({ step }: { step: OnboardingStep }) {
 function StepCategories({
   selected,
   onToggle,
+  onSetAll,
   onContinue,
 }: {
   selected: string[];
   onToggle: (id: string) => void;
+  onSetAll: (ids: string[]) => void;
   onContinue: () => void;
 }) {
   const [search, setSearch] = useState('');
+  // Snapshot of selection before "Select All" was activated, so deselecting restores it.
+  const [preSelectAllSnap, setPreSelectAllSnap] = useState<string[] | null>(null);
+  const allSelected = preSelectAllSnap !== null;
   const searchLower = search.toLowerCase();
+
+  function handleSelectAllToggle() {
+    if (allSelected) {
+      // Restore the pre-select-all snapshot
+      onSetAll(preSelectAllSnap!);
+      setPreSelectAllSnap(null);
+    } else {
+      setPreSelectAllSnap(selected);
+      onSetAll(CATEGORIES.map(c => c.id));
+    }
+  }
 
   // Selected categories are always shown first so they can be deselected even when filtering.
   const filtered = search
@@ -310,26 +326,39 @@ function StepCategories({
           <p className="text-[11px] text-slate-400 mt-0.5">You can change these in Settings at any time.</p>
         </div>
 
-        {/* Search input */}
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400 pointer-events-none">
-            search
-          </span>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search categories…"
-            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-9 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-            >
-              <span className="material-symbols-outlined text-[18px]">close</span>
-            </button>
-          )}
+        {/* Search + Select All row */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400 pointer-events-none">
+              search
+            </span>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search categories…"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-9 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            )}
+          </div>
+          <button
+            onClick={handleSelectAllToggle}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+              allSelected
+                ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">{allSelected ? 'deselect' : 'select_all'}</span>
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
         </div>
 
         {search && (
@@ -763,11 +792,13 @@ export default function Onboarding() {
     router.replace('/login');
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(enabledWidgets));
     localStorage.setItem(STORAGE_KEY_NOTIFS, notifEnabled ? 'true' : 'false');
     localStorage.setItem(STORAGE_KEY_ONBOARDED, 'true');
-    // Sync to server so the API profile doesn't override localStorage on Dashboard load
+    // Await the PATCH before navigating so Dashboard's GET /api/profile sees the
+    // updated activeWidgets — without this, the GET can race ahead of the PATCH
+    // and return stale registration defaults, overwriting the onboarding selection.
     // Demo accounts have no backend profile — skip the write.
     if (getToken() && !isDemoAccount()) {
       const profilePatch: Record<string, unknown> = { activeWidgets: enabledWidgets };
@@ -775,7 +806,7 @@ export default function Onboarding() {
         profilePatch.plantingZone = plantingZone;
         profilePatch.hideOutdoorPlants = hideOutdoorPlants;
       }
-      apiPatch('/api/profile', profilePatch).catch(() => {});
+      await apiPatch('/api/profile', profilePatch).catch(() => {});
     }
     // Dev-only: loop back to / so the always-onboarding demo flag can retrigger
     if (process.env.NODE_ENV !== 'production' &&
@@ -783,6 +814,7 @@ export default function Onboarding() {
       router.push('/');
       return;
     }
+    localStorage.setItem('sd-onboarding-complete', 'true');
     router.push('/dashboard');
   };
 
@@ -817,6 +849,7 @@ export default function Onboarding() {
           <StepCategories
             selected={selectedCats}
             onToggle={toggleCat}
+            onSetAll={setSelectedCats}
             onContinue={handleCategoryStep1Continue}
           />
         )}

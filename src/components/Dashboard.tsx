@@ -17,7 +17,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getUser, getToken, clearToken, apiGet, apiPatch } from '../lib/auth';
+import { getUser, getToken, clearToken, apiGet, apiPatch, isDemoAccount } from '../lib/auth';
 import { useCommunityInsights, useFavorites, useFeedData, useProjects, useViewHistory } from '../lib/ShopdataContext';
 import { getFeedStockStatus } from '../lib/stockStatus';
 
@@ -74,6 +74,11 @@ const BASE_WIDGETS: WidgetDef[] = [
   { id: 'electronics-motors',          title: 'Motors & Actuators',          category: 'Electronics', icon: 'settings_motion_mode',  color: 'text-orange-500', description: 'Steppers, servos, and DC motors.' },
   { id: 'electronics-ics',             title: 'ICs & Breakout Boards',       category: 'Electronics', icon: 'memory_alt',            color: 'text-cyan-500',   description: 'Op-amps, logic gates and breakout boards.' },
   { id: 'electronics-encoders',        title: 'Encoders & Potentiometers',   category: 'Electronics', icon: 'rotate_right',          color: 'text-pink-500',   description: 'Rotary encoders and potentiometers.' },
+  { id: 'electronics-power',           title: 'Power & Regulators',          category: 'Electronics', icon: 'bolt',                  color: 'text-yellow-500', description: 'Voltage regulators, power modules and charging ICs.' },
+  { id: 'electronics-connectors',      title: 'Connectors & Cables',         category: 'Electronics', icon: 'cable',                 color: 'text-blue-400',   description: 'Connectors, headers, and cable assemblies.' },
+  { id: 'electronics-displays',        title: 'Displays & Screens',          category: 'Electronics', icon: 'tv',                    color: 'text-teal-500',   description: 'OLED, LCD, and e-paper display modules.' },
+  { id: 'electronics-wireless',        title: 'Wireless & RF',               category: 'Electronics', icon: 'wifi',                  color: 'text-green-400',  description: 'WiFi, Bluetooth, LoRa, and RF modules.' },
+  { id: 'electronics-audio',           title: 'Audio & Sound',               category: 'Electronics', icon: 'mic',                   color: 'text-pink-400',   description: 'Microphones, amplifiers, and audio modules.' },
   { id: 'inventory-stats', title: 'Inventory Stats', category: 'Overview', icon: 'inventory_2', color: 'text-blue-500', description: 'High-level stock and project counts.' },
   { id: 'vendor-performance', title: 'Vendor Performance', category: 'Overview', icon: 'storefront', color: 'text-yellow-500', description: 'Fulfillment rates across top vendors.' },
 
@@ -1337,6 +1342,11 @@ function WidgetContent({ id }: { id: string }) {
     case 'electronics-motors':           return <FeedListWidget widgetId="electronics-motors"           linkHref="/electronics" linkLabel="View motors →" />;
     case 'electronics-ics':              return <FeedListWidget widgetId="electronics-ics"              linkHref="/electronics" linkLabel="View ICs →" />;
     case 'electronics-encoders':         return <FeedListWidget widgetId="electronics-encoders"         linkHref="/electronics" linkLabel="View encoders →" />;
+    case 'electronics-power':            return <FeedListWidget widgetId="electronics-power"            linkHref="/electronics" linkLabel="View power modules →" />;
+    case 'electronics-connectors':       return <FeedListWidget widgetId="electronics-connectors"       linkHref="/electronics" linkLabel="View connectors →" />;
+    case 'electronics-displays':         return <FeedListWidget widgetId="electronics-displays"         linkHref="/electronics" linkLabel="View displays →" />;
+    case 'electronics-wireless':         return <FeedListWidget widgetId="electronics-wireless"         linkHref="/electronics" linkLabel="View wireless modules →" />;
+    case 'electronics-audio':            return <FeedListWidget widgetId="electronics-audio"            linkHref="/electronics" linkLabel="View audio modules →" />;
     case 'inventory-stats':    return <InventoryStatsWidget />;
     case 'vendor-performance':
       return (
@@ -1346,6 +1356,94 @@ function WidgetContent({ id }: { id: string }) {
           <p className="text-xs">Connect vendor order history to enable this widget.</p>
         </div>
       );
+
+    // ─── Garden ──────────────────────────────────────────────────────────────
+    case 'garden-new-arrivals':  return <FeedListWidget widgetId="garden-new-arrivals"  linkHref="/garden" linkLabel="Browse garden arrivals →" />;
+    case 'garden-deals':         return <FeedListWidget widgetId="garden-deals"         linkHref="/garden" linkLabel="View garden deals →" />;
+    case 'garden-houseplants':   return <FeedListWidget widgetId="garden-houseplants"   linkHref="/garden" linkLabel="Browse houseplants →" />;
+    case 'garden-trees-shrubs':  return <FeedListWidget widgetId="garden-trees-shrubs"  linkHref="/garden" linkLabel="Browse trees & shrubs →" />;
+    case 'garden-perennials':    return <FeedListWidget widgetId="garden-perennials"    linkHref="/garden" linkLabel="Browse perennials →" />;
+    case 'garden-seeds':         return <FeedListWidget widgetId="garden-seeds"         linkHref="/garden" linkLabel="Browse seeds →" />;
+    case 'garden-tools':         return <FeedListWidget widgetId="garden-tools"         linkHref="/garden" linkLabel="Browse garden tools →" />;
+
+    // ─── Groceries ───────────────────────────────────────────────────────────
+    case 'grocery-deals':        return <FeedListWidget widgetId="grocery-deals"        linkHref="/groceries" linkLabel="View weekly deals →" />;
+    case 'grocery-produce':      return <FeedListWidget widgetId="grocery-produce"      linkHref="/groceries" linkLabel="Browse fresh produce →" />;
+    case 'grocery-staples':      return <FeedListWidget widgetId="grocery-staples"      linkHref="/groceries" linkLabel="Browse pantry staples →" />;
+    case 'grocery-meat-seafood': return <FeedListWidget widgetId="grocery-meat-seafood" linkHref="/groceries" linkLabel="Browse meat & seafood →" />;
+
+    // ─── Sports ──────────────────────────────────────────────────────────────
+    case 'sports-baseball':      return <FeedListWidget widgetId="sports-baseball"      linkHref="/sports" linkLabel="Browse baseball gear →" />;
+    case 'sports-basketball':    return <FeedListWidget widgetId="sports-basketball"    linkHref="/sports" linkLabel="Browse basketball gear →" />;
+    case 'sports-football':      return <FeedListWidget widgetId="sports-football"      linkHref="/sports" linkLabel="Browse football gear →" />;
+    case 'sports-soccer':        return <FeedListWidget widgetId="sports-soccer"        linkHref="/sports" linkLabel="Browse soccer gear →" />;
+    case 'sports-volleyball':    return <FeedListWidget widgetId="sports-volleyball"    linkHref="/sports" linkLabel="Browse volleyball gear →" />;
+    case 'sports-deals':         return <FeedListWidget widgetId="sports-deals"         linkHref="/sports" linkLabel="View sports deals →" />;
+    case 'sports-new-releases':  return <FeedListWidget widgetId="sports-new-releases"  linkHref="/sports" linkLabel="View new equipment →" />;
+
+    // ─── 3D Printing ─────────────────────────────────────────────────────────
+    case '3dp-printers':         return <FeedListWidget widgetId="3dp-printers"         linkHref="/3d-printing" linkLabel="Browse 3D printers →" />;
+    case '3dp-filament':         return <FeedListWidget widgetId="3dp-filament"         linkHref="/3d-printing" linkLabel="Browse filament →" />;
+    case '3dp-resins':           return <FeedListWidget widgetId="3dp-resins"           linkHref="/3d-printing" linkLabel="Browse resins →" />;
+    case '3dp-accessories':      return <FeedListWidget widgetId="3dp-accessories"      linkHref="/3d-printing" linkLabel="Browse accessories →" />;
+    case '3dp-deals':            return <FeedListWidget widgetId="3dp-deals"            linkHref="/3d-printing" linkLabel="View 3D printing deals →" />;
+
+    // ─── Automotive ──────────────────────────────────────────────────────────
+    case 'auto-parts':           return <FeedListWidget widgetId="auto-parts"           linkHref="/automotive" linkLabel="Browse auto parts →" />;
+    case 'auto-tools':           return <FeedListWidget widgetId="auto-tools"           linkHref="/automotive" linkLabel="Browse tools & equipment →" />;
+    case 'auto-accessories':     return <FeedListWidget widgetId="auto-accessories"     linkHref="/automotive" linkLabel="Browse car accessories →" />;
+    case 'auto-deals':           return <FeedListWidget widgetId="auto-deals"           linkHref="/automotive" linkLabel="View auto deals →" />;
+
+    // ─── Games ───────────────────────────────────────────────────────────────
+    case 'games-video-deals':    return <FeedListWidget widgetId="games-video-deals"    linkHref="/games" linkLabel="View video game deals →" />;
+    case 'games-video-new':      return <FeedListWidget widgetId="games-video-new"      linkHref="/games" linkLabel="Browse new video games →" />;
+    case 'games-board-new':      return <FeedListWidget widgetId="games-board-new"      linkHref="/games" linkLabel="Browse new board games →" />;
+    case 'games-board-deals':    return <FeedListWidget widgetId="games-board-deals"    linkHref="/games" linkLabel="View board game deals →" />;
+    case 'games-tabletop':       return <FeedListWidget widgetId="games-tabletop"       linkHref="/games" linkLabel="Browse tabletop & RPG →" />;
+    case 'games-deals':          return <FeedListWidget widgetId="games-deals"          linkHref="/games" linkLabel="View all games deals →" />;
+
+    // ─── Home ────────────────────────────────────────────────────────────────
+    case 'home-decor':           return <FeedListWidget widgetId="home-decor"           linkHref="/home" linkLabel="Browse home decor →" />;
+    case 'home-furniture':       return <FeedListWidget widgetId="home-furniture"       linkHref="/home" linkLabel="Browse furniture →" />;
+    case 'home-kitchen':         return <FeedListWidget widgetId="home-kitchen"         linkHref="/home" linkLabel="Browse kitchen & appliances →" />;
+    case 'home-deals':           return <FeedListWidget widgetId="home-deals"           linkHref="/home" linkLabel="View home deals →" />;
+
+    // ─── Home Improvement ────────────────────────────────────────────────────
+    case 'homeimprove-tools':      return <FeedListWidget widgetId="homeimprove-tools"      linkHref="/home-improvement" linkLabel="Browse power & hand tools →" />;
+    case 'homeimprove-materials':  return <FeedListWidget widgetId="homeimprove-materials"  linkHref="/home-improvement" linkLabel="Browse building materials →" />;
+    case 'homeimprove-plumbing':   return <FeedListWidget widgetId="homeimprove-plumbing"   linkHref="/home-improvement" linkLabel="Browse plumbing →" />;
+    case 'homeimprove-electrical': return <FeedListWidget widgetId="homeimprove-electrical" linkHref="/home-improvement" linkLabel="Browse electrical →" />;
+    case 'homeimprove-deals':      return <FeedListWidget widgetId="homeimprove-deals"      linkHref="/home-improvement" linkLabel="View DIY deals →" />;
+
+    // ─── Clothes ─────────────────────────────────────────────────────────────
+    case 'clothes-mens':         return <FeedListWidget widgetId="clothes-mens"         linkHref="/clothes" linkLabel="Browse men's clothing →" />;
+    case 'clothes-womens':       return <FeedListWidget widgetId="clothes-womens"       linkHref="/clothes" linkLabel="Browse women's clothing →" />;
+    case 'clothes-activewear':   return <FeedListWidget widgetId="clothes-activewear"   linkHref="/clothes" linkLabel="Browse activewear →" />;
+    case 'clothes-deals':        return <FeedListWidget widgetId="clothes-deals"        linkHref="/clothes" linkLabel="View clothing deals →" />;
+    case 'clothes-new':          return <FeedListWidget widgetId="clothes-new"          linkHref="/clothes" linkLabel="Browse new arrivals →" />;
+
+    // ─── Shoes ───────────────────────────────────────────────────────────────
+    case 'shoes-athletic':       return <FeedListWidget widgetId="shoes-athletic"       linkHref="/shoes" linkLabel="Browse athletic shoes →" />;
+    case 'shoes-casual':         return <FeedListWidget widgetId="shoes-casual"         linkHref="/shoes" linkLabel="Browse casual shoes →" />;
+    case 'shoes-deals':          return <FeedListWidget widgetId="shoes-deals"          linkHref="/shoes" linkLabel="View shoe deals →" />;
+    case 'shoes-new':            return <FeedListWidget widgetId="shoes-new"            linkHref="/shoes" linkLabel="Browse new releases →" />;
+
+    // ─── Art ─────────────────────────────────────────────────────────────────
+    case 'art-supplies-new':     return <FeedListWidget widgetId="art-supplies-new"     linkHref="/art" linkLabel="Browse new art supplies →" />;
+    case 'art-supplies-deals':   return <FeedListWidget widgetId="art-supplies-deals"   linkHref="/art" linkLabel="View art supply deals →" />;
+    case 'art-prints':           return <FeedListWidget widgetId="art-prints"           linkHref="/art" linkLabel="Browse prints & originals →" />;
+
+    // ─── Crafts ──────────────────────────────────────────────────────────────
+    case 'crafts-pottery':       return <FeedListWidget widgetId="crafts-pottery"       linkHref="/crafts" linkLabel="Browse pottery supplies →" />;
+    case 'crafts-weaving':       return <FeedListWidget widgetId="crafts-weaving"       linkHref="/crafts" linkLabel="Browse weaving supplies →" />;
+    case 'crafts-deals':         return <FeedListWidget widgetId="crafts-deals"         linkHref="/crafts" linkLabel="View craft deals →" />;
+
+    // ─── Needle Work ─────────────────────────────────────────────────────────
+    case 'needlework-knitting':  return <FeedListWidget widgetId="needlework-knitting"  linkHref="/needle-work" linkLabel="Browse knitting supplies →" />;
+    case 'needlework-crochet':   return <FeedListWidget widgetId="needlework-crochet"   linkHref="/needle-work" linkLabel="Browse crochet supplies →" />;
+    case 'needlework-quilting':  return <FeedListWidget widgetId="needlework-quilting"  linkHref="/needle-work" linkLabel="Browse quilting supplies →" />;
+    case 'needlework-deals':     return <FeedListWidget widgetId="needlework-deals"     linkHref="/needle-work" linkLabel="View needle work deals →" />;
+
     default:
       return <div className="p-4 text-sm text-slate-500">No content yet.</div>;
   }
@@ -1655,8 +1753,20 @@ export default function Dashboard() {
     if (getToken()) {
       apiGet<{ profile: { activeWidgets?: string[]; gridCols?: number } }>('/api/profile')
         .then(({ profile }) => {
-          if (profile.activeWidgets?.length) setActiveWidgetIds(profile.activeWidgets);
-          if (profile.gridCols) setCols(profile.gridCols as 2 | 3 | 4);
+          const demo = isDemoAccount();
+          const justOnboarded = localStorage.getItem('sd-onboarding-complete') === 'true';
+          if (justOnboarded) localStorage.removeItem('sd-onboarding-complete');
+          if (demo || justOnboarded) {
+            try {
+              const w = localStorage.getItem(STORAGE_KEY_WIDGETS);
+              if (w) setActiveWidgetIds(JSON.parse(w));
+              const c = localStorage.getItem(STORAGE_KEY_COLS);
+              if (c) setCols(Number(c) as 2 | 3 | 4);
+            } catch {}
+          } else {
+            if (profile.activeWidgets?.length) setActiveWidgetIds(profile.activeWidgets);
+            if (profile.gridCols) setCols(profile.gridCols as 2 | 3 | 4);
+          }
         })
         .catch(() => {
           // Fall back to localStorage if API unavailable

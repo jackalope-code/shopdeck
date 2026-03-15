@@ -262,6 +262,35 @@ router.post('/demo', demoCreateLimiter, async (req, res) => {
   }
 });
 
+// POST /api/auth/upgrade  (protected — demo only)
+router.post('/upgrade', verifyToken, async (req, res) => {
+  if (!req.user.is_demo) return res.status(400).json({ error: 'Account is not a demo account' });
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) return res.status(400).json({ error: 'username, email, and password are required' });
+  const pwCheck = validatePassword(password);
+  if (!pwCheck.valid) return res.status(400).json({ error: pwCheck.errors[0], errors: pwCheck.errors });
+  try {
+    const [existingUser, existingEmail] = await Promise.all([
+      db.query('SELECT id FROM users WHERE username=$1 AND id!=$2', [username, req.user.id]),
+      db.query('SELECT id FROM users WHERE email=$1 AND id!=$2', [email, req.user.id]),
+    ]);
+    if (existingUser.rows.length > 0) return res.status(409).json({ error: 'Username is already taken' });
+    if (existingEmail.rows.length > 0) return res.status(409).json({ error: 'Email is already registered' });
+    const passwordHash = await bcrypt.hash(password, 12);
+    const result = await db.query(
+      'UPDATE users SET username=$1, email=$2, password_hash=$3, is_demo=false WHERE id=$4 RETURNING id, username, email',
+      [username, email, passwordHash, req.user.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'User not found' });
+    const user = result.rows[0];
+    const token = generateToken({ id: user.id, email: user.email, username: user.username, is_demo: false });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, is_demo: false } });
+  } catch (err) {
+    console.error('Upgrade error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/auth/me  (protected)
 router.get('/me', verifyToken, async (req, res) => {
   try {

@@ -373,36 +373,46 @@
     },
     "sports-baseball": {
       "sources": [
-        { "id": "dickssporting-sports", "name": "DICK'S Sporting Goods", "enabled": true },
-        { "id": "academy-sports",       "name": "Academy Sports",        "enabled": true }
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
       ],
       "custom": []
     },
     "sports-basketball": {
       "sources": [
-        { "id": "dickssporting-sports", "name": "DICK'S Sporting Goods", "enabled": true },
-        { "id": "academy-sports",       "name": "Academy Sports",        "enabled": true }
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
       ],
       "custom": []
     },
     "sports-soccer": {
       "sources": [
-        { "id": "dickssporting-sports", "name": "DICK'S Sporting Goods", "enabled": true },
-        { "id": "academy-sports",       "name": "Academy Sports",        "enabled": true }
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
       ],
       "custom": []
     },
     "sports-football": {
       "sources": [
-        { "id": "dickssporting-sports", "name": "DICK'S Sporting Goods", "enabled": true },
-        { "id": "academy-sports",       "name": "Academy Sports",        "enabled": true }
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
       ],
       "custom": []
     },
     "sports-volleyball": {
       "sources": [
-        { "id": "dickssporting-sports", "name": "DICK'S Sporting Goods", "enabled": true },
-        { "id": "academy-sports",       "name": "Academy Sports",        "enabled": true }
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
       ],
       "custom": []
     },
