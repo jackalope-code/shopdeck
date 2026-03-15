@@ -165,7 +165,9 @@ const STORAGE_KEY_ONBOARDED = 'sd-onboarded';
 const STORAGE_KEY_WIDGETS = 'sd-active-widgets';
 const STORAGE_KEY_NOTIFS = 'sd-browser-alerts';
 
-type OnboardingStep = 1 | '1z' | 2 | 3 | 4;
+type UserType = 'regular' | 'hobbyist' | 'seller' | 'creator';
+type ApiKeyFields = { cjApiKey: string; amazonAccessKey: string; amazonSecretKey: string; amazonPartnerTag: string };
+type OnboardingStep = 'type' | 1 | '1z' | 2 | 3 | 4 | 5;
 
 // ─── Step 1z: Garden zone picker ─────────────────────────────────────────────
 function StepZone({
@@ -267,9 +269,56 @@ function StepZone({
   );
 }
 
+// ─── Step 0: user type selection ────────────────────────────────────────────
+const USER_TYPE_OPTIONS: { value: UserType; icon: string; label: string; description: string }[] = [
+  { value: 'regular',  icon: 'person',            label: 'Regular user',         description: 'Browse deals, track prices, build wishlists' },
+  { value: 'hobbyist', icon: 'developer_board',   label: 'Electronics Hobbyist', description: 'Parts lookup via Mouser, DigiKey & Newegg' },
+  { value: 'seller',   icon: 'storefront',        label: 'Seller',               description: 'Track competitor pricing, monitor deals' },
+  { value: 'creator',  icon: 'video_camera_front', label: 'Content Creator',     description: 'Curate products to share with your audience' },
+];
+
+function StepUserType({ onSelect }: { onSelect: (type: UserType) => void }) {
+  return (
+    <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">What kind of user are you?</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          This helps us tailor your default widgets and show the right setup options.
+        </p>
+        <p className="text-[11px] text-slate-400 mt-0.5">You can always update this in Settings.</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+        {USER_TYPE_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => onSelect(opt.value)}
+            className="flex items-center gap-4 rounded-xl p-4 border-2 text-left border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-blue-400 hover:bg-blue-500/5 transition-all"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500">
+              <span className="material-symbols-outlined text-2xl">{opt.icon}</span>
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-sm">{opt.label}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{opt.description}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Progress bar ─────────────────────────────────────────────────────────────
-function ProgressBar({ step }: { step: OnboardingStep }) {
-  const pct = step === 1 ? 20 : step === '1z' ? 40 : step === 2 ? 60 : step === 3 ? 80 : 100;
+function ProgressBar({ step, showApiKeyStep }: { step: OnboardingStep; showApiKeyStep: boolean }) {
+  const total = showApiKeyStep ? 6 : 5;
+  const pct =
+    step === 'type' ? Math.round((1 / total) * 100) :
+    step === 1      ? Math.round((2 / total) * 100) :
+    step === '1z'   ? Math.round((2.5 / total) * 100) :
+    step === 2      ? Math.round((3 / total) * 100) :
+    step === 3      ? Math.round((4 / total) * 100) :
+    step === 4      ? Math.round((5 / total) * 100) :
+    100;
   return (
     <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
       <div
@@ -642,12 +691,14 @@ function StepNotifications({
   onToggle,
   onBack,
   onFinish,
+  finishLabel,
 }: {
   enabled: boolean;
   permState: NotificationPermission | 'unsupported';
   onToggle: () => void;
   onBack: () => void;
   onFinish: () => void;
+  finishLabel?: string;
 }) {
   return (
     <>
@@ -717,8 +768,137 @@ function StepNotifications({
           onClick={onFinish}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white hover:bg-blue-600 transition-colors"
         >
+          {finishLabel ? (
+            <>
+              {finishLabel}
+              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </>
+          ) : (
+            <>
+              <span className="material-symbols-outlined text-[18px]">check_circle</span>
+              Finish &amp; View Dashboard
+            </>
+          )}
+        </button>
+        <button
+          onClick={onBack}
+          className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          ← Back
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── Step 5: API keys (Seller / Content Creator only) ────────────────────────
+function StepApiKeys({
+  keys,
+  setKeys,
+  onSave,
+  onSkip,
+  onBack,
+}: {
+  keys: ApiKeyFields;
+  setKeys: React.Dispatch<React.SetStateAction<ApiKeyFields>>;
+  onSave: () => void;
+  onSkip: () => void;
+  onBack: () => void;
+}) {
+  const allEmpty = !keys.cjApiKey && !keys.amazonAccessKey && !keys.amazonSecretKey && !keys.amazonPartnerTag;
+
+  function field(label: string, key: keyof ApiKeyFields, placeholder: string, hint: string, isSecret = false) {
+    return (
+      <div>
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{label}</label>
+        <input
+          type={isSecret ? 'password' : 'text'}
+          autoComplete="off"
+          value={keys[key]}
+          onChange={e => setKeys(k => ({ ...k, [key]: e.target.value }))}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p className="mt-1 text-[11px] text-slate-400">{hint}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold">Connect your APIs</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Optional — add API keys now to unlock live product data. You can always do this later in Settings → API Keys.
+          </p>
+        </div>
+
+        {/* Amber warning banner */}
+        <div className="flex items-start gap-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-4 py-3">
+          <span className="material-symbols-outlined text-[18px] text-amber-500 shrink-0 mt-0.5">warning</span>
+          <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+            Without API keys, live product data for <strong>plants &amp; garden</strong>, <strong>art supplies</strong>,{' '}
+            <strong>home goods</strong>, and <strong>shoes</strong> won&apos;t load until keys are configured.
+          </p>
+        </div>
+
+        {/* CJ Affiliate API card */}
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-blue-500">hub</span>
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">CJ Affiliate API</h3>
+            <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Enables live feeds from Home Depot, Lowe&apos;s, Dick Blick, Wayfair, Zappos, JOANN, and other CJ retailers.
+              Requires a{' '}
+              <a href="https://developers.cj.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
+                CJ Affiliate personal access token
+              </a>.
+            </p>
+            {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'From your CJ developer account — stored encrypted', true)}
+          </div>
+        </div>
+
+        {/* Amazon PA API card */}
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-orange-400">deployed_code</span>
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Amazon Product Advertising API</h3>
+            <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+          </div>
+          <div className="p-4 space-y-3">
+            <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 px-3 py-2.5">
+              <span className="material-symbols-outlined text-[15px] text-blue-500 shrink-0 mt-0.5">info</span>
+              <p className="text-[11px] text-blue-700 dark:text-blue-400 leading-relaxed">
+                The Amazon PA API requires an active Associates account with at least 3 qualifying sales in the past 180 days.
+                If you&apos;re not approved yet, skip this and add the keys in Settings once approved.
+              </p>
+            </div>
+            {field('Access Key ID', 'amazonAccessKey', 'AKIAIOSFODNN7EXAMPLE', 'From the PA API credentials page')}
+            {field('Secret Access Key', 'amazonSecretKey', '••••••••', 'Never share this — stored encrypted on the server', true)}
+            {field('Partner / Associate Tag', 'amazonPartnerTag', 'yourtag-20', 'Your Associates store ID, e.g. mystore-20')}
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed footer */}
+      <div className="shrink-0 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101922] space-y-2">
+        <button
+          onClick={onSave}
+          disabled={allEmpty}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        >
           <span className="material-symbols-outlined text-[18px]">check_circle</span>
-          Finish &amp; View Dashboard
+          Save &amp; Finish
+        </button>
+        <button
+          onClick={onSkip}
+          className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          Skip for now →
         </button>
         <button
           onClick={onBack}
@@ -734,7 +914,11 @@ function StepNotifications({
 // ─── Main Onboarding ──────────────────────────────────────────────────────────
 export default function Onboarding() {
   const router = useRouter();
-  const [step, setStep] = useState<OnboardingStep>(1);
+  const [step, setStep] = useState<OnboardingStep>('type');
+  const [userType, setUserType] = useState<UserType | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKeyFields>({
+    cjApiKey: '', amazonAccessKey: '', amazonSecretKey: '', amazonPartnerTag: '',
+  });
   const [plantingZone, setPlantingZone] = useState<number | null>(null);
   const [hideOutdoorPlants, setHideOutdoorPlants] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
@@ -750,6 +934,17 @@ export default function Onboarding() {
       : 'unsupported'
   );
 
+  const showApiKeyStep = userType === 'seller' || userType === 'creator';
+  const totalSteps = showApiKeyStep ? 6 : 5;
+  const stepLabel =
+    step === 'type' ? '1' :
+    step === 1      ? '2' :
+    step === '1z'   ? '2.5' :
+    step === 2      ? '3' :
+    step === 3      ? '4' :
+    step === 4      ? '5' :
+    '6';
+
   // Redirect if already onboarded
   useEffect(() => {
     setIsDemo(isDemoAccount());
@@ -757,6 +952,13 @@ export default function Onboarding() {
       router.replace('/dashboard');
     }
   }, []);
+
+  // Pre-select the electronics category for hobbyists so widget tier presets pick it up
+  useEffect(() => {
+    if (userType === 'hobbyist') {
+      setSelectedCats(prev => prev.includes('electronics') ? prev : [...prev, 'electronics']);
+    }
+  }, [userType]);
 
   const toggleCat = (id: string) =>
     setSelectedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
@@ -799,10 +1001,11 @@ export default function Onboarding() {
     router.replace('/login');
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async (extraApiKeys?: ApiKeyFields) => {
     localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(enabledWidgets));
     localStorage.setItem(STORAGE_KEY_NOTIFS, notifEnabled ? 'true' : 'false');
     localStorage.setItem(STORAGE_KEY_ONBOARDED, 'true');
+    if (userType) localStorage.setItem('sd-user-type', userType);
     // Await the PATCH before navigating so Dashboard's GET /api/profile sees the
     // updated activeWidgets — without this, the GET can race ahead of the PATCH
     // and return stale registration defaults, overwriting the onboarding selection.
@@ -812,6 +1015,9 @@ export default function Onboarding() {
       if (plantingZone !== null) {
         profilePatch.plantingZone = plantingZone;
         profilePatch.hideOutdoorPlants = hideOutdoorPlants;
+      }
+      if (extraApiKeys && Object.values(extraApiKeys).some(v => v)) {
+        profilePatch.apiKeys = extraApiKeys;
       }
       await apiPatch('/api/profile', profilePatch).catch(() => {});
     }
@@ -834,9 +1040,9 @@ export default function Onboarding() {
           <span className="text-base">ShopDeck</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-slate-400">{step === '1z' ? '1.5' : step} of 4</span>
+          <span className="text-xs font-medium text-slate-400">{stepLabel} of {totalSteps}</span>
           <div className="w-32">
-            <ProgressBar step={step} />
+            <ProgressBar step={step} showApiKeyStep={showApiKeyStep} />
           </div>
           {isDemo && (
             <button
@@ -852,6 +1058,11 @@ export default function Onboarding() {
 
       {/* Step content */}
       <div className="flex-1 flex flex-col overflow-hidden max-w-2xl w-full mx-auto">
+        {step === 'type' && (
+          <StepUserType
+            onSelect={type => { setUserType(type); setStep(1); }}
+          />
+        )}
         {step === 1 && (
           <StepCategories
             selected={selectedCats}
@@ -893,7 +1104,17 @@ export default function Onboarding() {
             permState={notifPerm}
             onToggle={handleToggleNotif}
             onBack={() => setStep(3)}
-            onFinish={handleFinish}
+            onFinish={showApiKeyStep ? () => setStep(5) : handleFinish}
+            finishLabel={showApiKeyStep ? 'Continue' : undefined}
+          />
+        )}
+        {step === 5 && (
+          <StepApiKeys
+            keys={apiKeys}
+            setKeys={setApiKeys}
+            onSave={() => handleFinish(apiKeys)}
+            onSkip={() => handleFinish()}
+            onBack={() => setStep(4)}
           />
         )}
       </div>
