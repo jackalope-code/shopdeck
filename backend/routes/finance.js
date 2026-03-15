@@ -14,7 +14,7 @@
 const express    = require('express');
 const router     = express.Router();
 const { verifyToken } = require('../middleware/auth');
-const demoGuard  = require('../middleware/demoGuard');
+const { demoGuard } = require('../middleware/demoGuard');
 const db         = require('../db');
 const { mapCategory } = require('../lib/financeCategoryMap');
 
