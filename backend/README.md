@@ -38,8 +38,6 @@ Demo sessions are created on demand via `POST /api/auth/demo` — no seed file r
 
 ## Environment variables
 
-<<<<<<< Updated upstream
-=======
 Copy `backend/.env.example` to `backend/.env` and fill in the values relevant to your deployment. All variables have defaults suitable for local development with Docker Compose.
 
 ### Core server
@@ -104,29 +102,104 @@ Also set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to the same value in the frontend enviro
 
 ### AI assistant (optional)
 
->>>>>>> Stashed changes
+
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `4000` | API listen port |
-| `PGHOST` | `localhost` | Postgres host |
-| `PGPORT` | `5432` | Postgres port |
-| `PGDATABASE` | `shopdeck` | Database name |
-| `PGUSER` | `shopdeck` | Postgres user |
-| `POSTGRES_PASSWORD` | `shopdeck_dev` | Postgres password — used by both the API and the postgres container init |
-| `REDIS_HOST` | `localhost` | Redis host |
-| `REDIS_PORT` | `6379` | Redis port |
-| `JWT_SECRET` | `shopdeck-dev-secret-change-in-prod` | JWT signing secret |
-| `APP_BASE_URL` | `http://localhost:3000` | Frontend app URL used in verification emails |
-| `SMTP_HOST` | _(empty)_ | SMTP host for sending verification emails |
-| `SMTP_PORT` | `587` | SMTP port |
-| `SMTP_USER` | _(empty)_ | SMTP auth username |
-| `SMTP_PASS` | _(empty)_ | SMTP auth password |
-| `SMTP_SECURE` | `false` | Use TLS-only SMTP transport when true |
-| `MAIL_FROM` | `ShopDeck <no-reply@shopdeck.local>` | Sender shown in verification emails |
-| `CORS_ORIGIN` | _(empty)_ | Comma-separated browser origins allowed to call the API directly. Leave empty when using the Next.js proxy. |
-| `NODE_ENV` | `production` | Set to `development` in dev mode |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Base URL of a running Ollama instance. Only used when a user selects the Ollama provider in AI Assistant settings. |
 
-Create a `backend/.env` file to override any of these locally (copy from `backend/.env.example`).
+---
+
+### Vendor API keys
+
+Shopdeck supports two tiers of vendor API keys:
+
+- **Per-user keys** — stored encrypted in the database under each user's profile (`api_keys` column). Users enter these during onboarding (Seller / Content Creator paths) or in **Settings → API Keys**. The server never exposes them in plaintext.
+- **Server-level fallback keys** — set as environment variables on the server. These apply to all users who have not configured their own per-user key. Useful for single-operator deployments where you want one shared key for every user.
+
+Amazon PA API keys are **per-user only** — there is no server-level fallback because Amazon Associates accounts are tied to individual affiliates.
+
+#### Amazon Product Advertising API — per-user only
+
+Users configure these during onboarding (Seller / Content Creator path) or in **Settings → API Keys**. No server env var path exists.
+
+| User-side field | Description |
+|---|---|
+| `amazon_access_key` | PA API v5 Access Key ID |
+| `amazon_secret_key` | PA API v5 Secret Access Key |
+| `amazon_partner_tag` | Associates tracking tag (e.g. `mystore-20`) |
+
+Requires an active Amazon Associates account with ≥ 3 qualifying sales in the past 180 days. Apply at [affiliate-program.amazon.com](https://affiliate-program.amazon.com/).
+
+#### CJ Affiliate API — per-user key, server fallback
+
+Powers Home Depot, Lowe's, Dick Blick, Wayfair, Zappos, JOANN, Burpee Seeds, RockAuto, and other CJ merchant feeds.
+
+| Env var | User-side field | Where to get it |
+|---|---|---|
+| `CJ_API_KEY` | `cj_api_key` | CJ personal access token — [developers.cj.com](https://developers.cj.com/) |
+
+#### Mouser Search API — per-user key, server fallback
+
+> **Note:** Mouser ToS § 4 prohibits caching. Responses are **never** cached regardless of key source — every Mouser request is live.
+
+| Env var | User-side field | Where to get it |
+|---|---|---|
+| `MOUSER_API_KEY` | `mouser_api_key` | [mouser.com/api-search](https://www.mouser.com/api-search/) |
+
+#### DigiKey Product Search API — per-user key, server fallback
+
+| Env var | User-side field | Where to get it |
+|---|---|---|
+| `DIGIKEY_CLIENT_ID` | `digikey_client_id` | OAuth2 client ID — [developer.digikey.com](https://developer.digikey.com/) |
+| `DIGIKEY_CLIENT_SECRET` | `digikey_client_secret` | OAuth2 client secret (same app) |
+
+#### Walmart Affiliate API (Impact Radius) — per-user key, server fallback
+
+| Env var | User-side field | Where to get it |
+|---|---|---|
+| `WALMART_IMPACT_API_KEY` | `walmart_impact_api_key` | Impact Radius key from the Walmart affiliate program |
+
+#### Kroger Product API — server only
+
+Powers Grocery feed widgets. Kroger credentials are issued per developer application, not per end user.
+
+| Env var | Description |
+|---|---|
+| `KROGER_CLIENT_ID` | OAuth2 client ID — register a **public** application at [developer.kroger.com](https://developer.kroger.com/) |
+| `KROGER_CLIENT_SECRET` | OAuth2 client secret (same app) |
+
+The grocery feeds only need the `product.compact` scope — no user authentication is required.
+
+#### IsThereAnyDeal API — server only
+
+Powers the Games / Video Game Deals widget. A free tier works without a key; the key raises rate limits.
+
+| Env var | Description |
+|---|---|
+| `ITAD_API_KEY` | API key from [isthereanydeal.com/dev/app](https://isthereanydeal.com/dev/app/) |
+
+---
+
+#### Plaid — optional bank account linking
+
+When all three vars are set, the `GET /api/features` endpoint returns `{ plaid: true }`. This unlocks:
+- A "Link a bank account" step at the end of onboarding (skipped for demo users)
+- A **Linked Accounts** section in Settings → Accounts (hidden for demo users)
+- The **Account Balances** widget in the dashboard widget picker
+
+A 12-hour background cron syncs transactions for all linked users automatically.
+
+In `NODE_ENV=development`, `PLAID_ENV` defaults to `sandbox` if unset, so local dev works without an extra env var.
+
+| Env var | Description |
+|---|---|
+| `PLAID_CLIENT_ID` | Client ID from [dashboard.plaid.com](https://dashboard.plaid.com/) |
+| `PLAID_SECRET` | Sandbox/development/production secret from the Plaid dashboard |
+| `PLAID_ENV` | `sandbox`, `development`, or `production` |
+
+> **Access tokens** are encrypted at rest using the same AES-256-GCM scheme as other stored credentials (`TOKEN_ENCRYPTION_KEY` in `.env`).
+
+---
 
 ## Scraper item fields
 
@@ -138,6 +211,13 @@ The scraper adds computed stock fields to each Shopify-sourced item:
 | `partialStock` | `'true'` / `'false'` | Some but not all tracked variants are available |
 | `lowStock` | `'true'` / `'false'` | All tracked variants are at or below the low-stock threshold |
 | `totalInventory` | numeric string | Sum of all tracked variant quantities |
+
+## Known limitations
+
+- **Mouser image quality can still be low in card-heavy UIs.**
+	- The Mouser Search API often returns thumbnail-grade product images for some queries.
+	- Shopdeck applies best-effort Mouser image selection and URL upscaling, but if the source asset itself is low-resolution, cards may still look grainy.
+	- This is a source-data limitation, not a cache issue (Mouser requests are live and bypass source/widget cache paths).
 
 ## Files
 

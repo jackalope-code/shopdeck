@@ -2,17 +2,14 @@
 // Three-tab settings page: Feed Sources, Custom Sources, AI Assistant
 'use client';
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { Sidebar, TopHeader } from './ProjectsOverview';
-<<<<<<< Updated upstream
-import { apiGet, apiPatch, getToken, API_BASE } from '../lib/auth';
-=======
 import { apiGet, apiPatch, apiPost, apiDelete, getToken, getUser, setToken, setUser, isDemoAccount, API_BASE } from '../lib/auth';
 import { usePlaidLink } from 'react-plaid-link';
 import { useFeatures } from '../lib/features';
 import { GoogleLogin } from '@react-oauth/google';
 
 const STORAGE_KEY_ONBOARDED = 'sd-onboarded';
->>>>>>> Stashed changes
 import GitHubConnect from './GitHubConnect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -109,11 +106,129 @@ const WIDGET_LABELS: Record<string, string> = {
   'electronics-watchlist': 'Electronics Watchlist',
 };
 
-const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences', 'API Keys'];
+const TABS = ['Feed Sources', 'Custom Sources', 'AI Assistant', 'Preferences', 'API Keys', 'Accounts'];
+
+// ─── Demo account upgrade card ────────────────────────────────────────────────
+function DemoUpgradeCard() {
+  const router = useRouter();
+  const [username, setUsernameField] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [confirm, setConfirm] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [done, setDone] = React.useState(false);
+
+  async function handleUpgrade(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (password !== confirm) { setError('Passwords do not match'); return; }
+    setLoading(true);
+    try {
+      const res = await apiPost<{ token: string; user: { id: string; username: string; email: string; is_demo: boolean } }>(
+        '/api/auth/upgrade', { username, email, password }
+      );
+      setToken(res.token);
+      setUser(res.user);
+      setDone(true);
+    } catch (err: unknown) {
+      setError((err as Error)?.message ?? 'Upgrade failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-emerald-200 dark:border-emerald-800 overflow-hidden">
+        <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-emerald-500">check_circle</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Account upgraded!</h3>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400">Your account is now a full account. All your data, widgets, and settings are preserved.</p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">dashboard</span>
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden">
+      <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2">
+        <span className="material-symbols-outlined text-[18px] text-amber-500">upgrade</span>
+        <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Upgrade to Full Account</h3>
+      </div>
+      <div className="p-4 space-y-3">
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          You&apos;re using a demo account. Upgrade to save your data permanently, sync across devices, and access all features.
+        </p>
+        <form onSubmit={handleUpgrade} className="space-y-3">
+          <input
+            type="text" value={username} onChange={e => setUsernameField(e.target.value)}
+            placeholder="Username" required minLength={3} maxLength={32}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          <input
+            type="email" value={email} onChange={e => setEmail(e.target.value)}
+            placeholder="Email address" required
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          <input
+            type="password" value={password} onChange={e => setPassword(e.target.value)}
+            placeholder="Password" required minLength={8}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          <input
+            type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+            placeholder="Confirm password" required
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <button
+            type="submit" disabled={loading}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">upgrade</span>
+            {loading ? 'Upgrading…' : 'Upgrade Account'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Redo onboarding button ───────────────────────────────────────────────────
+function RedoOnboardingButton() {
+  const router = useRouter();
+  function handleRedo() {
+    localStorage.removeItem(STORAGE_KEY_ONBOARDED);
+    router.push('/onboarding');
+  }
+  return (
+    <button
+      onClick={handleRedo}
+      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+    >
+      <span className="material-symbols-outlined text-[18px] text-blue-500">restart_alt</span>
+      Redo setup wizard
+    </button>
+  );
+}
 
 // ─── Tab 4: Preferences ─────────────────────────────────────────────────────────────
 function PreferencesTab() {
   const [notifEnabled, setNotifEnabled] = React.useState(false);
+  const [shareViewHistory, setShareViewHistory] = React.useState(true);
+  const [shareFavorites, setShareFavorites] = React.useState(true);
+  const [plantingZone, setPlantingZone] = React.useState<number | null>(null);
+  const [hideOutdoorPlants, setHideOutdoorPlants] = React.useState(false);
   const [perm, setPerm] = React.useState<NotificationPermission | 'unsupported'>(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
     return Notification.permission;
@@ -122,8 +237,14 @@ function PreferencesTab() {
   // Load from profile API on mount
   useEffect(() => {
     if (!getToken()) return;
-    apiGet<{ profile: { browserAlerts?: boolean } }>('/api/profile')
-      .then(data => { if (data?.profile?.browserAlerts != null) setNotifEnabled(data.profile.browserAlerts); })
+    apiGet<{ profile: { browserAlerts?: boolean; shareViewHistory?: boolean; shareFavorites?: boolean; plantingZone?: number | null; hideOutdoorPlants?: boolean } }>('/api/profile')
+      .then(data => {
+        if (data?.profile?.browserAlerts != null) setNotifEnabled(data.profile.browserAlerts);
+        if (data?.profile?.shareViewHistory != null) setShareViewHistory(data.profile.shareViewHistory);
+        if (data?.profile?.shareFavorites != null) setShareFavorites(data.profile.shareFavorites);
+        if (data?.profile?.plantingZone !== undefined) setPlantingZone(data.profile.plantingZone ?? null);
+        if (data?.profile?.hideOutdoorPlants != null) setHideOutdoorPlants(data.profile.hideOutdoorPlants);
+      })
       .catch(() => {});
   }, []);
 
@@ -143,8 +264,18 @@ function PreferencesTab() {
     }
   }
 
+  function handleShareToggle(field: 'shareViewHistory' | 'shareFavorites', value: boolean) {
+    if (field === 'shareViewHistory') setShareViewHistory(value);
+    if (field === 'shareFavorites') setShareFavorites(value);
+    apiPatch('/api/profile', { [field]: value }).catch(() => {
+      if (field === 'shareViewHistory') setShareViewHistory(prev => !prev);
+      if (field === 'shareFavorites') setShareFavorites(prev => !prev);
+    });
+  }
+
   return (
     <div className="space-y-6 max-w-2xl">
+      {isDemoAccount() && <DemoUpgradeCard />}
       {/* Notifications card */}
       <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
@@ -213,6 +344,130 @@ function PreferencesTab() {
               Enabling will prompt your browser for notification permission.
             </p>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-emerald-500">groups</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Shared Popularity Signals</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+            Shared history and favorites help ShopDeck surface products the community is actually viewing and saving. Turning either off removes your past contribution from those shared rankings and recommendation signals.
+          </div>
+
+          {[
+            {
+              key: 'shareViewHistory' as const,
+              enabled: shareViewHistory,
+              icon: 'history',
+              title: 'Share product history',
+              detail: 'Include your viewed products in shared popularity widgets.',
+            },
+            {
+              key: 'shareFavorites' as const,
+              enabled: shareFavorites,
+              icon: 'favorite',
+              title: 'Share favorites',
+              detail: 'Include your saved products in shared favorites widgets.',
+            },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => handleShareToggle(item.key, !item.enabled)}
+              className={`w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+                item.enabled
+                  ? 'border-emerald-500 bg-emerald-500/5'
+                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-colors ${
+                item.enabled ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+              }`}>
+                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: item.enabled ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold ${item.enabled ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>{item.title}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{item.detail}</p>
+              </div>
+              <div className="ml-2 shrink-0 relative inline-flex items-center rounded-full pointer-events-none" style={{ width: 44, height: 24 }}>
+                <span className="block rounded-full transition-colors" style={{ width: 44, height: 24, background: item.enabled ? '#10b981' : undefined }} />
+                <span className={`absolute block rounded-full bg-white shadow transition-transform ${item.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} style={{ width: 20, height: 20, top: 2, left: 2 }} />
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Redo Setup Wizard card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-500">restart_alt</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Setup Wizard</h3>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Re-run the setup wizard to change your categories, dashboard layout, and widget selection.
+            Your existing data won&apos;t be affected.
+          </p>
+          <RedoOnboardingButton />
+        </div>
+      </div>
+
+      {/* Garden / Planting Zone card */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-green-600">yard</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Garden &amp; Planting Zone</h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              USDA Hardiness Zone
+            </label>
+            <select
+              value={plantingZone ?? ''}
+              onChange={e => {
+                const val = e.target.value === '' ? null : Number(e.target.value);
+                setPlantingZone(val);
+                apiPatch('/api/profile', { plantingZone: val }).catch(() => {});
+              }}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">Not set</option>
+              {Array.from({ length: 13 }, (_, i) => i + 1).map(z => (
+                <option key={z} value={z}>Zone {z}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-400">Used to filter plants and seeds that won&apos;t survive in your climate.</p>
+          </div>
+          <button
+            onClick={() => {
+              const next = !hideOutdoorPlants;
+              setHideOutdoorPlants(next);
+              apiPatch('/api/profile', { hideOutdoorPlants: next }).catch(() => {});
+            }}
+            className={`w-full flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+              hideOutdoorPlants
+                ? 'border-green-500 bg-green-500/5'
+                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+            }`}
+          >
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-colors ${
+              hideOutdoorPlants ? 'bg-green-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+            }`}>
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: hideOutdoorPlants ? "'FILL' 1" : "'FILL' 0" }}>filter_alt</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${ hideOutdoorPlants ? 'text-green-700 dark:text-green-400' : 'text-slate-700 dark:text-slate-200' }`}>Hide out-of-zone plants</p>
+              <p className="text-xs text-slate-400 mt-0.5">Suppress plants and seeds listed outside your hardiness zone in Garden feeds.</p>
+            </div>
+            <div className="ml-2 shrink-0 relative inline-flex items-center rounded-full pointer-events-none" style={{ width: 44, height: 24 }}>
+              <span className="block rounded-full transition-colors" style={{ width: 44, height: 24, background: hideOutdoorPlants ? '#22c55e' : undefined }} />
+              <span className={`absolute block rounded-full bg-white shadow transition-transform ${ hideOutdoorPlants ? 'translate-x-5' : 'translate-x-0.5' }`} style={{ width: 20, height: 20, top: 2, left: 2 }} />
+            </div>
+          </button>
         </div>
       </div>
     </div>
@@ -703,9 +958,6 @@ function AISettingsTab({ onSaved }: { onSaved?: () => void }) {
   );
 }
 
-<<<<<<< Updated upstream
-// ─── Tab 5: API Keys ─────────────────────────────────────────────────────────
-=======
 // ─── Tab 5: Accounts (CSV budget & finance) ────────────────────────────────────────
 // (re-uses apiPost, apiGet which are already imported)
 function AccountsTab() {
@@ -1313,13 +1565,16 @@ function AccountsTab() {
 }
 
 // ─── Tab 4: API Keys ─────────────────────────────────────────────────────────
->>>>>>> Stashed changes
 function ApiKeysTab() {
   const [keys, setKeys] = React.useState({
     amazonAccessKey: '',
     amazonSecretKey: '',
     amazonPartnerTag: '',
     neweggApiKey: '',
+    cjApiKey: '',
+    krogerClientId: '',
+    krogerClientSecret: '',
+    itadApiKey: '',
   });
   const [loaded, setLoaded] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -1403,6 +1658,55 @@ function ApiKeysTab() {
             here enables higher rate limits and affiliate commission on purchases.
           </p>
           {field('Newegg Affiliate Key', 'neweggApiKey', 'your-newegg-key', 'From the Newegg affiliate program dashboard')}
+        </div>
+      </div>
+
+      {/* CJ Affiliate API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-500">hub</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">CJ Affiliate API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Enables live product feeds from Home Depot, Lowe&apos;s, DICK&apos;s Sporting Goods, Zappos, Dick Blick, JOANN, and other CJ-affiliated retailers.
+            Requires a <a href="https://developers.cj.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">CJ Affiliate personal access token</a>.
+          </p>
+          {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'From your CJ developer account — stored encrypted', true)}
+        </div>
+      </div>
+
+      {/* Kroger API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-blue-700">local_grocery_store</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Kroger Product API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Powers Grocery feed widgets (weekly deals, produce, pantry staples). Register at the{' '}
+            <a href="https://developer.kroger.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Kroger Developer Portal</a> and create a public application.
+          </p>
+          {field('Client ID', 'krogerClientId', 'your-kroger-client-id', 'OAuth2 Client ID from the Kroger Developer Portal')}
+          {field('Client Secret', 'krogerClientSecret', '••••••••', 'OAuth2 Client Secret — stored encrypted', true)}
+        </div>
+      </div>
+
+      {/* IsThereAnyDeal API */}
+      <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-purple-500">videogame_asset</span>
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">IsThereAnyDeal API</h3>
+          <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Enables personalized game-deal alerts from ITAD. Without a key the Games feed uses r/GameDeals RSS only.
+            Register at <a href="https://isthereanydeal.com/dev/app/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">isthereanydeal.com/dev</a>.
+          </p>
+          {field('ITAD API Key', 'itadApiKey', 'your-itad-api-key', 'From your IsThereAnyDeal developer account — stored encrypted', true)}
         </div>
       </div>
 
@@ -1539,6 +1843,7 @@ export default function Settings() {
           {tab === 2 && <AISettingsTab />}
           {tab === 3 && <PreferencesTab />}
           {tab === 4 && <ApiKeysTab />}
+          {tab === 5 && <AccountsTab />}
         </main>
       </div>
     </div>

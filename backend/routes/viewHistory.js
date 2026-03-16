@@ -3,6 +3,7 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { demoGuard } = require('../middleware/demoGuard');
 const db = require('../db');
+const { classifyProductTaxonomy } = require('../lib/productTaxonomy');
 
 let ensureTablePromise;
 
@@ -17,11 +18,15 @@ function ensureViewHistoryTable() {
         image      TEXT,
         price      TEXT,
         category   TEXT,
+        analytics_category TEXT,
+        analytics_subcategory TEXT,
         view_count INTEGER     NOT NULL DEFAULT 1,
         viewed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (user_id, url)
       )
     `)
+      .then(() => db.query('ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_category TEXT'))
+      .then(() => db.query('ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_subcategory TEXT'))
       .then(() => db.query('CREATE INDEX IF NOT EXISTS view_history_user_viewed_idx ON view_history(user_id, viewed_at DESC)'));
   }
   return ensureTablePromise;
@@ -31,7 +36,9 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     await ensureViewHistoryTable();
     const result = await db.query(
-      `SELECT url, name, vendor, image, price, category,
+            `SELECT url, name, vendor, image, price, category,
+              analytics_category AS "analyticsCategory",
+              analytics_subcategory AS "analyticsSubcategory",
               view_count AS "viewCount",
               viewed_at AS "viewedAt"
          FROM view_history
@@ -56,20 +63,26 @@ router.post('/', verifyToken, demoGuard, async (req, res) => {
     return res.status(400).json({ error: 'name is required' });
   }
 
+  const taxonomy = classifyProductTaxonomy({ name, vendor, category, url });
+
   try {
     await ensureViewHistoryTable();
     const result = await db.query(
-      `INSERT INTO view_history (user_id, url, name, vendor, image, price, category, viewed_at, view_count)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), 1)
+      `INSERT INTO view_history (user_id, url, name, vendor, image, price, category, analytics_category, analytics_subcategory, viewed_at, view_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 1)
        ON CONFLICT (user_id, url) DO UPDATE
          SET name = EXCLUDED.name,
              vendor = EXCLUDED.vendor,
              image = EXCLUDED.image,
              price = EXCLUDED.price,
              category = EXCLUDED.category,
+             analytics_category = EXCLUDED.analytics_category,
+             analytics_subcategory = EXCLUDED.analytics_subcategory,
              viewed_at = NOW(),
              view_count = view_history.view_count + 1
        RETURNING url, name, vendor, image, price, category,
+                 analytics_category AS "analyticsCategory",
+                 analytics_subcategory AS "analyticsSubcategory",
                  view_count AS "viewCount",
                  viewed_at AS "viewedAt"`,
       [
@@ -80,6 +93,8 @@ router.post('/', verifyToken, demoGuard, async (req, res) => {
         typeof image === 'string' ? image.slice(0, 2000) : null,
         typeof price === 'string' ? price.slice(0, 50) : null,
         typeof category === 'string' ? category.slice(0, 50) : null,
+        taxonomy.analyticsCategory,
+        taxonomy.analyticsSubcategory,
       ]
     );
     res.json({ entry: result.rows[0] });

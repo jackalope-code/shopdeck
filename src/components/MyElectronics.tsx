@@ -1,28 +1,33 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFeedRefresh, useFavorites, FeedItem } from '../lib/ShopdataContext';
 import { apiGet, apiPatch } from '../lib/auth';
 import HistoryAwareLink from './HistoryAwareLink';
+import { getFeedStockStatus } from '../lib/stockStatus';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type PartStatus = 'in-stock' | 'low-stock' | 'out-of-stock';
+type PartStatus = 'in-stock' | 'low-stock' | 'out-of-stock' | 'unknown';
 
 const STATUS_BADGE: Record<PartStatus, string> = {
   'in-stock':     'bg-emerald-500 text-white',
   'low-stock':    'bg-amber-500 text-white',
   'out-of-stock': 'bg-red-500 text-white',
+  'unknown':      'bg-slate-500 text-white',
 };
 
 const STATUS_TEXT: Record<PartStatus, string> = {
   'in-stock':     'text-emerald-500',
   'low-stock':    'text-amber-500',
   'out-of-stock': 'text-rose-500',
+  'unknown':      'text-slate-500',
 };
 
 function itemStatus(item: FeedItem): PartStatus {
-  if (item.anyAvailable === 'false') return 'out-of-stock';
-  if (item.lowStock === 'true') return 'low-stock';
-  return 'in-stock';
+  const status = getFeedStockStatus(item);
+  if (status === 'out-of-stock') return 'out-of-stock';
+  if (status === 'low-stock' || status === 'partial-stock') return 'low-stock';
+  if (status === 'in-stock') return 'in-stock';
+  return 'unknown';
 }
 
 function statusLabel(item: FeedItem, status: PartStatus): string {
@@ -30,6 +35,7 @@ function statusLabel(item: FeedItem, status: PartStatus): string {
   if (status === 'low-stock') {
     return item.availableCount ? `Low Stock: ${item.availableCount} left` : 'Low Stock';
   }
+  if (status === 'unknown') return 'Stock Unknown';
   if (item.totalInventory) return `${parseInt(item.totalInventory).toLocaleString()} units`;
   return 'Available Now';
 }
@@ -68,7 +74,7 @@ type TabId = typeof TABS[number]['id'];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = ['All Categories', 'Microcontrollers', 'Passives', 'Sensors', 'Motors', 'ICs', 'Connectors', 'Displays', 'Wireless', 'Audio', 'Power', 'Development Boards'];
-const VENDORS    = ['All Vendors', 'Adafruit', 'Mouser', 'DigiKey', 'Microcenter'];
+const VENDORS    = ['All Vendors', 'Adafruit', 'Seeed Studio', 'Sparkfun', 'Mouser', 'DigiKey'];
 const PER_PAGE   = 24;
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -100,7 +106,7 @@ function PartCard({ item }: { item: FeedItem }) {
     <div className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-all shadow-sm h-full">
       <div className="relative mb-4 aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
         <div className={`absolute top-2 left-2 z-10 ${STATUS_BADGE[status]} text-[10px] font-black px-2 py-1 rounded-full uppercase`}>
-          {status === 'in-stock' ? 'In Stock' : status === 'low-stock' ? 'Low Stock' : 'Out of Stock'}
+          {status === 'in-stock' ? 'In Stock' : status === 'low-stock' ? 'Low Stock' : status === 'out-of-stock' ? 'Out of Stock' : 'Stock Unknown'}
         </div>
         <button
           onClick={() => {
@@ -120,7 +126,14 @@ function PartCard({ item }: { item: FeedItem }) {
           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: favorited ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
         </button>
         {item.image
-          ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+          ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-full h-full object-contain p-3 bg-white/70 dark:bg-slate-900/60"
+              loading="lazy"
+            />
+          )
           : <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700">developer_board</span>
         }
       </div>
@@ -326,10 +339,19 @@ export default function MyElectronics() {
   });
 
   const totalParts      = feedItems.length;
-  const lowStockCount   = feedItems.filter(i => i.lowStock === 'true').length;
-  const outOfStockCount = feedItems.filter(i => i.anyAvailable === 'false').length;
+  const lowStockCount   = feedItems.filter(i => {
+    const status = getFeedStockStatus(i);
+    return status === 'low-stock' || status === 'partial-stock';
+  }).length;
+  const outOfStockCount = feedItems.filter(i => getFeedStockStatus(i) === 'out-of-stock').length;
   const pageCount       = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const pageItems       = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f5f7f8] dark:bg-[#101922] font-[Space_Grotesk,system-ui,sans-serif] text-slate-900 dark:text-slate-100">
@@ -362,8 +384,12 @@ export default function MyElectronics() {
               >
                 <span className="material-symbols-outlined text-sm">rss_feed</span>Track Custom Source
               </button>
-              <button className="p-2 border border-slate-200 dark:border-blue-500/20 rounded-lg hover:bg-slate-100 dark:hover:bg-blue-500/10 transition-colors">
-                <span className="material-symbols-outlined">cloud_download</span>
+              <button
+                onClick={() => refreshWidget(activeTab)}
+                title="Refresh feed"
+                className="p-2 border border-slate-200 dark:border-blue-500/20 rounded-lg hover:bg-slate-100 dark:hover:bg-blue-500/10 transition-colors"
+              >
+                <span className="material-symbols-outlined">refresh</span>
               </button>
             </div>
           </header>

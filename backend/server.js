@@ -16,8 +16,13 @@ const aiHistoryRouter = require('./routes/aiHistory');
 const alertsRouter = require('./routes/alerts');
 const viewHistoryRouter = require('./routes/viewHistory');
 const favoritesRouter = require('./routes/favorites');
+const communityInsightsRouter = require('./routes/communityInsights');
 const webhooksRouter = require('./routes/webhooks');
 const manualListsRouter = require('./routes/manualLists');
+const financeRouter     = require('./routes/finance');
+const plaidRouter       = require('./routes/plaid');
+const { syncTransactions } = require('./routes/plaid');
+const { isPlaidConfigured } = require('./lib/plaidClient');
 const cron = require('node-cron');
 const scraper = require('./scraper');
 const db = require('./db');
@@ -46,8 +51,6 @@ app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
 // Health check — used by Docker's healthcheck and load balancers
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
-<<<<<<< Updated upstream
-=======
 // Feature flags — unauthenticated; used by the frontend to conditionally show features
 app.get('/api/features', (req, res) => res.json({
   plaid:        isPlaidConfigured(),
@@ -55,7 +58,6 @@ app.get('/api/features', (req, res) => res.json({
   google_oauth: !!process.env.GOOGLE_CLIENT_ID,
 }));
 
->>>>>>> Stashed changes
 app.use('/api/auth', authRouter);
 app.use('/api/profile', profileRouter);
 app.use('/api/feed-config', feedConfigRouter);
@@ -66,8 +68,11 @@ app.use('/api/ai-history', aiHistoryRouter);
 app.use('/api/alerts', alertsRouter);
 app.use('/api/view-history', viewHistoryRouter);
 app.use('/api/favorites', favoritesRouter);
+app.use('/api/community-insights', communityInsightsRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/manual-lists', manualListsRouter);
+app.use('/api/finance',      financeRouter);
+app.use('/api/plaid',        plaidRouter);
 app.use('/api', apiRouter);
 
 // Catch-all for unknown API routes — always return JSON
@@ -86,10 +91,33 @@ cron.schedule('0 2 * * *', () => {
   scraper.updateCache().catch(console.error);
 });
 
-// Pre-warm built-in source caches every 6 hours — aligns with FEED_DATA_CACHE_TTL_S
+// Pre-warm built-in source caches every 6 hours.
+// RSS/user-rss sources have a 6h TTL so they're refreshed on every run.
+// Non-API scraper sources have a 24h TTL — they're skipped when still warm
+// and only re-scraped once their cache has expired or been SWR-invalidated.
 cron.schedule('0 */6 * * *', () => {
   console.log('[cache] warm scheduled run starting...');
   warmAllSources().catch(console.error);
+});
+
+// Sync Plaid transactions for all linked users every 12 hours.
+cron.schedule('0 */12 * * *', async () => {
+  if (!isPlaidConfigured()) return;
+  console.log('[plaid] 12h sync starting...');
+  try {
+    const { rows } = await db.query(
+      'SELECT user_id, item_id, access_token_enc FROM plaid_items',
+    );
+    const { decryptToken } = require('./lib/tokenCrypto');
+    for (const row of rows) {
+      const accessToken = decryptToken(row.access_token_enc);
+      if (!accessToken) continue;
+      syncTransactions(row.user_id, row.item_id, accessToken)
+        .catch(err => console.error(`[plaid] sync error for item ${row.item_id}:`, err.message));
+    }
+  } catch (err) {
+    console.error('[plaid] 12h cron error:', err.message);
+  }
 });
 
 // Verify infrastructure connections before accepting traffic

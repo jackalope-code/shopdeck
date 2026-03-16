@@ -4,7 +4,7 @@
       "sources": [
         { "id": "newegg-ram",      "name": "Newegg",            "enabled": true },
         { "id": "amazon-ram",      "name": "Amazon",            "enabled": false },
-        { "id": "microcenter-ram", "name": "Microcenter",       "enabled": false },
+        { "id": "microcenter-ram", "name": "Microcenter",       "enabled": true },
         { "id": "reddit-ram",      "name": "r/buildapcsales",   "enabled": true },
         { "id": "camelcamel-ram",  "name": "CamelCamelCamel",   "enabled": false }
       ],
@@ -14,7 +14,7 @@
       "sources": [
         { "id": "newegg-gpu",      "name": "Newegg",            "enabled": true },
         { "id": "amazon-gpu",      "name": "Amazon",            "enabled": false },
-        { "id": "microcenter-gpu", "name": "Microcenter",       "enabled": false },
+        { "id": "microcenter-gpu", "name": "Microcenter",       "enabled": true },
         { "id": "reddit-gpu",      "name": "r/buildapcsales",   "enabled": true },
         { "id": "camelcamel-gpu",  "name": "CamelCamelCamel",   "enabled": false }
       ],
@@ -122,14 +122,18 @@
         { "id": "adafruit-motors",           "name": "Adafruit Motors",             "enabled": true },
         { "id": "adafruit-passives",         "name": "Adafruit Passives",           "enabled": true },
         { "id": "adafruit-breakout-boards",  "name": "Adafruit Breakout Boards",    "enabled": true },
+        { "id": "sparkfun-new",              "name": "Sparkfun New Products",       "enabled": true },
+        { "id": "seeed-new",                 "name": "Seeed Studio New Products",   "enabled": true },
         { "id": "mouser-electronics", "name": "Mouser Electronics", "ruleType": "mouser-api", "keywords": "development board", "enabled": true },
-        { "id": "microcenter-electronics",   "name": "Microcenter",                 "enabled": true }
+        { "id": "digikey-new-drops", "name": "DigiKey New Drops", "ruleType": "digikey-api", "keywords": "new microcontroller sensor development board module",        "enabled": true }
       ],
       "custom": []
     },
     "electronics-new-drops": {
       "sources": [
         { "id": "adafruit-new", "name": "Adafruit New Products", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-new-drops",  "name": "Mouser New Drops",  "ruleType": "mouser-api",  "keywords": "development board", "enabled": true },
         { "id": "digikey-new-drops", "name": "DigiKey New Drops", "ruleType": "digikey-api", "keywords": "new microcontroller sensor development board module",        "enabled": true }
       ],
@@ -138,6 +142,8 @@
     "electronics-sales": {
       "sources": [
         { "id": "adafruit-sales",  "name": "Adafruit Sales",  "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-sales",  "name": "Mouser Deals",  "ruleType": "mouser-api",  "keywords": "sensor module", "enabled": true },
         { "id": "digikey-sales", "name": "DigiKey Deals", "ruleType": "digikey-api", "keywords": "sale discount microcontroller sensor LED", "enabled": true }
       ],
@@ -146,6 +152,8 @@
     "electronics-microcontrollers": {
       "sources": [
         { "id": "adafruit-microcontrollers", "name": "Adafruit Microcontrollers", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-mcus",  "name": "Mouser MCUs",  "ruleType": "mouser-api",  "keywords": "STM32", "enabled": true },
         { "id": "digikey-mcus", "name": "DigiKey MCUs", "ruleType": "digikey-api", "keywords": "microcontroller ESP32 Arduino RP2040 STM32 ATmega",          "enabled": true }
       ],
@@ -154,6 +162,8 @@
     "electronics-passives": {
       "sources": [
         { "id": "adafruit-passives", "name": "Adafruit Passives", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-passives",  "name": "Mouser Passives",  "ruleType": "mouser-api",  "keywords": "resistor", "enabled": true },
         { "id": "digikey-passives", "name": "DigiKey Passives", "ruleType": "digikey-api", "keywords": "resistor capacitor inductor passive component 0603 0402",      "enabled": true }
       ],
@@ -162,6 +172,8 @@
     "electronics-sensors": {
       "sources": [
         { "id": "adafruit-sensors", "name": "Adafruit Sensors", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-sensors",  "name": "Mouser Sensors",  "ruleType": "mouser-api",  "keywords": "temperature sensor", "enabled": true },
         { "id": "digikey-sensors", "name": "DigiKey Sensors", "ruleType": "digikey-api", "keywords": "temperature humidity motion accelerometer gyroscope sensor module",        "enabled": true }
       ],
@@ -170,6 +182,8 @@
     "electronics-motors": {
       "sources": [
         { "id": "adafruit-motors", "name": "Adafruit Motors", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-motors",  "name": "Mouser Motors",  "ruleType": "mouser-api",  "keywords": "servo motor", "enabled": true },
         { "id": "digikey-motors", "name": "DigiKey Motors", "ruleType": "digikey-api", "keywords": "stepper servo DC motor brushless actuator",           "enabled": true }
       ],
@@ -178,6 +192,8 @@
     "electronics-ics": {
       "sources": [
         { "id": "adafruit-breakout-boards", "name": "Adafruit Breakout Boards", "enabled": true },
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-ics",  "name": "Mouser ICs",  "ruleType": "mouser-api",  "keywords": "555 timer", "enabled": true },
         { "id": "digikey-ics", "name": "DigiKey ICs", "ruleType": "digikey-api", "keywords": "IC integrated circuit op-amp logic gate timer 555",        "enabled": true }
       ],
@@ -185,6 +201,8 @@
     },
     "electronics-encoders": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
         { "id": "mouser-encoders",  "name": "Mouser Encoders",  "ruleType": "mouser-api",  "keywords": "rotary encoder", "enabled": true },
         { "id": "digikey-encoders", "name": "DigiKey Encoders", "ruleType": "digikey-api", "keywords": "rotary encoder potentiometer electromechanical panel",          "enabled": true }
       ],
@@ -192,31 +210,537 @@
     },
     "electronics-power": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-power", "name": "DigiKey Power", "ruleType": "digikey-api", "keywords": "buck converter regulator power module", "enabled": true },
         { "id": "mouser-power", "name": "Mouser Power", "ruleType": "mouser-api", "keywords": "buck converter", "enabled": true }
       ],
       "custom": []
     },
     "electronics-connectors": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-connectors", "name": "DigiKey Connectors", "ruleType": "digikey-api", "keywords": "usb-c connector header terminal", "enabled": true },
         { "id": "mouser-connectors", "name": "Mouser Connectors", "ruleType": "mouser-api", "keywords": "usb-c connector", "enabled": true }
       ],
       "custom": []
     },
     "electronics-displays": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-displays", "name": "DigiKey Displays", "ruleType": "digikey-api", "keywords": "oled lcd display module", "enabled": true },
         { "id": "mouser-displays", "name": "Mouser Displays", "ruleType": "mouser-api", "keywords": "oled display", "enabled": true }
       ],
       "custom": []
     },
     "electronics-wireless": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-wireless", "name": "DigiKey Wireless", "ruleType": "digikey-api", "keywords": "wifi bluetooth lora wireless module", "enabled": true },
         { "id": "mouser-wireless", "name": "Mouser Wireless", "ruleType": "mouser-api", "keywords": "wifi module", "enabled": true }
       ],
       "custom": []
     },
     "electronics-audio": {
       "sources": [
+        { "id": "sparkfun-new", "name": "Sparkfun New Products", "enabled": true },
+        { "id": "seeed-new", "name": "Seeed Studio New Products", "enabled": true },
+        { "id": "digikey-audio", "name": "DigiKey Audio", "ruleType": "digikey-api", "keywords": "microphone audio codec amplifier", "enabled": true },
         { "id": "mouser-audio", "name": "Mouser Audio", "ruleType": "mouser-api", "keywords": "mems microphone", "enabled": true }
+      ],
+      "custom": []
+    },
+    "cpu-availability": {
+      "sources": [
+        { "id": "microcenter-cpu", "name": "Microcenter",       "enabled": true },
+        { "id": "newegg-cpu",      "name": "Newegg",            "enabled": true },
+        { "id": "reddit-cpu",      "name": "r/buildapcsales",   "enabled": true },
+        { "id": "camelcamel-cpu",  "name": "CamelCamelCamel",   "enabled": false }
+      ],
+      "custom": []
+    },
+    "pc-deals": {
+      "sources": [
+        { "id": "reddit-ram", "name": "r/buildapcsales — Memory",     "enabled": true },
+        { "id": "reddit-gpu", "name": "r/buildapcsales — Video Cards", "enabled": true },
+        { "id": "reddit-cpu", "name": "r/buildapcsales — CPUs",        "enabled": true },
+        { "id": "camelcamel-ram", "name": "CamelCamelCamel — Memory",   "enabled": false },
+        { "id": "camelcamel-gpu", "name": "CamelCamelCamel — GPUs",    "enabled": false },
+        { "id": "camelcamel-cpu", "name": "CamelCamelCamel — CPUs",    "enabled": false }
+      ],
+      "custom": []
+    },
+
+    "garden-new-arrivals": {
+      "sources": [
+        { "id": "homedepot-garden",  "name": "Home Depot — Garden",  "enabled": true },
+        { "id": "lowes-garden",      "name": "Lowe's — Garden",      "enabled": true },
+        { "id": "amazon-garden",     "name": "Amazon — Garden",      "enabled": false },
+        { "id": "reddit-gardening",  "name": "r/gardening",          "enabled": true }
+      ],
+      "custom": []
+    },
+    "garden-deals": {
+      "sources": [
+        { "id": "camelcamel-garden", "name": "CamelCamelCamel — Garden", "enabled": true },
+        { "id": "homedepot-garden",  "name": "Home Depot — Garden",      "enabled": true },
+        { "id": "lowes-garden",      "name": "Lowe's — Garden",          "enabled": true }
+      ],
+      "custom": []
+    },
+    "garden-houseplants": {
+      "sources": [
+        { "id": "homedepot-houseplants", "name": "Home Depot — Houseplants", "enabled": true },
+        { "id": "amazon-garden",         "name": "Amazon — Garden",          "enabled": false }
+      ],
+      "custom": []
+    },
+    "garden-trees-shrubs": {
+      "sources": [
+        { "id": "homedepot-garden", "name": "Home Depot — Garden",  "enabled": true },
+        { "id": "lowes-garden",     "name": "Lowe's — Garden",      "enabled": true }
+      ],
+      "custom": []
+    },
+    "garden-perennials": {
+      "sources": [
+        { "id": "homedepot-garden", "name": "Home Depot — Garden",  "enabled": true },
+        { "id": "lowes-garden",     "name": "Lowe's — Garden",      "enabled": true }
+      ],
+      "custom": []
+    },
+    "garden-seeds": {
+      "sources": [
+        { "id": "burpee-seeds",   "name": "Burpee — Seeds",       "enabled": true },
+        { "id": "lowes-seeds",    "name": "Lowe's — Seeds",       "enabled": true },
+        { "id": "amazon-seeds",   "name": "Amazon — Seeds",       "enabled": false }
+      ],
+      "custom": []
+    },
+    "garden-tools": {
+      "sources": [
+        { "id": "homedepot-garden",    "name": "Home Depot — Garden",     "enabled": true },
+        { "id": "lowes-garden",        "name": "Lowe's — Garden",         "enabled": true },
+        { "id": "amazon-garden-tools", "name": "Amazon — Garden Tools",   "enabled": false }
+      ],
+      "custom": []
+    },
+
+    "grocery-deals": {
+      "sources": [
+        { "id": "kroger-weekly-deals", "name": "Kroger — Weekly Deals", "enabled": true }
+      ],
+      "custom": []
+    },
+    "grocery-produce": {
+      "sources": [
+        { "id": "kroger-produce", "name": "Kroger — Produce", "enabled": true }
+      ],
+      "custom": []
+    },
+    "grocery-staples": {
+      "sources": [
+        { "id": "kroger-staples", "name": "Kroger — Pantry Staples", "enabled": true }
+      ],
+      "custom": []
+    },
+    "grocery-meat-seafood": {
+      "sources": [
+        { "id": "kroger-meat", "name": "Kroger — Meat & Seafood", "enabled": true }
+      ],
+      "custom": []
+    },
+
+    "sports-new-releases": {
+      "sources": [
+        { "id": "dickssporting-sports", "name": "DICK'S Sporting Goods", "enabled": true },
+        { "id": "academy-sports",       "name": "Academy Sports",        "enabled": true },
+        { "id": "amazon-sports",        "name": "Amazon — Sports",       "enabled": false }
+      ],
+      "custom": []
+    },
+    "sports-deals": {
+      "sources": [
+        { "id": "camelcamel-sports",    "name": "CamelCamelCamel — Sports", "enabled": true },
+        { "id": "dickssporting-sports", "name": "DICK'S Sporting Goods",    "enabled": true },
+        { "id": "academy-sports",       "name": "Academy Sports",           "enabled": true },
+        { "id": "amazon-camping",       "name": "Amazon — Camping",         "enabled": false }
+      ],
+      "custom": []
+    },
+    "sports-baseball": {
+      "sources": [
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
+      ],
+      "custom": []
+    },
+    "sports-basketball": {
+      "sources": [
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
+      ],
+      "custom": []
+    },
+    "sports-soccer": {
+      "sources": [
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
+      ],
+      "custom": []
+    },
+    "sports-football": {
+      "sources": [
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
+      ],
+      "custom": []
+    },
+    "sports-volleyball": {
+      "sources": [
+        { "id": "dickssporting-sports",  "name": "DICK'S Sporting Goods",         "enabled": true },
+        { "id": "academy-sports",         "name": "Academy Sports",               "enabled": true },
+        { "id": "reddit-frugalathlete",   "name": "r/frugalathlete — Deals",      "enabled": true },
+        { "id": "camelcamel-sports",      "name": "CamelCamelCamel — Sports",     "enabled": true }
+      ],
+      "custom": []
+    },
+
+    "3dp-printers": {
+      "sources": [
+        { "id": "amazon-3dprint-printers", "name": "Amazon — 3D Printers",  "enabled": false },
+        { "id": "prusa-blog",              "name": "Prusa Blog",             "enabled": true },
+        { "id": "reddit-3dprinting",       "name": "r/3Dprinting",           "enabled": true }
+      ],
+      "custom": []
+    },
+    "3dp-filament": {
+      "sources": [
+        { "id": "amazon-3dprint-filament", "name": "Amazon — Filament",     "enabled": false },
+        { "id": "matterhackers-new",       "name": "MatterHackers",          "enabled": true },
+        { "id": "camelcamel-3dprint",      "name": "CamelCamelCamel — 3DP", "enabled": true }
+      ],
+      "custom": []
+    },
+    "3dp-resins": {
+      "sources": [
+        { "id": "amazon-3dprint-filament", "name": "Amazon — Filament/Resin", "enabled": false },
+        { "id": "matterhackers-new",       "name": "MatterHackers",            "enabled": true }
+      ],
+      "custom": []
+    },
+    "3dp-accessories": {
+      "sources": [
+        { "id": "matterhackers-new",  "name": "MatterHackers",  "enabled": true },
+        { "id": "reddit-3dprinting",  "name": "r/3Dprinting",   "enabled": true }
+      ],
+      "custom": []
+    },
+    "3dp-deals": {
+      "sources": [
+        { "id": "camelcamel-3dprint",      "name": "CamelCamelCamel — 3DP", "enabled": true },
+        { "id": "amazon-3dprint-printers", "name": "Amazon — 3D Printers",  "enabled": false },
+        { "id": "amazon-3dprint-filament", "name": "Amazon — Filament",     "enabled": false }
+      ],
+      "custom": []
+    },
+
+    "auto-parts": {
+      "sources": [
+        { "id": "rockauto-parts",     "name": "RockAuto",            "enabled": true },
+        { "id": "amazon-automotive",  "name": "Amazon — Automotive", "enabled": false }
+      ],
+      "custom": []
+    },
+    "auto-tools": {
+      "sources": [
+        { "id": "amazon-automotive",  "name": "Amazon — Automotive", "enabled": false },
+        { "id": "rockauto-parts",     "name": "RockAuto",            "enabled": true }
+      ],
+      "custom": []
+    },
+    "auto-accessories": {
+      "sources": [
+        { "id": "amazon-automotive",  "name": "Amazon — Automotive", "enabled": false }
+      ],
+      "custom": []
+    },
+    "auto-deals": {
+      "sources": [
+        { "id": "camelcamel-automotive", "name": "CamelCamelCamel — Auto", "enabled": true },
+        { "id": "amazon-automotive",     "name": "Amazon — Automotive",    "enabled": false }
+      ],
+      "custom": []
+    },
+
+    "games-video-deals": {
+      "sources": [
+        { "id": "itad-deals",        "name": "IsThereAnyDeal",      "enabled": true },
+        { "id": "reddit-gamedeals",  "name": "r/GameDeals",         "enabled": true },
+        { "id": "camelcamel-games",  "name": "CamelCamelCamel — Games", "enabled": true }
+      ],
+      "custom": []
+    },
+    "games-video-new": {
+      "sources": [
+        { "id": "amazon-videogames", "name": "Amazon — Video Games", "enabled": false },
+        { "id": "reddit-gamedeals",  "name": "r/GameDeals",          "enabled": true }
+      ],
+      "custom": []
+    },
+    "games-board-new": {
+      "sources": [
+        { "id": "bgg-hotness",      "name": "BoardGameGeek — Hotness", "enabled": true },
+        { "id": "reddit-boardgames","name": "r/boardgames",            "enabled": true }
+      ],
+      "custom": []
+    },
+    "games-board-deals": {
+      "sources": [
+        { "id": "reddit-boardgames", "name": "r/boardgames",            "enabled": true },
+        { "id": "camelcamel-games",  "name": "CamelCamelCamel — Games", "enabled": true }
+      ],
+      "custom": []
+    },
+    "games-tabletop": {
+      "sources": [
+        { "id": "bgg-hotness",       "name": "BoardGameGeek",           "enabled": true },
+        { "id": "reddit-boardgames", "name": "r/boardgames",            "enabled": true }
+      ],
+      "custom": []
+    },
+    "games-deals": {
+      "sources": [
+        { "id": "itad-deals",        "name": "IsThereAnyDeal",           "enabled": true },
+        { "id": "camelcamel-games",  "name": "CamelCamelCamel — Games",  "enabled": true },
+        { "id": "reddit-gamedeals",  "name": "r/GameDeals",              "enabled": true },
+        { "id": "reddit-boardgames", "name": "r/boardgames",             "enabled": true }
+      ],
+      "custom": []
+    },
+
+    "home-decor": {
+      "sources": [
+        { "id": "wayfair-home",   "name": "Wayfair",        "enabled": true },
+        { "id": "amazon-home",    "name": "Amazon — Home",  "enabled": false }
+      ],
+      "custom": []
+    },
+    "home-furniture": {
+      "sources": [
+        { "id": "wayfair-home",   "name": "Wayfair",        "enabled": true },
+        { "id": "amazon-home",    "name": "Amazon — Home",  "enabled": false }
+      ],
+      "custom": []
+    },
+    "home-kitchen": {
+      "sources": [
+        { "id": "amazon-home",    "name": "Amazon — Home",  "enabled": false },
+        { "id": "wayfair-home",   "name": "Wayfair",        "enabled": true }
+      ],
+      "custom": []
+    },
+    "home-deals": {
+      "sources": [
+        { "id": "camelcamel-home", "name": "CamelCamelCamel — Home", "enabled": true },
+        { "id": "wayfair-home",    "name": "Wayfair",                 "enabled": true },
+        { "id": "amazon-home",     "name": "Amazon — Home",           "enabled": false }
+      ],
+      "custom": []
+    },
+
+    "homeimprove-tools": {
+      "sources": [
+        { "id": "homedepot-tools", "name": "Home Depot — Tools", "enabled": true },
+        { "id": "lowes-tools",     "name": "Lowe's — Tools",     "enabled": true },
+        { "id": "amazon-tools",    "name": "Amazon — Tools",     "enabled": false }
+      ],
+      "custom": []
+    },
+    "homeimprove-materials": {
+      "sources": [
+        { "id": "homedepot-tools", "name": "Home Depot",    "enabled": true },
+        { "id": "lowes-tools",     "name": "Lowe's",        "enabled": true }
+      ],
+      "custom": []
+    },
+    "homeimprove-plumbing": {
+      "sources": [
+        { "id": "homedepot-tools", "name": "Home Depot", "enabled": true },
+        { "id": "lowes-tools",     "name": "Lowe's",     "enabled": true }
+      ],
+      "custom": []
+    },
+    "homeimprove-electrical": {
+      "sources": [
+        { "id": "homedepot-tools", "name": "Home Depot", "enabled": true },
+        { "id": "lowes-tools",     "name": "Lowe's",     "enabled": true }
+      ],
+      "custom": []
+    },
+    "homeimprove-deals": {
+      "sources": [
+        { "id": "camelcamel-tools", "name": "CamelCamelCamel — Tools", "enabled": true },
+        { "id": "homedepot-tools",  "name": "Home Depot — Tools",      "enabled": true },
+        { "id": "lowes-tools",      "name": "Lowe's — Tools",          "enabled": true }
+      ],
+      "custom": []
+    },
+
+    "clothes-new": {
+      "sources": [
+        { "id": "amazon-clothes",          "name": "Amazon — Clothing",       "enabled": false },
+        { "id": "reddit-frugalmalefashion","name": "r/frugalmalefashion",     "enabled": true },
+        { "id": "reddit-femalefashionadvice","name": "r/femalefashionadvice", "enabled": true }
+      ],
+      "custom": []
+    },
+    "clothes-deals": {
+      "sources": [
+        { "id": "camelcamel-clothes",        "name": "CamelCamelCamel — Apparel", "enabled": true },
+        { "id": "reddit-frugalmalefashion",  "name": "r/frugalmalefashion",       "enabled": true },
+        { "id": "reddit-femalefashionadvice","name": "r/femalefashionadvice",     "enabled": true }
+      ],
+      "custom": []
+    },
+    "clothes-mens": {
+      "sources": [
+        { "id": "reddit-frugalmalefashion", "name": "r/frugalmalefashion", "enabled": true },
+        { "id": "amazon-clothes",           "name": "Amazon — Clothing",   "enabled": false }
+      ],
+      "custom": []
+    },
+    "clothes-womens": {
+      "sources": [
+        { "id": "reddit-femalefashionadvice", "name": "r/femalefashionadvice", "enabled": true },
+        { "id": "amazon-clothes",             "name": "Amazon — Clothing",     "enabled": false }
+      ],
+      "custom": []
+    },
+    "clothes-activewear": {
+      "sources": [
+        { "id": "amazon-clothes",          "name": "Amazon — Clothing",       "enabled": false },
+        { "id": "reddit-frugalmalefashion","name": "r/frugalmalefashion",     "enabled": true }
+      ],
+      "custom": []
+    },
+
+    "shoes-new": {
+      "sources": [
+        { "id": "zappos-shoes",        "name": "Zappos",          "enabled": true },
+        { "id": "amazon-shoes",        "name": "Amazon — Shoes",  "enabled": false },
+        { "id": "reddit-frugalsneakers","name": "r/frugal Shoes", "enabled": true }
+      ],
+      "custom": []
+    },
+    "shoes-deals": {
+      "sources": [
+        { "id": "camelcamel-shoes",     "name": "CamelCamelCamel — Shoes", "enabled": true },
+        { "id": "zappos-shoes",         "name": "Zappos",                  "enabled": true },
+        { "id": "reddit-frugalsneakers","name": "r/frugal Shoes",          "enabled": true }
+      ],
+      "custom": []
+    },
+    "shoes-athletic": {
+      "sources": [
+        { "id": "zappos-shoes",  "name": "Zappos",         "enabled": true },
+        { "id": "amazon-shoes",  "name": "Amazon — Shoes", "enabled": false }
+      ],
+      "custom": []
+    },
+    "shoes-casual": {
+      "sources": [
+        { "id": "zappos-shoes",  "name": "Zappos",         "enabled": true },
+        { "id": "amazon-shoes",  "name": "Amazon — Shoes", "enabled": false }
+      ],
+      "custom": []
+    },
+
+    "art-supplies-new": {
+      "sources": [
+        { "id": "dickblick-art", "name": "Dick Blick",      "enabled": true },
+        { "id": "amazon-art",    "name": "Amazon — Art",    "enabled": false },
+        { "id": "reddit-art",    "name": "r/artstore",       "enabled": true }
+      ],
+      "custom": []
+    },
+    "art-supplies-deals": {
+      "sources": [
+        { "id": "dickblick-art", "name": "Dick Blick",      "enabled": true },
+        { "id": "amazon-art",    "name": "Amazon — Art",    "enabled": false },
+        { "id": "reddit-art",    "name": "r/artstore",       "enabled": true }
+      ],
+      "custom": []
+    },
+    "art-prints": {
+      "sources": [
+        { "id": "reddit-art",    "name": "r/artstore",      "enabled": true },
+        { "id": "amazon-art",    "name": "Amazon — Art",    "enabled": false }
+      ],
+      "custom": []
+    },
+
+    "crafts-deals": {
+      "sources": [
+        { "id": "joann-crafts",  "name": "JOANN",           "enabled": true },
+        { "id": "amazon-crafts", "name": "Amazon — Crafts", "enabled": false },
+        { "id": "reddit-crafts", "name": "r/crafts",        "enabled": true }
+      ],
+      "custom": []
+    },
+    "crafts-pottery": {
+      "sources": [
+        { "id": "amazon-crafts", "name": "Amazon — Crafts", "enabled": false },
+        { "id": "joann-crafts",  "name": "JOANN",           "enabled": true }
+      ],
+      "custom": []
+    },
+    "crafts-weaving": {
+      "sources": [
+        { "id": "amazon-crafts", "name": "Amazon — Crafts", "enabled": false },
+        { "id": "joann-crafts",  "name": "JOANN",           "enabled": true }
+      ],
+      "custom": []
+    },
+
+    "needlework-knitting": {
+      "sources": [
+        { "id": "amazon-knitting", "name": "Amazon — Knitting & Crochet", "enabled": false },
+        { "id": "reddit-knitting", "name": "r/knitting",                  "enabled": true }
+      ],
+      "custom": []
+    },
+    "needlework-crochet": {
+      "sources": [
+        { "id": "amazon-knitting", "name": "Amazon — Knitting & Crochet", "enabled": false },
+        { "id": "reddit-knitting", "name": "r/knitting",                  "enabled": true }
+      ],
+      "custom": []
+    },
+    "needlework-quilting": {
+      "sources": [
+        { "id": "amazon-sewing",  "name": "Amazon — Sewing & Quilting", "enabled": false },
+        { "id": "reddit-sewing",  "name": "r/sewing",                   "enabled": true }
+      ],
+      "custom": []
+    },
+    "needlework-deals": {
+      "sources": [
+        { "id": "amazon-knitting", "name": "Amazon — Knitting",          "enabled": false },
+        { "id": "amazon-sewing",   "name": "Amazon — Sewing",            "enabled": false },
+        { "id": "reddit-sewing",   "name": "r/sewing",                   "enabled": true },
+        { "id": "reddit-knitting", "name": "r/knitting",                 "enabled": true }
       ],
       "custom": []
     }

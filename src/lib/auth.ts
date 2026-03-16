@@ -8,12 +8,9 @@ export interface AuthUser {
   username: string;
   email: string;
   is_demo?: boolean;
-<<<<<<< Updated upstream
   accountVerified?: boolean;
-=======
   email_verified?: boolean;
   has_password?: boolean;
->>>>>>> Stashed changes
 }
 
 export class DemoRestrictedError extends Error {

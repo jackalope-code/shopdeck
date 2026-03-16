@@ -3,9 +3,10 @@ import { TopNav } from './ProjectsOverview';
 import { useFeedData, useFavorites } from '../lib/ShopdataContext';
 import { getToken, apiGet, apiPatch } from '../lib/auth';
 import HistoryAwareLink from './HistoryAwareLink';
+import { getFeedStockStatus } from '../lib/stockStatus';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
+type StockStatus = 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK' | 'UNKNOWN';
 type GpuSeries = 'RTX 40xx' | 'RTX 30xx' | 'RX 7000' | 'RX 6000';
 type MemType = 'GDDR6X' | 'GDDR6' | 'GDDR5';
 
@@ -43,6 +44,7 @@ const STATUS_STYLE: Record<StockStatus, string> = {
   'IN STOCK':     'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400',
   'LOW STOCK':    'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400',
   'OUT OF STOCK': 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
+  'UNKNOWN':      'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
 };
 
 type Filter = 'All' | GpuSeries;
@@ -94,7 +96,7 @@ function ProductThumb({ src, icon, bg = 'bg-slate-100 dark:bg-slate-800', iconCl
 }) {
   const [err, setErr] = useState(false);
   return (
-    <div className={`shrink-0 flex items-center justify-center size-10 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
+    <div className={`shrink-0 flex items-center justify-center size-12 rounded-xl overflow-hidden ${(!src || err) ? bg : 'bg-white/50 dark:bg-slate-800/50'}`}>
       {src && !err
         ? <img src={src} alt="" className="w-full h-full object-contain p-1" onError={() => setErr(true)} />
         : <span className={`material-symbols-outlined text-[20px] ${iconClass}`}>{icon}</span>
@@ -132,10 +134,12 @@ export default function GpuAvailabilityTracker() {
     const vramMatch = item.name.match(/(\d+)\s*gb/i);
     const vram = vramMatch ? parseInt(vramMatch[1]) : 8;
     const id = `${item._vendor}-${idx}`;
+    const normalizedStock = getFeedStockStatus(item);
     const gpuStatus: StockStatus =
-      item.anyAvailable === 'false' ? 'OUT OF STOCK' :
-      (item.lowStock === 'true' || item.partialStock === 'true') ? 'LOW STOCK' :
-      'IN STOCK';
+      normalizedStock === 'out-of-stock' ? 'OUT OF STOCK' :
+      (normalizedStock === 'low-stock' || normalizedStock === 'partial-stock') ? 'LOW STOCK' :
+      normalizedStock === 'in-stock' ? 'IN STOCK' :
+      'UNKNOWN';
     return {
       id,
       name: item.name,

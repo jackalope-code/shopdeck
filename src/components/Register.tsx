@@ -36,11 +36,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-<<<<<<< Updated upstream
-      const data = await apiPost<RegisterResponse>('/api/auth/register', { username, email, password });
-=======
-      const data = await apiPost<{ token: string; user: AuthUser }>('/api/auth/register', { email, password });
->>>>>>> Stashed changes
+      const data = await apiPost<{ token: string; user: AuthUser; verification?: { required: boolean } }>('/api/auth/register', { email, password });
       setToken(data.token);
       setUser(data.user);
       if (data.verification?.required) {

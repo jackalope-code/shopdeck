@@ -66,7 +66,24 @@ All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through
 
 - Do **not** add query-parameter flags (e.g. `?refresh=1`, `?bust=true`) or any other mechanism that lets callers bypass or invalidate the cache from outside the server.
 - Cache TTL and invalidation are server-side concerns only. If stale data is a problem, fix the scraper or adjust the TTL — never expose a cache-bust escape hatch through the API.
+
+### Feed cache policy (non-API sources)
+
+All non-API feed sources (css, jsonpath, jsonpath-multi, rss, user-rss, manual-list, webhook-buffer) **must always be served from cache**. Never re-scrape them on every request.
+
+| Source type | Hard TTL | SWR refresh threshold |
+|---|---|---|
+| `rss`, `user-rss` | 6 h | 6 h (i.e. always refreshed when cache expires) |
+| All other non-API | 24 h | 6 h |
+
+**Stale-while-revalidate (SWR):** When a cached entry is older than 6 h, the current request is served immediately from the stale cache. A background refresh is triggered concurrently via `triggerBackgroundRefresh()` — the next request then receives fresh data. Only one background refresh per source runs at a time (coalesced via `inFlightScrapes`).
+
+**Widget response cache:** Widget-level assembled responses are cached for 24 h (no API sources) or bypassed entirely (any API source present). When the assembled response is older than 6 h it is served stale and the cache entry is invalidated so the next request re-assembles from the (already SWR-refreshed) source caches.
+
+**Warmer (`warmAllSources`):** Runs every 6 h via cron. Skips sources whose cache is still within TTL. RSS sources are re-warmed every run (6 h TTL). Non-API scraper sources are only re-warmed after their 24 h TTL expires. API-type sources are always skipped.
+
 - **Mouser API — caching is contractually prohibited.** The Mouser API Terms of Service (Section 4) explicitly forbid caching, pre-fetching, or storing any Mouser data. The `mouser-api` rule type MUST bypass the Redis source cache and the in-process `localSourceCache` entirely. Every call to `runSource` for a Mouser rule must make a live API request. Do not add Mouser source IDs to the background warmer (`warmAllSources`).
+- All other API-type sources (`amazon-api`, `newegg-search-api`, `digikey-api`, and any rule type ending in `-api`) are also never cached and never pre-warmed.
 
 ## General Coding Conventions
 
@@ -79,12 +96,58 @@ All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through
 ## Auth And Verification Notes
 
 - Password policy is mirrored in `backend/lib/passwordValidation.js` and `src/lib/passwordValidation.ts`. Keep them in sync.
-- Email verification supports both a direct-link token flow and a manual code flow. Preserve both unless the task explicitly changes that product decision.
-- `accountVerified` is intentionally exposed through auth payloads and `GET /api/auth/me`; frontend auth state should keep using that field.
+- Email verification uses a direct-link token flow (single `email_tokens` table, `type='verification'`). Preserve this unless the task explicitly changes that product decision.
+- `email_verified` is intentionally exposed through auth payloads and `GET /api/auth/me`; frontend auth state should keep using that field.
 - Resend verification currently supports both authenticated users and email-based resend from the verify page. Avoid reintroducing account-enumerating responses for unauthenticated resend requests.
-- For local development, if SMTP is not configured, the backend logs the verification link and code. Do not remove that fallback unless a replacement local-development path is added.
+- For local development, if SendGrid is not configured (`SENDGRID_API_KEY` unset), the backend logs the verification link to the console. Do not remove that fallback unless a replacement local-development path is added.
 - For production-oriented tasks touching verification, prefer documenting or implementing these follow-ups when relevant:
-	- sender/provider configuration (`APP_BASE_URL`, `MAIL_FROM`, `SMTP_*`)
+	- sender/provider configuration (`SENDGRID_API_KEY`, `EMAIL_FROM`, `FRONTEND_URL`)
 	- cleanup of expired verification tokens/codes
 	- provider deliverability setup such as SPF/DKIM
 	- monitoring of email send failures and resend/verify abuse
+
+## Testing & Regression Policy
+
+All widget, page, and feed-data changes must be validated with tests before and after implementation to limit regressions.
+
+### Required workflow for widget/page/feed changes
+
+1. Run a relevant baseline test pass before edits (to confirm starting state).
+2. Make the code changes.
+3. Re-run the same relevant suites plus impacted smoke checks.
+4. Do not finalize changes with failing tests unless the failure is unrelated and explicitly documented.
+
+### Smoke-first UI testing
+
+- UI smoke tests are the starting point for frontend regression checks.
+- Smoke coverage must include at least:
+	- app boot and auth route render
+	- dashboard route render and primary controls
+	- representative key routes (for example deals and drops)
+
+### Command matrix by change type
+
+- **Widget changes** (`src/components/`):
+	- `npm run test`
+	- `npm run test:smoke`
+	- `npm run typecheck`
+
+- **Page changes** (`pages/`):
+	- `npm run test`
+	- `npm run test:smoke`
+	- `npm run typecheck`
+
+- **Feed/backend changes** (`backend/routes/feedConfig.js`, `backend/scraper.js`, feed sources/rules):
+	- `npm run test:feed`
+	- optional live probe: `SHOPDECK_BACKEND_URL=http://127.0.0.1:4000 npm run test:feed`
+
+- **Cross-cutting changes** (widgets/pages + feed logic):
+	- `npm run test:regression`
+	- `npm run test:smoke`
+	- `npm run test:feed`
+
+### Feed testing constraints
+
+- Keep CI feed tests deterministic with fixtures/mocks where practical.
+- Live upstream probe tests are allowed, but should be optional/manual to avoid flaky CI failures.
+- Maintain Mouser no-cache behavior while testing (`mouser-api` requests must stay live and uncached).

@@ -2,35 +2,171 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ALL_WIDGETS } from './Dashboard';
-import { getToken, apiPatch, isDemoAccount, clearToken } from '../lib/auth';
+import { getToken, apiPatch, apiPost, apiGet, isDemoAccount, clearToken } from '../lib/auth';
+import { usePlaidLink } from 'react-plaid-link';
+import { useFeatures } from '../lib/features';
 
 // ─── Category definitions ────────────────────────────────────────────────────
+// Alphabetical order: Art, Audio, Automotive, Clothes, Crafts, Electronics,
+// Garden, Games, Groceries, Home, Home Improvement, Keyboards, Needle Work,
+// PC Building, Robotics, Shoes, Sports Equipment, 3D Printing
 const CATEGORIES = [
-  { id: 'keyboards', label: 'Keyboard Enthusiast', icon: 'keyboard', description: 'Full boards, parts, switches, keycaps, accessories' },
-  { id: 'electronics', label: 'Electronics Maker', icon: 'memory', description: 'Components, MCUs & sensors' },
-  { id: '3dprinting', label: '3D Printing', icon: 'precision_manufacturing', description: 'Filament, printers & hardware' },
-  { id: 'robotics', label: 'Robotics', icon: 'smart_toy', description: 'Actuators, sensors & kits' },
-  { id: 'audio', label: 'Audio', icon: 'headset', description: 'DACs, amps & speakers' },
+  { id: 'art',              label: 'Art',             icon: 'palette',                description: 'Art supplies, prints & originals' },
+  { id: 'audio',            label: 'Audio',           icon: 'headset',                description: 'DACs, amps & speakers' },
+  { id: 'automotive',       label: 'Automotive',      icon: 'directions_car',         description: 'Auto parts, tools & accessories' },
+  { id: 'clothes',          label: 'Clothes',         icon: 'checkroom',              description: 'Men\'s, women\'s & activewear deals' },
+  { id: 'crafts',           label: 'Crafts',          icon: 'blur_circular',          description: 'Pottery, weaving & fiber arts' },
+  { id: 'electronics',      label: 'Electronics Maker', icon: 'memory',              description: 'Components, MCUs & sensors' },
+  { id: 'garden',           label: 'Garden',          icon: 'yard',                   description: 'Plants, seeds, tools & zone-aware tracking' },
+  { id: 'games',            label: 'Games',           icon: 'sports_esports',         description: 'Video game & board game deals' },
+  { id: 'groceries',        label: 'Groceries',       icon: 'local_grocery_store',    description: 'Weekly deals, produce & pantry staples' },
+  { id: 'home',             label: 'Home',            icon: 'home',                   description: 'Home decor, furniture & kitchen' },
+  { id: 'home-improvement', label: 'Home Improvement', icon: 'handyman',             description: 'Tools, building materials & DIY' },
+  { id: 'keyboards',        label: 'Keyboard Enthusiast', icon: 'keyboard',          description: 'Full boards, parts, switches, keycaps, accessories' },
+  { id: 'needle-work',      label: 'Needle Work',     icon: 'texture',               description: 'Knitting, crochet, quilting & yarn' },
+  { id: 'pc-building',      label: 'PC Builder',      icon: 'computer',              description: 'CPUs, RAM, GPUs & component deals' },
+  { id: 'robotics',         label: 'Robotics',        icon: 'smart_toy',             description: 'Actuators, sensors & kits' },
+  { id: 'shoes',            label: 'Shoes',           icon: 'footprint',             description: 'Athletic, casual & shoe deals' },
+  { id: 'sports',           label: 'Sports Equipment', icon: 'sports',              description: 'Baseball, basketball, soccer & more' },
+  { id: '3dprinting',       label: '3D Printing',     icon: 'precision_manufacturing', description: 'Filament, printers & hardware' },
+  { id: 'finance',          label: 'Budget & Spending', icon: 'account_balance',         description: 'Import CSV transactions, set budgets & track spend' },
 ];
 
 // Map onboarding category → widget categories in registry
 const CAT_WIDGET_MAP: Record<string, string[]> = {
-  keyboards: ['Keyboards'],
-  electronics: ['Electronics'],
-  '3dprinting': ['Overview'],
-  robotics: ['Overview'],
-  audio: ['Electronics'],
+  art:               ['Art'],
+  audio:             ['Electronics'],
+  automotive:        ['Automotive'],
+  clothes:           ['Clothes'],
+  crafts:            ['Crafts'],
+  electronics:       ['Electronics'],
+  garden:            ['Garden'],
+  games:             ['Games'],
+  groceries:         ['Groceries'],
+  home:              ['Home'],
+  'home-improvement':['Home Improvement'],
+  keyboards:         ['Keyboards'],
+  'needle-work':     ['Needle Work'],
+  'pc-building':     ['PC Building'],
+  robotics:          ['Overview'],
+  shoes:             ['Shoes'],
+  sports:            ['Sports Equipment'],
+  '3dprinting':      ['3D Printing'],
+  'finance':         ['Finance'],
+};
+
+type DashboardPreference = 'minimal' | 'balanced' | 'extensive';
+
+// Per-category widget presets for each dashboard preference tier
+const DASHBOARD_TIER_MAP: Record<string, Record<DashboardPreference, string[]>> = {
+  art: {
+    minimal:   ['art-supplies-deals'],
+    balanced:  ['art-supplies-deals', 'art-supplies-new'],
+    extensive: ['art-supplies-deals', 'art-supplies-new', 'art-prints'],
+  },
+  audio: {
+    minimal:   ['electronics-watchlist'],
+    balanced:  ['electronics-watchlist', 'electronics-new-drops', 'active-deals'],
+    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
+  },
+  automotive: {
+    minimal:   ['auto-deals'],
+    balanced:  ['auto-deals', 'auto-parts'],
+    extensive: ['auto-deals', 'auto-parts', 'auto-tools', 'auto-accessories'],
+  },
+  clothes: {
+    minimal:   ['clothes-deals'],
+    balanced:  ['clothes-deals', 'clothes-new'],
+    extensive: ['clothes-deals', 'clothes-new', 'clothes-mens', 'clothes-womens', 'clothes-activewear'],
+  },
+  crafts: {
+    minimal:   ['crafts-deals'],
+    balanced:  ['crafts-deals', 'crafts-pottery'],
+    extensive: ['crafts-deals', 'crafts-pottery', 'crafts-weaving'],
+  },
+  electronics: {
+    minimal:   ['electronics-watchlist'],
+    balanced:  ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'active-deals'],
+    extensive: ['electronics-watchlist', 'electronics-new-drops', 'electronics-sales', 'electronics-microcontrollers', 'electronics-passives', 'electronics-sensors', 'electronics-motors', 'electronics-ics', 'electronics-encoders', 'electronics-power', 'electronics-connectors', 'electronics-displays', 'electronics-wireless', 'electronics-audio', 'active-deals'],
+  },
+  garden: {
+    minimal:   ['garden-new-arrivals', 'garden-houseplants'],
+    balanced:  ['garden-new-arrivals', 'garden-houseplants', 'garden-deals', 'garden-seeds'],
+    extensive: ['garden-new-arrivals', 'garden-houseplants', 'garden-deals', 'garden-seeds', 'garden-trees-shrubs', 'garden-perennials', 'garden-tools'],
+  },
+  games: {
+    minimal:   ['games-video-deals'],
+    balanced:  ['games-video-deals', 'games-board-deals'],
+    extensive: ['games-video-deals', 'games-video-new', 'games-board-deals', 'games-board-new', 'games-tabletop', 'games-deals'],
+  },
+  groceries: {
+    minimal:   ['grocery-deals'],
+    balanced:  ['grocery-deals', 'grocery-produce'],
+    extensive: ['grocery-deals', 'grocery-produce', 'grocery-staples', 'grocery-meat-seafood'],
+  },
+  home: {
+    minimal:   ['home-deals'],
+    balanced:  ['home-deals', 'home-decor'],
+    extensive: ['home-deals', 'home-decor', 'home-furniture', 'home-kitchen'],
+  },
+  'home-improvement': {
+    minimal:   ['homeimprove-deals'],
+    balanced:  ['homeimprove-deals', 'homeimprove-tools'],
+    extensive: ['homeimprove-deals', 'homeimprove-tools', 'homeimprove-materials', 'homeimprove-plumbing', 'homeimprove-electrical'],
+  },
+  keyboards: {
+    minimal:   ['keyboard-releases'],
+    balanced:  ['keyboard-releases', 'keyboard-sales', 'keycaps-tracker'],
+    extensive: ['keyboard-releases', 'keyboard-full-release', 'keyboard-parts-release', 'keyboard-switches', 'keyboard-accessories', 'keycaps-tracker', 'keyboard-sales', 'keyboard-comparison'],
+  },
+  'needle-work': {
+    minimal:   ['needlework-deals'],
+    balanced:  ['needlework-deals', 'needlework-knitting'],
+    extensive: ['needlework-deals', 'needlework-knitting', 'needlework-crochet', 'needlework-quilting'],
+  },
+  'pc-building': {
+    minimal:   ['ram-availability', 'gpu-availability'],
+    balanced:  ['ram-availability', 'gpu-availability', 'pc-deals'],
+    extensive: ['ram-availability', 'gpu-availability', 'cpu-availability', 'pc-deals'],
+  },
+  robotics: {
+    minimal:   ['inventory-stats', 'active-projects'],
+    balanced:  ['inventory-stats', 'active-projects', 'recent-activity'],
+    extensive: ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products'],
+  },
+  shoes: {
+    minimal:   ['shoes-deals'],
+    balanced:  ['shoes-deals', 'shoes-new'],
+    extensive: ['shoes-deals', 'shoes-new', 'shoes-athletic', 'shoes-casual'],
+  },
+  sports: {
+    minimal:   ['sports-new-releases', 'sports-deals'],
+    balanced:  ['sports-new-releases', 'sports-deals', 'sports-baseball', 'sports-basketball'],
+    extensive: ['sports-new-releases', 'sports-deals', 'sports-baseball', 'sports-basketball', 'sports-football', 'sports-soccer', 'sports-volleyball'],
+  },
+  '3dprinting': {
+    minimal:   ['3dp-printers', '3dp-filament'],
+    balanced:  ['3dp-printers', '3dp-filament', '3dp-deals'],
+    extensive: ['3dp-printers', '3dp-filament', '3dp-resins', '3dp-accessories', '3dp-deals'],
+  },
+  'finance': {
+    minimal:   ['finance-recent-transactions'],
+    balanced:  ['finance-recent-transactions', 'finance-budget'],
+    extensive: ['finance-recent-transactions', 'finance-budget', 'finance-spend-by-category'],
+  },
+};
+
+// Base widgets always included regardless of categories selected
+const TIER_BASE: Record<DashboardPreference, string[]> = {
+  minimal:   ['inventory-stats', 'active-projects'],
+  balanced:  ['inventory-stats', 'active-projects', 'recent-activity'],
+  extensive: ['inventory-stats', 'active-projects', 'recent-activity', 'favorite-products'],
 };
 
 const STORAGE_KEY_ONBOARDED = 'sd-onboarded';
 const STORAGE_KEY_WIDGETS = 'sd-active-widgets';
 const STORAGE_KEY_NOTIFS = 'sd-browser-alerts';
 
-<<<<<<< Updated upstream
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-function ProgressBar({ step }: { step: 1 | 2 | 3 }) {
-  const pct = step === 1 ? 33 : step === 2 ? 66 : 100;
-=======
 type UserType = 'regular' | 'hobbyist' | 'seller' | 'creator';
 type ApiKeyFields = { cjApiKey: string; amazonAccessKey: string; amazonSecretKey: string; amazonPartnerTag: string };
 type OnboardingStep = 'username' | 'type' | 1 | '1z' | 2 | 3 | 4 | 5 | 'plaid';
@@ -253,7 +389,6 @@ function ProgressBar({ step, showApiKeyStep, showPlaidStep }: { step: Onboarding
     step === 3      ? Math.round((5 / total) * 100) :
     step === 4      ? Math.round((6 / total) * 100) :
     100;
->>>>>>> Stashed changes
   return (
     <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
       <div
@@ -268,12 +403,43 @@ function ProgressBar({ step, showApiKeyStep, showPlaidStep }: { step: Onboarding
 function StepCategories({
   selected,
   onToggle,
+  onSetAll,
   onContinue,
 }: {
   selected: string[];
   onToggle: (id: string) => void;
+  onSetAll: (ids: string[]) => void;
   onContinue: () => void;
 }) {
+  const [search, setSearch] = useState('');
+  // Snapshot of selection before "Select All" was activated, so deselecting restores it.
+  const [preSelectAllSnap, setPreSelectAllSnap] = useState<string[] | null>(null);
+  const allSelected = preSelectAllSnap !== null;
+  const searchLower = search.toLowerCase();
+
+  function handleSelectAllToggle() {
+    if (allSelected) {
+      // Restore the pre-select-all snapshot
+      onSetAll(preSelectAllSnap!);
+      setPreSelectAllSnap(null);
+    } else {
+      setPreSelectAllSnap(selected);
+      onSetAll(CATEGORIES.map(c => c.id));
+    }
+  }
+
+  // Selected categories are always shown first so they can be deselected even when filtering.
+  const filtered = search
+    ? [
+        ...CATEGORIES.filter(c => selected.includes(c.id)),
+        ...CATEGORIES.filter(
+          c =>
+            !selected.includes(c.id) &&
+            (c.label.toLowerCase().includes(searchLower) || c.description.toLowerCase().includes(searchLower))
+        ),
+      ]
+    : CATEGORIES;
+
   return (
     <>
       {/* Scrollable body */}
@@ -286,8 +452,49 @@ function StepCategories({
           <p className="text-[11px] text-slate-400 mt-0.5">You can change these in Settings at any time.</p>
         </div>
 
+        {/* Search + Select All row */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400 pointer-events-none">
+              search
+            </span>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search categories…"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-9 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            )}
+          </div>
+          <button
+            onClick={handleSelectAllToggle}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+              allSelected
+                ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">{allSelected ? 'deselect' : 'select_all'}</span>
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
+        </div>
+
+        {search && (
+          <p className="text-[11px] text-slate-400 -mt-2">
+            Showing {filtered.length} of {CATEGORIES.length}
+          </p>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-          {CATEGORIES.map(cat => {
+          {filtered.map(cat => {
             const active = selected.includes(cat.id);
             return (
               <button
@@ -341,7 +548,97 @@ function StepCategories({
   );
 }
 
-// ─── Step 2: widget selection ────────────────────────────────────────────────
+// ─── Step 2: dashboard view preference ─────────────────────────────────────
+const PREFERENCE_OPTIONS: { value: DashboardPreference; icon: string; label: string; description: string; recommended?: boolean }[] = [
+  { value: 'minimal',   icon: 'tune',      label: 'Minimal',   description: 'Core trackers only — clean and focused' },
+  { value: 'balanced',  icon: 'dashboard', label: 'Balanced',  description: 'Trackers + deals and new drops', recommended: true },
+  { value: 'extensive', icon: 'grid_view', label: 'Extensive', description: 'Every widget for your selected categories' },
+];
+
+function StepDashboardPreference({
+  selected,
+  onSelect,
+  onBack,
+  onContinue,
+}: {
+  selected: DashboardPreference;
+  onSelect: (p: DashboardPreference) => void;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  return (
+    <>
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold">How do you like your dashboard?</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Pick a starting layout. You&apos;ll fine-tune individual widgets in the next step.
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5">You can always add or remove widgets later.</p>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          {PREFERENCE_OPTIONS.map(opt => {
+            const active = selected === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => onSelect(opt.value)}
+                className={`w-full flex items-center gap-4 rounded-xl p-4 border-2 text-left transition-all ${
+                  active
+                    ? 'border-blue-500 bg-blue-500/5 dark:bg-blue-500/10'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-600'
+                }`}
+              >
+                <div className={`flex h-12 w-12 items-center justify-center rounded-xl shrink-0 transition-colors ${
+                  active ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                }`}>
+                  <span className="material-symbols-outlined text-2xl">{opt.icon}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className={`font-bold text-sm ${active ? 'text-blue-500' : ''}`}>{opt.label}</p>
+                    {opt.recommended && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{opt.description}</p>
+                </div>
+                {active && (
+                  <span className="ml-auto shrink-0 flex items-center justify-center size-5 rounded-full bg-blue-500 text-white">
+                    <span className="material-symbols-outlined text-[14px]">check</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Fixed footer */}
+      <div className="shrink-0 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101922] space-y-2">
+        <button
+          onClick={onContinue}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white hover:bg-blue-600 transition-colors"
+        >
+          Continue
+          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+        </button>
+        <button
+          onClick={onBack}
+          className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          ← Back
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── Step 3: widget selection ────────────────────────────────────────────────
 function StepWidgets({
   selectedCategoryIds,
   enabledWidgets,
@@ -464,12 +761,14 @@ function StepNotifications({
   onToggle,
   onBack,
   onFinish,
+  finishLabel,
 }: {
   enabled: boolean;
   permState: NotificationPermission | 'unsupported';
   onToggle: () => void;
   onBack: () => void;
   onFinish: () => void;
+  finishLabel?: string;
 }) {
   return (
     <>
@@ -539,8 +838,17 @@ function StepNotifications({
           onClick={onFinish}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white hover:bg-blue-600 transition-colors"
         >
-          <span className="material-symbols-outlined text-[18px]">check_circle</span>
-          Finish &amp; View Dashboard
+          {finishLabel ? (
+            <>
+              {finishLabel}
+              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </>
+          ) : (
+            <>
+              <span className="material-symbols-outlined text-[18px]">check_circle</span>
+              Finish &amp; View Dashboard
+            </>
+          )}
         </button>
         <button
           onClick={onBack}
@@ -553,12 +861,253 @@ function StepNotifications({
   );
 }
 
+// ─── Step 5: API keys (Seller / Content Creator only) ────────────────────────
+function StepApiKeys({
+  keys,
+  setKeys,
+  onSave,
+  onSkip,
+  onBack,
+}: {
+  keys: ApiKeyFields;
+  setKeys: React.Dispatch<React.SetStateAction<ApiKeyFields>>;
+  onSave: () => void;
+  onSkip: () => void;
+  onBack: () => void;
+}) {
+  const allEmpty = !keys.cjApiKey && !keys.amazonAccessKey && !keys.amazonSecretKey && !keys.amazonPartnerTag;
+
+  function field(label: string, key: keyof ApiKeyFields, placeholder: string, hint: string, isSecret = false) {
+    return (
+      <div>
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{label}</label>
+        <input
+          type={isSecret ? 'password' : 'text'}
+          autoComplete="off"
+          value={keys[key]}
+          onChange={e => setKeys(k => ({ ...k, [key]: e.target.value }))}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p className="mt-1 text-[11px] text-slate-400">{hint}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold">Connect your APIs</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Optional — add API keys now to unlock live product data. You can always do this later in Settings → API Keys.
+          </p>
+        </div>
+
+        {/* Amber warning banner */}
+        <div className="flex items-start gap-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-4 py-3">
+          <span className="material-symbols-outlined text-[18px] text-amber-500 shrink-0 mt-0.5">warning</span>
+          <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+            Without API keys, live product data for <strong>plants &amp; garden</strong>, <strong>art supplies</strong>,{' '}
+            <strong>home goods</strong>, and <strong>shoes</strong> won&apos;t load until keys are configured.
+          </p>
+        </div>
+
+        {/* CJ Affiliate API card */}
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-blue-500">hub</span>
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">CJ Affiliate API</h3>
+            <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Enables live feeds from Home Depot, Lowe&apos;s, Dick Blick, Wayfair, Zappos, JOANN, and other CJ retailers.
+              Requires a{' '}
+              <a href="https://developers.cj.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
+                CJ Affiliate personal access token
+              </a>.
+            </p>
+            {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'From your CJ developer account — stored encrypted', true)}
+          </div>
+        </div>
+
+        {/* Amazon PA API card */}
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-orange-400">deployed_code</span>
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Amazon Product Advertising API</h3>
+            <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wide">Optional</span>
+          </div>
+          <div className="p-4 space-y-3">
+            <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 px-3 py-2.5">
+              <span className="material-symbols-outlined text-[15px] text-blue-500 shrink-0 mt-0.5">info</span>
+              <p className="text-[11px] text-blue-700 dark:text-blue-400 leading-relaxed">
+                The Amazon PA API requires an active Associates account with at least 3 qualifying sales in the past 180 days.
+                If you&apos;re not approved yet, skip this and add the keys in Settings once approved.
+              </p>
+            </div>
+            {field('Access Key ID', 'amazonAccessKey', 'AKIAIOSFODNN7EXAMPLE', 'From the PA API credentials page')}
+            {field('Secret Access Key', 'amazonSecretKey', '••••••••', 'Never share this — stored encrypted on the server', true)}
+            {field('Partner / Associate Tag', 'amazonPartnerTag', 'yourtag-20', 'Your Associates store ID, e.g. mystore-20')}
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed footer */}
+      <div className="shrink-0 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101922] space-y-2">
+        <button
+          onClick={onSave}
+          disabled={allEmpty}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        >
+          <span className="material-symbols-outlined text-[18px]">check_circle</span>
+          Save &amp; Finish
+        </button>
+        <button
+          onClick={onSkip}
+          className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          Skip for now →
+        </button>
+        <button
+          onClick={onBack}
+          className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          ← Back
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── Step Plaid: bank account linking ────────────────────────────────────────
+function StepPlaid({
+  isDemo,
+  onFinish,
+}: {
+  isDemo: boolean;
+  onFinish: () => void;
+}) {
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [linked, setLinked] = useState<{ name: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const { open, ready } = usePlaidLink({
+    token: linkToken ?? '',
+    onSuccess: async (publicToken) => {
+      try {
+        setLoading(true);
+        const res = await apiPost<{ institution_name: string; account_count: number }>(
+          '/api/plaid/exchange',
+          { public_token: publicToken },
+        );
+        setLinked({ name: res.institution_name || 'Your bank' });
+      } catch {
+        setError('Failed to link account. You can try again from Settings.');
+      } finally {
+        setLoading(false);
+      }
+    },
+  });
+
+  const handleConnect = async () => {
+    if (!linkToken) {
+      try {
+        setLoading(true);
+        const res = await apiGet<{ link_token: string }>('/api/plaid/link-token');
+        setLinkToken(res.link_token);
+      } catch {
+        setError('Could not start account linking. Please try again.');
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+    }
+    open();
+  };
+
+  if (isDemo) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 text-center">
+        <span className="material-symbols-outlined text-5xl text-slate-400">lock</span>
+        <div>
+          <p className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
+            Bank account linking is not available in demo mode
+          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Create a free account to connect your bank and track spending automatically.
+          </p>
+        </div>
+        <button
+          onClick={onFinish}
+          className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+        >
+          Finish Setup
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col px-6 py-8 gap-6 overflow-y-auto">
+      <div>
+        <p className="text-2xl font-bold text-slate-900 dark:text-slate-50 mb-1">Link a bank account</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Automatically import transactions and track your spending — no manual CSV uploads.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-800 dark:text-blue-300 flex gap-3">
+        <span className="material-symbols-outlined text-[18px] mt-0.5 shrink-0">shield</span>
+        <span>Your credentials are never stored. ShopDeck uses Plaid to connect securely — the same technology used by Venmo, Robinhood, and thousands of other apps.</span>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-500">{error}</p>
+      )}
+
+      {linked ? (
+        <div className="flex items-center gap-3 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-4">
+          <span className="material-symbols-outlined text-green-500">check_circle</span>
+          <div>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{linked.name} linked!</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Transactions will sync in the background.</p>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={handleConnect}
+          disabled={loading || (!!linkToken && !ready)}
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors w-full"
+        >
+          {loading && <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>}
+          Connect account
+        </button>
+      )}
+
+      <div className="mt-auto pt-4 flex flex-col items-center gap-3">
+        <button
+          onClick={onFinish}
+          className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+        >
+          Finish Setup
+        </button>
+        <button
+          onClick={onFinish}
+          className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        >
+          Skip for now →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Onboarding ──────────────────────────────────────────────────────────
 export default function Onboarding() {
   const router = useRouter();
-<<<<<<< Updated upstream
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-=======
   const [step, setStep] = useState<OnboardingStep>('username');
   const [username, setUsername] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -573,9 +1122,9 @@ export default function Onboarding() {
   });
   const [plantingZone, setPlantingZone] = useState<number | null>(null);
   const [hideOutdoorPlants, setHideOutdoorPlants] = useState(false);
->>>>>>> Stashed changes
   const [isDemo, setIsDemo] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
+  const [dashPref, setDashPref] = useState<DashboardPreference>('balanced');
   const [enabledWidgets, setEnabledWidgets] = useState<string[]>([
     'active-projects', 'recent-activity', 'inventory-stats',
   ]);
@@ -586,8 +1135,6 @@ export default function Onboarding() {
       : 'unsupported'
   );
 
-<<<<<<< Updated upstream
-=======
   const features = useFeatures();
   const showApiKeyStep = userType === 'seller' || userType === 'creator';
   const showPlaidStep = features.plaid;
@@ -603,7 +1150,6 @@ export default function Onboarding() {
     step === 5       ? '7' :
     String(totalSteps);
 
->>>>>>> Stashed changes
   // Redirect if already onboarded
   useEffect(() => {
     setIsDemo(isDemoAccount());
@@ -612,22 +1158,31 @@ export default function Onboarding() {
     }
   }, []);
 
+  // Pre-select the electronics category for hobbyists so widget tier presets pick it up
+  useEffect(() => {
+    if (userType === 'hobbyist') {
+      setSelectedCats(prev => prev.includes('electronics') ? prev : [...prev, 'electronics']);
+    }
+  }, [userType]);
+
   const toggleCat = (id: string) =>
     setSelectedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
 
   const toggleWidget = (id: string) =>
     setEnabledWidgets(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]);
 
-  const handleContinue = () => {
-    // Auto-select a default widget per category
-    const suggested: string[] = [];
-    for (const catId of selectedCats) {
-      const wCats = CAT_WIDGET_MAP[catId] ?? [];
-      const first = ALL_WIDGETS.find(w => wCats.includes(w.category));
-      if (first && !enabledWidgets.includes(first.id)) suggested.push(first.id);
+  const handlePreferenceContinue = (pref: DashboardPreference) => {
+    const catWidgets = selectedCats.flatMap(id => DASHBOARD_TIER_MAP[id]?.[pref] ?? []);
+    setEnabledWidgets([...new Set([...TIER_BASE[pref], ...catWidgets])]);
+    setStep(3);
+  };
+
+  const handleCategoryStep1Continue = () => {
+    if (selectedCats.includes('garden')) {
+      setStep('1z');
+    } else {
+      setStep(2);
     }
-    if (suggested.length) setEnabledWidgets(prev => [...prev, ...suggested]);
-    setStep(2);
   };
 
   const handleToggleNotif = async () => {
@@ -651,14 +1206,25 @@ export default function Onboarding() {
     router.replace('/login');
   };
 
-  const handleFinish = () => {
+  const handleFinish = async (extraApiKeys?: ApiKeyFields) => {
     localStorage.setItem(STORAGE_KEY_WIDGETS, JSON.stringify(enabledWidgets));
     localStorage.setItem(STORAGE_KEY_NOTIFS, notifEnabled ? 'true' : 'false');
     localStorage.setItem(STORAGE_KEY_ONBOARDED, 'true');
-    // Sync to server so the API profile doesn't override localStorage on Dashboard load
+    if (userType) localStorage.setItem('sd-user-type', userType);
+    // Await the PATCH before navigating so Dashboard's GET /api/profile sees the
+    // updated activeWidgets — without this, the GET can race ahead of the PATCH
+    // and return stale registration defaults, overwriting the onboarding selection.
     // Demo accounts have no backend profile — skip the write.
     if (getToken() && !isDemoAccount()) {
-      apiPatch('/api/profile', { activeWidgets: enabledWidgets }).catch(() => {});
+      const profilePatch: Record<string, unknown> = { activeWidgets: enabledWidgets };
+      if (plantingZone !== null) {
+        profilePatch.plantingZone = plantingZone;
+        profilePatch.hideOutdoorPlants = hideOutdoorPlants;
+      }
+      if (extraApiKeys && Object.values(extraApiKeys).some(v => v)) {
+        profilePatch.apiKeys = extraApiKeys;
+      }
+      await apiPatch('/api/profile', profilePatch).catch(() => {});
     }
     // Dev-only: loop back to / so the always-onboarding demo flag can retrigger
     if (process.env.NODE_ENV !== 'production' &&
@@ -666,6 +1232,7 @@ export default function Onboarding() {
       router.push('/');
       return;
     }
+    localStorage.setItem('sd-onboarding-complete', 'true');
     router.push('/dashboard');
   };
 
@@ -678,9 +1245,9 @@ export default function Onboarding() {
           <span className="text-base">ShopDeck</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-slate-400">{step} of 3</span>
+          <span className="text-xs font-medium text-slate-400">{stepLabel} of {totalSteps}</span>
           <div className="w-32">
-            <ProgressBar step={step} />
+            <ProgressBar step={step} showApiKeyStep={showApiKeyStep} showPlaidStep={showPlaidStep} />
           </div>
           {isDemo && (
             <button
@@ -696,8 +1263,6 @@ export default function Onboarding() {
 
       {/* Step content */}
       <div className="flex-1 flex flex-col overflow-hidden max-w-2xl w-full mx-auto">
-<<<<<<< Updated upstream
-=======
         {step === 'username' && (
           <StepUsername
             initialUsername={username}
@@ -709,29 +1274,67 @@ export default function Onboarding() {
             onSelect={type => { setUserType(type); setStep(1); }}
           />
         )}
->>>>>>> Stashed changes
         {step === 1 && (
           <StepCategories
             selected={selectedCats}
             onToggle={toggleCat}
-            onContinue={handleContinue}
+            onSetAll={setSelectedCats}
+            onContinue={handleCategoryStep1Continue}
+          />
+        )}
+        {step === '1z' && (
+          <StepZone
+            zone={plantingZone}
+            hideOutdoor={hideOutdoorPlants}
+            onZoneChange={setPlantingZone}
+            onHideChange={setHideOutdoorPlants}
+            onBack={() => setStep(1)}
+            onContinue={() => setStep(2)}
           />
         )}
         {step === 2 && (
+          <StepDashboardPreference
+            selected={dashPref}
+            onSelect={setDashPref}
+            onBack={() => setStep(1)}
+            onContinue={() => handlePreferenceContinue(dashPref)}
+          />
+        )}
+        {step === 3 && (
           <StepWidgets
             selectedCategoryIds={selectedCats}
             enabledWidgets={enabledWidgets}
             onToggle={toggleWidget}
-            onBack={() => setStep(1)}
-            onFinish={() => setStep(3)}
+            onBack={() => setStep(2)}
+            onFinish={() => setStep(4)}
           />
         )}
-        {step === 3 && (
+        {step === 4 && (
           <StepNotifications
             enabled={notifEnabled}
             permState={notifPerm}
             onToggle={handleToggleNotif}
-            onBack={() => setStep(2)}
+            onBack={() => setStep(3)}
+            onFinish={
+              showApiKeyStep ? () => setStep(5) :
+              showPlaidStep  ? () => setStep('plaid') :
+              handleFinish
+            }
+            finishLabel={(showApiKeyStep || showPlaidStep) ? 'Continue' : undefined}
+          />
+        )}
+        {step === 5 && (
+          <StepApiKeys
+            keys={apiKeys}
+            setKeys={setApiKeys}
+            onSave={() => showPlaidStep ? setStep('plaid') : handleFinish(apiKeys)}
+            onSkip={() => showPlaidStep ? setStep('plaid') : handleFinish()}
+            onBack={() => setStep(4)}
+          />
+        )}
+        {step === 'plaid' && (
+          <StepPlaid
+            isDemo={isDemo}
             onFinish={handleFinish}
           />
         )}

@@ -7,18 +7,11 @@ CREATE TABLE IF NOT EXISTS users (
   username      TEXT UNIQUE NOT NULL,
   email         TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-<<<<<<< Updated upstream
-  account_verified BOOLEAN NOT NULL DEFAULT false,
-  email_verified_at TIMESTAMPTZ,
-  is_demo BOOLEAN NOT NULL DEFAULT false,
-  github_token TEXT,
-=======
   is_demo       BOOLEAN NOT NULL DEFAULT false,
   email_verified BOOLEAN NOT NULL DEFAULT false,
   has_password  BOOLEAN NOT NULL DEFAULT true,
   google_id     TEXT UNIQUE,
   github_token  TEXT,
->>>>>>> Stashed changes
   github_username TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -46,6 +39,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   api_keys       JSONB    NOT NULL DEFAULT '{}',
   browser_alerts BOOLEAN  NOT NULL DEFAULT false,
   ai_perms       JSONB    NOT NULL DEFAULT '{"projects":false,"inventory":false,"watchlist":false,"deals":false}',
+  share_view_history BOOLEAN NOT NULL DEFAULT true,
+  share_favorites BOOLEAN NOT NULL DEFAULT true,
   ram_alert_states JSONB  NOT NULL DEFAULT '{}',
   gpu_alert_states JSONB  NOT NULL DEFAULT '{}',
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -83,6 +78,8 @@ CREATE TABLE IF NOT EXISTS view_history (
   image      TEXT,
   price      TEXT,
   category   TEXT,
+  analytics_category TEXT,
+  analytics_subcategory TEXT,
   view_count INTEGER     NOT NULL DEFAULT 1,
   viewed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, url)
@@ -98,6 +95,8 @@ CREATE TABLE IF NOT EXISTS user_favorites (
   image        TEXT,
   price        TEXT,
   category     TEXT,
+  analytics_category TEXT,
+  analytics_subcategory TEXT,
   favorited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, url)
 );
@@ -173,8 +172,16 @@ ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS widget_order JSONB;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS api_keys JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS browser_alerts BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ai_perms JSONB NOT NULL DEFAULT '{"projects":false,"inventory":false,"watchlist":false,"deals":false}';
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_view_history BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS share_favorites BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS ram_alert_states JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS gpu_alert_states JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS planting_zone INT CHECK (planting_zone BETWEEN 1 AND 13);
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS hide_outdoor_plants BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_category TEXT;
+ALTER TABLE view_history ADD COLUMN IF NOT EXISTS analytics_subcategory TEXT;
+ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS analytics_category TEXT;
+ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS analytics_subcategory TEXT;
 
 -- Nullify any previously stored plaintext GitHub tokens.
 -- After this migration, users must re-connect GitHub. New tokens are encrypted (AES-256-GCM).
@@ -205,3 +212,73 @@ UPDATE webhooks
   SET secret = NULL
   WHERE secret IS NOT NULL
     AND secret !~ '^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$';
+
+-- ─── Finance (CSV-imported transactions & budgets) ───────────────────────────
+CREATE TABLE IF NOT EXISTS finance_transactions (
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  transaction_date   DATE        NOT NULL,
+  merchant_name      TEXT        NOT NULL DEFAULT '',
+  amount             NUMERIC(12,2) NOT NULL,
+  raw_category       TEXT,
+  shopdeck_category  TEXT,
+  user_label         TEXT,
+  import_source      TEXT        NOT NULL DEFAULT 'csv',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS finance_transactions_user_date_idx
+  ON finance_transactions(user_id, transaction_date DESC);
+CREATE INDEX IF NOT EXISTS finance_transactions_user_category_idx
+  ON finance_transactions(user_id, shopdeck_category);
+
+CREATE TABLE IF NOT EXISTS finance_budgets (
+  user_id       TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category      TEXT        NOT NULL,
+  monthly_limit NUMERIC(12,2) NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, category)
+);
+
+-- ─── Plaid bank account linking ───────────────────────────────────────────────
+-- One row per Plaid Item (= one institution login) per user.
+CREATE TABLE IF NOT EXISTS plaid_items (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_id             TEXT        NOT NULL UNIQUE,
+  access_token_enc    TEXT        NOT NULL,
+  institution_id      TEXT,
+  institution_name    TEXT,
+  transactions_cursor TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_synced_at      TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS plaid_items_user_idx ON plaid_items(user_id);
+
+-- One row per account within a Plaid Item (checking, savings, credit, etc.)
+CREATE TABLE IF NOT EXISTS plaid_accounts (
+  id          UUID  PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     TEXT  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_id     TEXT  NOT NULL REFERENCES plaid_items(item_id) ON DELETE CASCADE,
+  account_id  TEXT  NOT NULL UNIQUE,
+  name        TEXT  NOT NULL DEFAULT '',
+  type        TEXT,
+  subtype     TEXT,
+  mask        TEXT
+);
+CREATE INDEX IF NOT EXISTS plaid_accounts_user_idx ON plaid_accounts(user_id);
+
+-- Latest balance snapshot per account (upserted on every sync)
+CREATE TABLE IF NOT EXISTS plaid_balances (
+  account_id        TEXT          PRIMARY KEY REFERENCES plaid_accounts(account_id) ON DELETE CASCADE,
+  user_id           TEXT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  available         NUMERIC(12,2),
+  current           NUMERIC(12,2),
+  iso_currency_code TEXT,
+  last_synced_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+-- Extend finance_transactions to track Plaid-sourced rows for deduplication
+ALTER TABLE finance_transactions
+  ADD COLUMN IF NOT EXISTS plaid_transaction_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS finance_tx_plaid_dedup_idx
+  ON finance_transactions(user_id, plaid_transaction_id)
+  WHERE plaid_transaction_id IS NOT NULL;
