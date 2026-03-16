@@ -8,7 +8,6 @@ export interface AuthUser {
   username: string;
   email: string;
   is_demo?: boolean;
-  accountVerified?: boolean;
   email_verified?: boolean;
   has_password?: boolean;
 }

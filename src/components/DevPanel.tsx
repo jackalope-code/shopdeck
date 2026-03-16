@@ -5,7 +5,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { getUser, isLoggedIn } from '../lib/auth';
+import { getUser, isLoggedIn, setToken, setUser } from '../lib/auth';
 
 const KEY_FORCE_ONBOARDING = 'sd-dev-force-onboarding';
 const KEY_ALWAYS_ONBOARDING = 'sd-dev-always-onboarding';
@@ -61,6 +61,27 @@ export default function DevPanel() {
     }
   }
 
+  const [devLoggingIn, setDevLoggingIn] = useState(false);
+  const [devLoginError, setDevLoginError] = useState('');
+
+  async function handleDevLogin() {
+    setDevLoggingIn(true);
+    setDevLoginError('');
+    try {
+      const res = await fetch('/api/auth/developer', { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error || 'Login failed');
+      const data = await res.json();
+      setToken(data.token);
+      setUser(data.user);
+      setOpen(false);
+      router.push('/dashboard');
+    } catch (err: unknown) {
+      setDevLoginError(err instanceof Error ? err.message : 'Dev login failed');
+    } finally {
+      setDevLoggingIn(false);
+    }
+  }
+
   return (
     <>
       {/* Floating badge */}
@@ -99,6 +120,10 @@ export default function DevPanel() {
                     <span className="text-slate-200">{user?.username ?? '—'}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-slate-500">email_verified</span>
+                    <span className={user?.email_verified ? 'text-emerald-400' : 'text-amber-400'}>{user?.email_verified ? 'true' : 'false'}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-slate-500">onboarded</span>
                     <span className={onboarded ? 'text-emerald-400' : 'text-amber-400'}>{onboarded ? 'true' : 'false'}</span>
                   </div>
@@ -110,6 +135,24 @@ export default function DevPanel() {
                     <span className="text-slate-500">always-onboarding</span>
                     <span className={alwaysOnboarding ? 'text-rose-400' : 'text-slate-500'}>{alwaysOnboarding ? 'ON' : 'off'}</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Auth controls */}
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5">Auth</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleDevLogin}
+                    disabled={devLoggingIn}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 transition-colors text-white font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">login</span>
+                    {devLoggingIn ? 'Logging in…' : 'Dev Login'}
+                  </button>
+                  {devLoginError && (
+                    <p className="text-[10px] text-rose-400 px-1">{devLoginError}</p>
+                  )}
                 </div>
               </div>
 

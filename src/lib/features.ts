@@ -7,9 +7,10 @@ export interface AppFeatures {
   plaid: boolean;
   github_oauth: boolean;
   google_oauth: boolean;
+  email_verification: boolean;
 }
 
-const DEFAULT_FEATURES: AppFeatures = { plaid: false, github_oauth: false, google_oauth: false };
+const DEFAULT_FEATURES: AppFeatures = { plaid: false, github_oauth: false, google_oauth: false, email_verification: false };
 
 // Module-level cache — fetched at most once per page load.
 let _cache: AppFeatures | null = null;

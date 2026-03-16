@@ -53,9 +53,10 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // Feature flags — unauthenticated; used by the frontend to conditionally show features
 app.get('/api/features', (req, res) => res.json({
-  plaid:        isPlaidConfigured(),
-  github_oauth: !!process.env.GITHUB_OAUTH_CLIENT_ID,
-  google_oauth: !!process.env.GOOGLE_CLIENT_ID,
+  plaid:              isPlaidConfigured(),
+  github_oauth:       !!process.env.GITHUB_OAUTH_CLIENT_ID,
+  google_oauth:       !!process.env.GOOGLE_CLIENT_ID,
+  email_verification: true,
 }));
 
 app.use('/api/auth', authRouter);

@@ -56,22 +56,6 @@ const demoCreateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const verifyLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { error: 'Too many verification attempts. Please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const resendLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: 'Too many resend attempts. Please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 const DEFAULT_ACTIVE_WIDGETS = [
   'active-projects', 'recent-activity', 'inventory-stats', 'vendor-performance',
   'keyboard-releases', 'keycaps-tracker', 'keyboard-sales', 'keyboard-comparison',
