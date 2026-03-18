@@ -1565,17 +1565,30 @@ function AccountsTab() {
 }
 
 // ─── Tab 4: API Keys ─────────────────────────────────────────────────────────
+type ApiKeyName =
+  | 'amazonAccessKey' | 'amazonSecretKey' | 'amazonPartnerTag'
+  | 'neweggApiKey' | 'cjApiKey'
+  | 'krogerClientId' | 'krogerClientSecret'
+  | 'itadApiKey';
+
+type ApiKeyRecord = Record<ApiKeyName, string>;
+
+const EMPTY_API_KEYS: ApiKeyRecord = {
+  amazonAccessKey: '', amazonSecretKey: '', amazonPartnerTag: '',
+  neweggApiKey: '', cjApiKey: '',
+  krogerClientId: '', krogerClientSecret: '',
+  itadApiKey: '',
+};
+
 function ApiKeysTab() {
-  const [keys, setKeys] = React.useState({
-    amazonAccessKey: '',
-    amazonSecretKey: '',
-    amazonPartnerTag: '',
-    neweggApiKey: '',
-    cjApiKey: '',
-    krogerClientId: '',
-    krogerClientSecret: '',
-    itadApiKey: '',
-  });
+  // Keys loaded from server — held in state, masked by default;
+  // NEVER written to localStorage / sessionStorage / cookies.
+  const [keys, setKeys] = React.useState<ApiKeyRecord>({ ...EMPTY_API_KEYS });
+  // Which individual fields the user has confirmed to reveal
+  const [revealedFields, setRevealedFields] = React.useState<Set<ApiKeyName>>(new Set());
+  // Field waiting for inline warning confirmation before reveal
+  const [pendingReveal, setPendingReveal] = React.useState<ApiKeyName | null>(null);
+
   const [loaded, setLoaded] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
@@ -1583,7 +1596,7 @@ function ApiKeysTab() {
 
   React.useEffect(() => {
     if (!getToken()) return;
-    apiGet<{ profile: { apiKeys?: typeof keys } }>('/api/profile')
+    apiGet<{ profile: { apiKeys?: Partial<ApiKeyRecord> } }>('/api/profile')
       .then(({ profile }) => {
         if (profile?.apiKeys) setKeys(k => ({ ...k, ...profile.apiKeys }));
         setLoaded(true);
@@ -1605,19 +1618,92 @@ function ApiKeysTab() {
     }
   }
 
-  function field(label: string, key: keyof typeof keys, placeholder: string, hint: string, isSecret = false) {
+  function confirmReveal(key: ApiKeyName) {
+    setRevealedFields(prev => { const next = new Set(prev); next.add(key); return next; });
+    setPendingReveal(null);
+  }
+
+  function hideField(key: ApiKeyName) {
+    setRevealedFields(prev => { const next = new Set(prev); next.delete(key); return next; });
+  }
+
+  function field(label: string, key: ApiKeyName, placeholder: string, hint: string) {
+    const value = keys[key];
+    const isSet = !!value.trim();
+    const isRevealed = revealedFields.has(key);
+    const isPending = pendingReveal === key;
+
     return (
       <div>
         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{label}</label>
-        <input
-          type={isSecret ? 'password' : 'text'}
-          autoComplete="off"
-          value={keys[key]}
-          onChange={e => setKeys(k => ({ ...k, [key]: e.target.value }))}
-          placeholder={placeholder}
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <p className="mt-1 text-[11px] text-slate-400">{hint}</p>
+
+        {isSet && !isRevealed ? (
+          // Masked — key is configured but hidden
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700">
+            <span className="material-symbols-outlined text-[16px] text-slate-400">lock</span>
+            <span className="flex-1 text-sm font-mono text-slate-400 dark:text-slate-500 tracking-widest select-none">••••••••••••</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">Configured</span>
+            <button
+              type="button"
+              onClick={() => setPendingReveal(key)}
+              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              title="Reveal"
+            >
+              <span className="material-symbols-outlined text-[16px]">visibility</span>
+            </button>
+          </div>
+        ) : (
+          // Editable — either unset or revealed
+          <div className="flex items-center gap-1">
+            <input
+              type="text"
+              autoComplete="off"
+              value={value}
+              onChange={e => setKeys(k => ({ ...k, [key]: e.target.value }))}
+              placeholder={placeholder}
+              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-sm font-mono placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {isRevealed && (
+              <button
+                type="button"
+                onClick={() => hideField(key)}
+                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors shrink-0"
+                title="Hide"
+              >
+                <span className="material-symbols-outlined text-[16px]">visibility_off</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Inline warning — shown only while this field's reveal is pending */}
+        {isPending && (
+          <div className="mt-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 space-y-2">
+            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+              <span className="font-bold">Keep this key secret.</span>{' '}
+              Never share it with anyone — not support staff, browser extensions, or AI assistants.
+              It grants API access on your behalf.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingReveal(null)}
+                className="px-2.5 py-1 rounded text-xs font-semibold border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmReveal(key)}
+                className="px-2.5 py-1 rounded text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-colors"
+              >
+                Show key
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isPending && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
       </div>
     );
   }
@@ -1626,6 +1712,7 @@ function ApiKeysTab() {
 
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-2xl">
+
       {/* Amazon PA API */}
       <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
@@ -1637,10 +1724,10 @@ function ApiKeysTab() {
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
             Enables live Amazon pricing for RAM and GPU trackers. Requires an{' '}
             <a href="https://affiliate-program.amazon.com/assoc_credentials/home" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Amazon Associates account</a>{' '}
-            and a PA API application. Keys are stored server-side and never sent to the browser.
+            and a PA API application. Keys are stored encrypted server-side.
           </p>
           {field('Access Key ID', 'amazonAccessKey', 'AKIAIOSFODNN7EXAMPLE', 'From the PA API credentials page')}
-          {field('Secret Access Key', 'amazonSecretKey', '••••••••', 'Never share this — stored encrypted on the server', true)}
+          {field('Secret Access Key', 'amazonSecretKey', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', 'Never share this — stored encrypted on the server')}
           {field('Partner / Associate Tag', 'amazonPartnerTag', 'yourtag-20', 'Your Associates store ID, e.g. mystore-20')}
         </div>
       </div>
@@ -1673,7 +1760,7 @@ function ApiKeysTab() {
             Enables live product feeds from Home Depot, Lowe&apos;s, DICK&apos;s Sporting Goods, Zappos, Dick Blick, JOANN, and other CJ-affiliated retailers.
             Requires a <a href="https://developers.cj.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">CJ Affiliate personal access token</a>.
           </p>
-          {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'From your CJ developer account — stored encrypted', true)}
+          {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'From your CJ developer account — stored encrypted')}
         </div>
       </div>
 
@@ -1690,7 +1777,7 @@ function ApiKeysTab() {
             <a href="https://developer.kroger.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Kroger Developer Portal</a> and create a public application.
           </p>
           {field('Client ID', 'krogerClientId', 'your-kroger-client-id', 'OAuth2 Client ID from the Kroger Developer Portal')}
-          {field('Client Secret', 'krogerClientSecret', '••••••••', 'OAuth2 Client Secret — stored encrypted', true)}
+          {field('Client Secret', 'krogerClientSecret', 'your-kroger-client-secret', 'OAuth2 Client Secret — stored encrypted')}
         </div>
       </div>
 
@@ -1706,7 +1793,7 @@ function ApiKeysTab() {
             Enables personalized game-deal alerts from ITAD. Without a key the Games feed uses r/GameDeals RSS only.
             Register at <a href="https://isthereanydeal.com/dev/app/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">isthereanydeal.com/dev</a>.
           </p>
-          {field('ITAD API Key', 'itadApiKey', 'your-itad-api-key', 'From your IsThereAnyDeal developer account — stored encrypted', true)}
+          {field('ITAD API Key', 'itadApiKey', 'your-itad-api-key', 'From your IsThereAnyDeal developer account — stored encrypted')}
         </div>
       </div>
 

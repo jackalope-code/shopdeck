@@ -45,6 +45,8 @@ function rowToProfile(row) {
   const aiConfig = row.ai_config
     ? { ...row.ai_config, apiKey: decryptToken(row.ai_config.apiKey) ?? '' }
     : row.ai_config;
+  // Decrypt api_keys and return plaintext to the authenticated owner.
+  // Values are AES-256-GCM encrypted at rest; the UI masks them by default.
   const apiKeys = decryptMap(row.api_keys ?? {});
   return {
     activeWidgets:  row.active_widgets,

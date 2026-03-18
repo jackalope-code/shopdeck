@@ -113,7 +113,7 @@ Also set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to the same value in the frontend enviro
 
 Shopdeck supports two tiers of vendor API keys:
 
-- **Per-user keys** — stored encrypted in the database under each user's profile (`api_keys` column). Users enter these during onboarding (Seller / Content Creator paths) or in **Settings → API Keys**. The server never exposes them in plaintext.
+- **Per-user keys** — stored encrypted in the database under each user's profile (`api_keys` column). Users enter these during onboarding (Seller / Content Creator paths) or in **Settings → API Keys**. Keys are AES-256-GCM encrypted at rest and returned in plaintext to the authenticated owner via `GET /api/profile`. The **UI masks all configured fields by default** — each field has a per-field eye icon that triggers an inline warning before revealing that value. Revealed values exist only in React state and are never written to `localStorage`, `sessionStorage`, or cookies.
 - **Server-level fallback keys** — set as environment variables on the server. These apply to all users who have not configured their own per-user key. Useful for single-operator deployments where you want one shared key for every user.
 
 Amazon PA API keys are **per-user only** — there is no server-level fallback because Amazon Associates accounts are tied to individual affiliates.

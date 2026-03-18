@@ -39,6 +39,13 @@ Scraping fragile HTML is a maintenance burden. Always check for a Shopify `produ
 - **Set-password flow**: OAuth-only accounts have `has_password=false`; use `POST /api/auth/set-password` to add a password. Updates `has_password` to `true` and returns a fresh JWT.
 - **Features endpoint** `GET /api/features` returns `{ plaid, github_oauth, google_oauth }` — controls which OAuth buttons are shown in Login and Settings
 - **Username assignment**: removed from Register form; auto-generated as `user_<hex8>` on registration; user sets a real username in the first onboarding step (`StepUsername`)
+- **API key security model** (`api_keys` column in `user_profiles`):
+  - Encrypted at rest with AES-256-GCM via `TOKEN_ENCRYPTION_KEY`; helpers: `encryptMap` / `decryptMap` in `backend/lib/tokenCrypto.js`
+  - `GET /api/profile` returns plaintext decrypted values to the authenticated owner only
+  - UI (`ApiKeysTab` in `src/components/Settings.tsx`) keeps values in React state; all configured fields render masked (`••••••••••••`) by default — no flash on load because the skeleton covers the load state
+  - Per-field eye icon → inline warning → **Show key** → field becomes editable; eye-off icon re-masks; revealed state is `useState` only — never written to `localStorage`, `sessionStorage`, or cookies
+  - Unset (empty) fields are directly editable without any reveal step
+  - `PATCH /api/profile` accepts the full `apiKeys` map; `demoGuard` middleware blocks demo accounts from saving
 - **Environment requirements**:
   - `GOOGLE_CLIENT_ID` — enables Google login (backend)
   - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` — same value, frontend `<GoogleOAuthProvider>`
