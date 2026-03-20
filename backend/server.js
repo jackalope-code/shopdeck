@@ -121,6 +121,12 @@ cron.schedule('0 */12 * * *', async () => {
   }
 });
 
+// Prune API key access audit log weekly — retain 90 days of history.
+cron.schedule('0 3 * * 0', () => {
+  db.query("DELETE FROM api_key_access_log WHERE accessed_at < NOW() - INTERVAL '90 days'")
+    .catch(err => console.error('[audit] log prune failed:', err.message));
+});
+
 // Verify infrastructure connections before accepting traffic
 async function start() {
   try {

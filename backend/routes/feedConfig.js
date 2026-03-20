@@ -14,6 +14,18 @@ const { decryptMap } = require('../lib/tokenCrypto');
 const { classifyKeyboardItem, inferKeyboardSubkind } = require('../lib/productTaxonomy');
 const { normalizeStockFields, inferStockStatus } = require('../lib/stockAnalysis');
 
+// ─── Audit logging for API key access ────────────────────────────────────────
+// Records when the scraper uses a user's key. Never logs key values — only
+// the field slot names (e.g. 'amazonAccessKey') so operators can audit usage
+// without reconstructing the key from logs.
+function logKeyAccess(userId, provider, keyNames) {
+  if (!userId) return;
+  db.query(
+    'INSERT INTO api_key_access_log(user_id, key_names, provider) VALUES($1,$2,$3)',
+    [userId, keyNames, provider]
+  ).catch(err => console.error('[audit] key-access log insert failed:', err.message));
+}
+
 const ELECTRONICS_SOURCE_ALLOWLIST = new Set(['adafruit', 'seeed-studio', 'sparkfun', 'mouser-api', 'digikey-api']);
 
 function inferSourceSite(src = {}, rule = null) {
@@ -422,6 +434,7 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
       if (!apiKeys.digikey_client_id || !apiKeys.digikey_client_secret) {
         throw new Error('Digikey API keys not configured (digikey_client_id, digikey_client_secret)');
       }
+      logKeyAccess(userId, 'digikey-api', ['digikey_client_id', 'digikey_client_secret']);
       data = await scraper.runSource(
         { ruleType: 'digikey-api', keywords: src.keywords, limit: src.limit },
         'scheduled',
@@ -431,6 +444,7 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
       if (!apiKeys.mouser_api_key) {
         throw new Error('Mouser API key not configured (mouser_api_key)');
       }
+      logKeyAccess(userId, 'mouser-api', ['mouser_api_key']);
       data = await scraper.runSource(
         {
           ruleType: 'mouser-api',
@@ -460,6 +474,9 @@ async function scrapeSourceForWidget({ src, widgetId, apiKeys, userId }) {
       sourceCategory = rule.category ?? null;
       sourceName = src.name ?? src.label ?? src.id;
       if (isApiRuleType(rule.ruleType)) {
+        if (rule.ruleType === 'amazon-api') {
+          logKeyAccess(userId, 'amazon-api', ['amazonAccessKey', 'amazonSecretKey', 'amazonPartnerTag']);
+        }
         data = await scraper.runSource(rule, 'scheduled', { apiKeys });
       } else {
         data = await getOrFetchSourceData({

@@ -130,6 +130,8 @@ Users configure these during onboarding (Seller / Content Creator path) or in **
 
 Requires an active Amazon Associates account with ≥ 3 qualifying sales in the past 180 days. Apply at [affiliate-program.amazon.com](https://affiliate-program.amazon.com/).
 
+> **Minimum permissions:** Create a dedicated IAM user and attach only the `AmazonAdvertisingAPI` managed policy. Do not attach S3, EC2, or any other AWS policies. Never use root account credentials.
+
 #### CJ Affiliate API — per-user key, server fallback
 
 Powers Home Depot, Lowe's, Dick Blick, Wayfair, Zappos, JOANN, Burpee Seeds, RockAuto, and other CJ merchant feeds.
@@ -137,6 +139,8 @@ Powers Home Depot, Lowe's, Dick Blick, Wayfair, Zappos, JOANN, Burpee Seeds, Roc
 | Env var | User-side field | Where to get it |
 |---|---|---|
 | `CJ_API_KEY` | `cj_api_key` | CJ personal access token — [developers.cj.com](https://developers.cj.com/) |
+
+> **Minimum permissions:** A CJ personal access token grants read-only product feed access. Do not use your CJ account password or a token with publishing permissions.
 
 #### Mouser Search API — per-user key, server fallback
 
@@ -146,6 +150,8 @@ Powers Home Depot, Lowe's, Dick Blick, Wayfair, Zappos, JOANN, Burpee Seeds, Roc
 |---|---|---|
 | `MOUSER_API_KEY` | `mouser_api_key` | [mouser.com/api-search](https://www.mouser.com/api-search/) |
 
+> **Minimum permissions:** Mouser API keys grant read-only product search access by design — no write or ordering operations are available through this API.
+
 #### DigiKey Product Search API — per-user key, server fallback
 
 | Env var | User-side field | Where to get it |
@@ -153,11 +159,15 @@ Powers Home Depot, Lowe's, Dick Blick, Wayfair, Zappos, JOANN, Burpee Seeds, Roc
 | `DIGIKEY_CLIENT_ID` | `digikey_client_id` | OAuth2 client ID — [developer.digikey.com](https://developer.digikey.com/) |
 | `DIGIKEY_CLIENT_SECRET` | `digikey_client_secret` | OAuth2 client secret (same app) |
 
+> **Minimum permissions:** In the DigiKey Developer Portal, request access to the **Product Information** API product only. Do not request Order Management, Barcode, or other DigiKey API products.
+
 #### Walmart Affiliate API (Impact Radius) — per-user key, server fallback
 
 | Env var | User-side field | Where to get it |
 |---|---|---|
 | `WALMART_IMPACT_API_KEY` | `walmart_impact_api_key` | Impact Radius key from the Walmart affiliate program |
+
+> **Minimum permissions:** Impact Radius publisher key — grants read-only product catalogue and affiliate tracking access.
 
 #### Kroger Product API — server only
 
@@ -168,7 +178,7 @@ Powers Grocery feed widgets. Kroger credentials are issued per developer applica
 | `KROGER_CLIENT_ID` | OAuth2 client ID — register a **public** application at [developer.kroger.com](https://developer.kroger.com/) |
 | `KROGER_CLIENT_SECRET` | OAuth2 client secret (same app) |
 
-The grocery feeds only need the `product.compact` scope — no user authentication is required.
+The grocery feeds only need the `product.compact` scope — no user authentication is required. Do not request `cart.basic:write`, `profile.compact`, or `loyalty.compact` when registering the application.
 
 #### IsThereAnyDeal API — server only
 
@@ -177,6 +187,8 @@ Powers the Games / Video Game Deals widget. A free tier works without a key; the
 | Env var | Description |
 |---|---|
 | `ITAD_API_KEY` | API key from [isthereanydeal.com/dev/app](https://isthereanydeal.com/dev/app/) |
+
+> **Minimum permissions:** ITAD API keys are read-only by API design — no write or account-mutation scope exists.
 
 ---
 
@@ -198,6 +210,68 @@ In `NODE_ENV=development`, `PLAID_ENV` defaults to `sandbox` if unset, so local 
 | `PLAID_ENV` | `sandbox`, `development`, or `production` |
 
 > **Access tokens** are encrypted at rest using the same AES-256-GCM scheme as other stored credentials (`TOKEN_ENCRYPTION_KEY` in `.env`).
+
+---
+
+## Security
+
+### Encryption at rest
+
+All sensitive credentials stored in PostgreSQL are encrypted with **AES-256-GCM** before writing and decrypted on read. Each value gets its own random 96-bit IV, producing independent ciphertexts. Storage format: `iv_hex:authTag_hex:ciphertext_hex` (plain `TEXT` column). Helper module: `backend/lib/tokenCrypto.js` — functions `encryptToken` / `decryptToken` / `encryptMap` / `decryptMap` / `rotateEncryptedValues`.
+
+Encrypted fields:
+
+| Column | Table |
+|---|---|
+| `api_keys` (JSONB map) | `user_profiles` |
+| `ai_config.apiKey` | `user_profiles` |
+| `github_token` | `users` |
+| `access_token_enc` | `plaid_items` |
+
+### Threat model
+
+| Threat | Protected? | Notes |
+|---|:-:|---|
+| DB dump / backup theft — attacker has data files, not env vars | ✅ | `TOKEN_ENCRYPTION_KEY` is not stored in the database |
+| SQL injection or read-replica access to the `api_keys` column | ✅ | Only ciphertext is stored; useless without the key |
+| DB admin without access to the application server | ✅ | Same reason |
+| Server process compromise — env vars readable | ❌ | Inherent to the server-side API proxy model; cannot be eliminated without abandoning proxying |
+| Simultaneous DB + `TOKEN_ENCRYPTION_KEY` capture | ❌ | Mitigated by storing them in separate systems (see below) |
+| Operator with full server access | ❌ | Mitigated by scoped keys (user-side) and the audit log |
+
+### Recommended operator practices
+
+- **Isolate secrets**: store `TOKEN_ENCRYPTION_KEY` in a dedicated secrets manager (Doppler, AWS Secrets Manager, HashiCorp Vault, etc.) **separate from database credentials**. A DB compromise alone is then insufficient to decrypt stored keys.
+- **Never commit**: `TOKEN_ENCRYPTION_KEY` must not appear in source control, application logs, or error messages.
+- **Rotate on suspicion**: if `TOKEN_ENCRYPTION_KEY` is suspected compromised, run the rotation script (see below) and update the secret before restarting the application server.
+- **Advise scoped keys**: guide users to configure the narrowest possible permissions for each vendor key (see per-provider guidance in the Vendor API keys section above). A minimally-scoped key has limited blast radius even if decrypted.
+
+### API key access audit log
+
+Every time the scraper uses a user's vendor API key, an entry is written to `api_key_access_log`:
+
+| Column | Description |
+|---|---|
+| `user_id` | The user whose key was used |
+| `key_names` | Array of field slot names accessed (e.g. `['amazonAccessKey','amazonSecretKey']`) — **never key values** |
+| `provider` | Rule type: `amazon-api`, `digikey-api`, `mouser-api`, etc. |
+| `accessed_at` | Timestamp |
+
+Inserts are fire-and-forget — failures are logged to console but never block the scrape request. Rows older than 90 days are deleted weekly by the server cron.
+
+### Key rotation
+
+If `TOKEN_ENCRYPTION_KEY` is compromised, re-encrypt all stored credentials in place:
+
+```bash
+OLD_TOKEN_ENCRYPTION_KEY=<current 64-hex> \
+NEW_TOKEN_ENCRYPTION_KEY=<new 64-hex> \
+node backend/rotate-encryption-key.js
+```
+
+The script re-encrypts all `api_keys`, `ai_config.apiKey`, `github_token`, and Plaid access tokens in a single DB transaction and prints a row-count summary. After a successful run, update `TOKEN_ENCRYPTION_KEY` to the new value in your secrets manager and restart the application server.
+
+**The script is intentionally not exposed as an HTTP route.** To invoke it you need direct server access.
 
 ---
 

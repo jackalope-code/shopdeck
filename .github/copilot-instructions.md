@@ -53,6 +53,15 @@ Scraping fragile HTML is a maintenance burden. Always check for a Shopify `produ
   - `FRONTEND_URL` — used to construct verification links in emails
   - `REQUIRE_EMAIL_VERIFICATION` — `false` (default) or `true`
 
+## API Key & Credential Security Model
+
+- **Encryption**: All sensitive credentials are AES-256-GCM encrypted at rest via `TOKEN_ENCRYPTION_KEY`. Affected fields: `api_keys` (user_profiles), `ai_config.apiKey` (user_profiles), `github_token` (users), `access_token_enc` (plaid_items). Helpers: `encryptToken` / `decryptToken` / `encryptMap` / `decryptMap` / `rotateEncryptedValues` in `backend/lib/tokenCrypto.js`.
+- **Trust boundary**: Encryption protects against DB-only compromise (dump, SQL injection, read replica). It does **not** protect against anyone with access to the running process or env vars — this is the inherent limit of server-side API proxying and cannot be eliminated without abandoning the proxy model. Mitigated by: isolating `TOKEN_ENCRYPTION_KEY` in a separate secrets manager, using minimally-scoped provider keys, and the audit log.
+- **Audit log**: `api_key_access_log` table — every scraper-triggered key access is recorded with `user_id`, `key_names[]` (slot names, **never values**), `provider`, and `accessed_at`. Rows older than 90 days are pruned weekly. Inserts are fire-and-forget; failures never block scrape requests.
+- **Scoped keys**: Per-provider minimum-permission guidance is shown as hint text in `ApiKeysTab` (`src/components/Settings.tsx`) and documented in `backend/README.md` under each provider. Never encourage users to supply root/admin credentials. Always direct toward the narrowest available permission scope.
+- **Key rotation**: Offline CLI only — `backend/rotate-encryption-key.js`. Uses `OLD_TOKEN_ENCRYPTION_KEY` + `NEW_TOKEN_ENCRYPTION_KEY` env vars (distinct from the live `TOKEN_ENCRYPTION_KEY`). Re-encrypts all fields in one DB transaction. **Never expose rotation as an HTTP route.**
+- **Do not**: log decrypted key values anywhere; return them to non-owners; cache them beyond the request scope; add any HTTP endpoint that triggers re-encryption or reveals stored keys in bulk.
+
 ## Scraper Rule Types (`backend/scraper.js`)
 
 All rule types are registered in the `RULE_TYPE_HANDLERS` map and routed through `runSource()`. Rules may also carry a `postFilter: { requireAny, excludeAny }` for name-based post-processing.

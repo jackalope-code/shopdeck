@@ -1726,9 +1726,9 @@ function ApiKeysTab() {
             <a href="https://affiliate-program.amazon.com/assoc_credentials/home" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Amazon Associates account</a>{' '}
             and a PA API application. Keys are stored encrypted server-side.
           </p>
-          {field('Access Key ID', 'amazonAccessKey', 'AKIAIOSFODNN7EXAMPLE', 'From the PA API credentials page')}
-          {field('Secret Access Key', 'amazonSecretKey', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', 'Never share this — stored encrypted on the server')}
-          {field('Partner / Associate Tag', 'amazonPartnerTag', 'yourtag-20', 'Your Associates store ID, e.g. mystore-20')}
+          {field('Access Key ID', 'amazonAccessKey', 'AKIAIOSFODNN7EXAMPLE', 'Use a dedicated IAM user with only the AmazonAdvertisingAPI managed policy — no S3, EC2, or other AWS permissions. Never use root credentials.')}
+          {field('Secret Access Key', 'amazonSecretKey', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', 'Never share this key. Scope the IAM user strictly to PA API operations and rotate it if ever exposed.')}
+          {field('Partner / Associate Tag', 'amazonPartnerTag', 'yourtag-20', 'Your Associates store ID, e.g. mystore-20 — read-only, no key scoping needed.')}
         </div>
       </div>
 
@@ -1744,7 +1744,7 @@ function ApiKeysTab() {
             Newegg results are available without a key via their public search API. Setting an affiliate key
             here enables higher rate limits and affiliate commission on purchases.
           </p>
-          {field('Newegg Affiliate Key', 'neweggApiKey', 'your-newegg-key', 'From the Newegg affiliate program dashboard')}
+          {field('Newegg Affiliate Key', 'neweggApiKey', 'your-newegg-key', 'Read-only affiliate key from the Newegg affiliate dashboard — grants product and pricing access only.')}
         </div>
       </div>
 
@@ -1760,7 +1760,7 @@ function ApiKeysTab() {
             Enables live product feeds from Home Depot, Lowe&apos;s, DICK&apos;s Sporting Goods, Zappos, Dick Blick, JOANN, and other CJ-affiliated retailers.
             Requires a <a href="https://developers.cj.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">CJ Affiliate personal access token</a>.
           </p>
-          {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'From your CJ developer account — stored encrypted')}
+          {field('CJ Personal Access Token', 'cjApiKey', 'your-cj-token', 'Personal access token — grants read-only product feed access. Never use your CJ account password here.')}
         </div>
       </div>
 
@@ -1776,8 +1776,8 @@ function ApiKeysTab() {
             Powers Grocery feed widgets (weekly deals, produce, pantry staples). Register at the{' '}
             <a href="https://developer.kroger.com/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Kroger Developer Portal</a> and create a public application.
           </p>
-          {field('Client ID', 'krogerClientId', 'your-kroger-client-id', 'OAuth2 Client ID from the Kroger Developer Portal')}
-          {field('Client Secret', 'krogerClientSecret', 'your-kroger-client-secret', 'OAuth2 Client Secret — stored encrypted')}
+          {field('Client ID', 'krogerClientId', 'your-kroger-client-id', 'OAuth2 Client ID — register a public application scoped to product.compact only. Do not request cart.basic:write, profile.compact, or loyalty.compact.')}
+          {field('Client Secret', 'krogerClientSecret', 'your-kroger-client-secret', 'OAuth2 Client Secret — stored encrypted. Scope this app to product.compact reads only.')}
         </div>
       </div>
 
@@ -1793,7 +1793,7 @@ function ApiKeysTab() {
             Enables personalized game-deal alerts from ITAD. Without a key the Games feed uses r/GameDeals RSS only.
             Register at <a href="https://isthereanydeal.com/dev/app/" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">isthereanydeal.com/dev</a>.
           </p>
-          {field('ITAD API Key', 'itadApiKey', 'your-itad-api-key', 'From your IsThereAnyDeal developer account — stored encrypted')}
+          {field('ITAD API Key', 'itadApiKey', 'your-itad-api-key', 'Read-only by API design — ITAD grants no write or account-mutation access.')}
         </div>
       </div>
 

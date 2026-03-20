@@ -85,4 +85,38 @@ function decryptMap(obj) {
   return out;
 }
 
-module.exports = { encryptToken, decryptToken, encryptMap, decryptMap };
+/**
+ * Re-encrypt a list of iv:authTag:ciphertext strings from one AES-256-GCM key
+ * to another. Used by the offline key-rotation script.
+ *
+ * @param {string[]} ciphertexts  Array of stored ciphertext strings (may include nulls/empty strings).
+ * @param {string}   oldKeyHex   64-character hex string of the current encryption key.
+ * @param {string}   newKeyHex   64-character hex string of the replacement key.
+ * @returns {string[]} Array of re-encrypted ciphertext strings in the same order.
+ * @throws  If either key is invalid or any ciphertext fails to decrypt.
+ */
+function rotateEncryptedValues(ciphertexts, oldKeyHex, newKeyHex) {
+  if (!oldKeyHex || oldKeyHex.length !== 64) throw new Error('oldKeyHex must be a 64-char hex string');
+  if (!newKeyHex || newKeyHex.length !== 64) throw new Error('newKeyHex must be a 64-char hex string');
+  const oldKey = Buffer.from(oldKeyHex, 'hex');
+  const newKey = Buffer.from(newKeyHex, 'hex');
+  return ciphertexts.map((stored, i) => {
+    if (!stored) return stored;
+    const parts = stored.split(':');
+    if (parts.length !== 3) throw new Error(`Value at index ${i} is not in iv:authTag:ciphertext format`);
+    const [ivHex, authTagHex, ciphertextHex] = parts;
+    const decipher = crypto.createDecipheriv(ALGO, oldKey, Buffer.from(ivHex, 'hex'));
+    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(ciphertextHex, 'hex')),
+      decipher.final(),
+    ]).toString('utf8');
+    const newIv = crypto.randomBytes(IV_LEN);
+    const cipher = crypto.createCipheriv(ALGO, newKey, newIv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const newAuthTag = cipher.getAuthTag();
+    return `${newIv.toString('hex')}:${newAuthTag.toString('hex')}:${encrypted.toString('hex')}`;
+  });
+}
+
+module.exports = { encryptToken, decryptToken, encryptMap, decryptMap, rotateEncryptedValues };

@@ -282,3 +282,18 @@ ALTER TABLE finance_transactions
 CREATE UNIQUE INDEX IF NOT EXISTS finance_tx_plaid_dedup_idx
   ON finance_transactions(user_id, plaid_transaction_id)
   WHERE plaid_transaction_id IS NOT NULL;
+
+-- ─── API key access audit log ─────────────────────────────────────────────────
+-- Records when the scraper accesses a user's vendor API keys.
+-- Stores only key slot NAMES (never values) so operators can audit usage
+-- without being able to reconstruct keys from the log.
+-- Retained 90 days; pruned weekly by server cron.
+CREATE TABLE IF NOT EXISTS api_key_access_log (
+  id          BIGSERIAL   PRIMARY KEY,
+  user_id     TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key_names   TEXT[]      NOT NULL,
+  provider    TEXT        NOT NULL,
+  accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS api_key_access_log_user_id_idx    ON api_key_access_log(user_id);
+CREATE INDEX IF NOT EXISTS api_key_access_log_accessed_at_idx ON api_key_access_log(accessed_at);
