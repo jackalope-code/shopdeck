@@ -12,6 +12,10 @@ function normalizeCategoryId(value) {
 }
 
 function classifyKeyboardItem(item = {}, sourceCategory = '') {
+  // Source-category fast path — artisan keycap collection items are routed before
+  // text checks so the word "artisan" doesn't fall through to the accessories regex.
+  if (normalizeCategoryId(sourceCategory) === 'artisankeycaps') return 'artisan-keycaps';
+
   const text = [item.name, item.productType, item.tags, item.itemType]
     .filter(Boolean)
     .join(' ')
@@ -26,6 +30,7 @@ function classifyKeyboardItem(item = {}, sourceCategory = '') {
 
   const source = String(sourceCategory || '').toLowerCase();
   if (source === 'keycaps') return 'keycaps';
+  if (source === 'artisankeycaps') return 'artisan-keycaps';
   if (source === 'switches') return 'switches';
   if (source === 'accessories') return 'accessories';
   if (source === 'keyboards') return 'full';

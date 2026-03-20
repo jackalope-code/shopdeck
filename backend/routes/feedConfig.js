@@ -95,6 +95,7 @@ const KEYBOARD_WIDGET_IDS = new Set([
   'keyboard-switches',
   'keyboard-accessories',
   'keycap-releases',
+  'artisan-keycap-releases',
 ]);
 
 const ART_WIDGET_IDS = new Set(['art-supplies-new', 'art-supplies-deals', 'art-prints']);
@@ -195,6 +196,7 @@ function filterItemsForWidget(widgetId, items = [], sourceCategory = '') {
   return normalizedKeyboardItems.filter(item => {
     const kind = classifyKeyboardItem(item, sourceCategory);
     if (widgetId === 'keycap-releases') return kind === 'keycaps';
+    if (widgetId === 'artisan-keycap-releases') return kind === 'artisan-keycaps';
     if (widgetId === 'keyboard-switches') return kind === 'switches';
     if (widgetId === 'keyboard-accessories') return kind === 'accessories';
     if (widgetId === 'keyboard-parts-release') {
@@ -235,7 +237,7 @@ const AGGREGATED_SCRAPE_CONCURRENCY = 8;
 
 // Bump this when the scraped item shape changes (e.g. new fields added to scraper.js).
 // Old versioned keys are never written again and expire naturally via their TTL.
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 
 const API_RULE_TYPES = new Set(['amazon-api', 'newegg-search-api', 'digikey-api', 'mouser-api']);
 

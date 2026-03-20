@@ -22,10 +22,11 @@
     },
     "active-deals": {
       "sources": [
-        { "id": "novelkeys-sale",              "name": "NovelKeys",           "enabled": true },
-        { "id": "kbdfans-sale",                "name": "KBDfans",             "enabled": true },
+        { "id": "novelkeys-sale",              "name": "NovelKeys",          "enabled": true },
+        { "id": "kbdfans-sale",                "name": "KBDfans",            "enabled": true },
         { "id": "stupidbulletstech-garage-sale","name": "Stupid Bullets Tech", "enabled": true },
-        { "id": "keeb-io-sale",                "name": "Keebio",             "enabled": true }
+        { "id": "keeb-io-sale",                "name": "Keebio",            "enabled": true },
+        { "id": "keychron-sale",               "name": "Keychron",           "enabled": true }
       ],
       "custom": []
     },
@@ -34,6 +35,7 @@
         { "id": "novelkeys-keyboards",        "name": "NovelKeys",           "enabled": true },
         { "id": "kbdfans-keyboards",          "name": "KBDfans",             "enabled": true },
         { "id": "keeb-io-keyboards",          "name": "Keeb.io",             "enabled": true },
+        { "id": "keychron-keyboards",         "name": "Keychron",            "enabled": true },
         { "id": "stupidbulletstech-keyboards","name": "Stupid Bullets Tech",  "enabled": true },
         { "id": "customkeysco-keyboards",     "name": "Custom Keys Co",       "enabled": true }
       ],
@@ -41,12 +43,13 @@
     },
     "keyboard-sales": {
       "sources": [
-        { "id": "novelkeys-keyboards",         "name": "NovelKeys",           "enabled": true },
-        { "id": "kbdfans-keyboards",           "name": "KBDfans",             "enabled": true },
-        { "id": "keeb-io-keyboards",           "name": "Keeb.io",             "enabled": true },
-        { "id": "stupidbulletstech-keyboards", "name": "Stupid Bullets Tech",  "enabled": true },
-        { "id": "stupidbulletstech-garage-sale","name": "Stupid Bullets Tech", "enabled": true },
-        { "id": "customkeysco-keyboards",      "name": "Custom Keys Co",       "enabled": true }
+        { "id": "novelkeys-keyboards",          "name": "NovelKeys",           "enabled": true },
+        { "id": "kbdfans-keyboards",            "name": "KBDfans",             "enabled": true },
+        { "id": "keeb-io-sale",                "name": "Keebio",              "enabled": true },
+        { "id": "keychron-sale",               "name": "Keychron",            "enabled": true },
+        { "id": "stupidbulletstech-keyboards",  "name": "Stupid Bullets Tech",  "enabled": true },
+        { "id": "stupidbulletstech-garage-sale","name": "Stupid Bullets Tech",  "enabled": true },
+        { "id": "customkeysco-keyboards",       "name": "Custom Keys Co",       "enabled": true }
       ],
       "custom": []
     },
@@ -55,7 +58,8 @@
         { "id": "novelkeys-keyboards",         "name": "NovelKeys",           "enabled": true },
         { "id": "kbdfans-keyboards",           "name": "KBDfans",             "enabled": true },
         { "id": "keeb-io-keyboards",           "name": "Keeb.io",             "enabled": true },
-        { "id": "stupidbulletstech-keyboards", "name": "Stupid Bullets Tech", "enabled": true },
+        { "id": "keychron-keyboards",          "name": "Keychron",            "enabled": true },
+        { "id": "stupidbulletstech-keyboards",  "name": "Stupid Bullets Tech", "enabled": true },
         { "id": "customkeysco-keyboards",      "name": "Custom Keys Co",      "enabled": true }
       ],
       "custom": []
@@ -65,6 +69,7 @@
         { "id": "novelkeys-keyboards",          "name": "NovelKeys",           "enabled": true },
         { "id": "kbdfans-keyboards",            "name": "KBDfans",             "enabled": true },
         { "id": "keeb-io-keyboards",            "name": "Keeb.io",             "enabled": true },
+        { "id": "keychron-keyboards",           "name": "Keychron",            "enabled": true },
         { "id": "stupidbulletstech-keyboards",  "name": "Stupid Bullets Tech", "enabled": true },
         { "id": "stupidbulletstech-accessories", "name": "Stupid Bullets Tech", "enabled": true },
         { "id": "customkeysco-keyboards",       "name": "Custom Keys Co",      "enabled": true }
@@ -93,7 +98,14 @@
         { "id": "novelkeys-keycaps",          "name": "NovelKeys",           "enabled": true },
         { "id": "kbdfans-keycaps",            "name": "KBDfans",             "enabled": true },
         { "id": "stupidbulletstech-keycaps",  "name": "Stupid Bullets Tech",  "enabled": true },
-        { "id": "customkeysco-keycaps",       "name": "Custom Keys Co",       "enabled": true }
+        { "id": "customkeysco-keycaps",       "name": "Custom Keys Co",       "enabled": true },
+        { "id": "keychron-keycaps",           "name": "Keychron",             "enabled": true }
+      ],
+      "custom": []
+    },
+    "artisan-keycap-releases": {
+      "sources": [
+        { "id": "keychron-artisan-keycaps",   "name": "Keychron",             "enabled": true }
       ],
       "custom": []
     },
@@ -105,6 +117,8 @@
         { "id": "kbdfans-keyboards",          "name": "KBDfans",             "enabled": true },
         { "id": "kbdfans-keycaps",            "name": "KBDfans",             "enabled": true },
         { "id": "keeb-io-keyboards",          "name": "Keeb.io",             "enabled": true },
+        { "id": "keychron-keyboards",         "name": "Keychron",            "enabled": true },
+        { "id": "keychron-keycaps",           "name": "Keychron",            "enabled": true },
         { "id": "stupidbulletstech-keyboards", "name": "Stupid Bullets Tech",  "enabled": true },
         { "id": "stupidbulletstech-keycaps",  "name": "Stupid Bullets Tech",  "enabled": true },
         { "id": "stupidbulletstech-switches",  "name": "Stupid Bullets Tech",  "enabled": true },

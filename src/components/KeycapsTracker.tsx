@@ -7,6 +7,7 @@ import { getFeedStockStatus } from '../lib/stockStatus';
 // ─── Types ────────────────────────────────────────────────────────────────────
 type KeycapStatus = 'in-stock' | 'group-buy' | 'limited' | 'ic' | 'sold-out' | 'unknown';
 type BrandFilter = 'All Sets' | 'GMK' | 'PBTFans' | 'KAT' | 'DCX' | 'Drop';
+type KeycapType = 'all' | 'regular' | 'artisan';
 
 interface KeycapSet {
   id: string;
@@ -175,11 +176,20 @@ export default function KeycapsTracker() {
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [profileFilter, setProfileFilter] = useState('All');
+  const [keycapType, setKeycapType] = useState<KeycapType>('all');
   const [keycapNotifsOpen, setKeycapNotifsOpen] = useState(false);
 
   const { loading, items: feedItems } = useFeedData('keycap-releases');
+  const { loading: artisanLoading, items: artisanFeedItems } = useFeedData('artisan-keycap-releases');
 
-  const ALL_SETS: KeycapSet[] = feedItems.map((item, idx) => {
+  const combinedLoading = loading || artisanLoading;
+
+  const sourceItems =
+    keycapType === 'regular' ? feedItems :
+    keycapType === 'artisan' ? artisanFeedItems :
+    [...feedItems, ...artisanFeedItems];
+
+  const ALL_SETS: KeycapSet[] = sourceItems.map((item, idx) => {
     const normalizedStock = getFeedStockStatus(item);
     const status: KeycapStatus =
       normalizedStock === 'out-of-stock' ? 'sold-out' :
@@ -221,7 +231,7 @@ export default function KeycapsTracker() {
   const allProfiles = ['All', ...Array.from(new Set(ALL_SETS.map(s => s.profile).filter(Boolean)))];
 
   // Active filter count badge
-  const activeFilterCount = statusFilters.length + (priceMin ? 1 : 0) + (priceMax ? 1 : 0) + (profileFilter !== 'All' ? 1 : 0);
+  const activeFilterCount = statusFilters.length + (priceMin ? 1 : 0) + (priceMax ? 1 : 0) + (profileFilter !== 'All' ? 1 : 0) + (keycapType !== 'all' ? 1 : 0);
 
   const toggleStatus = (s: KeycapStatus) =>
     setStatusFilters(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
@@ -298,10 +308,10 @@ export default function KeycapsTracker() {
             {/* Stats row */}
             <div className="grid grid-cols-4 gap-5 mb-8">
               {[
-                { label: 'Tracked Sets', value: loading ? '—' : ALL_SETS.length.toLocaleString(), delta: '+12%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
-                { label: 'Active Group Buys', value: loading ? '—' : activeGroupBuys.toString(), delta: activeGroupBuys > 0 ? `${activeGroupBuys} active` : 'None', deltaColor: activeGroupBuys > 0 ? 'text-amber-500' : 'text-slate-400', deltaIcon: activeGroupBuys > 0 ? 'trending_up' : 'remove' },
-                { label: 'Avg. Set Price', value: loading ? '—' : avgPrice > 0 ? `$${avgPrice.toFixed(2)}` : 'N/A', delta: '+5%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
-                { label: 'Total Vendors', value: loading ? '—' : totalVendors.toString(), delta: 'Stable', deltaColor: 'text-slate-400', deltaIcon: 'remove' },
+                { label: 'Tracked Sets', value: combinedLoading ? '—' : ALL_SETS.length.toLocaleString(), delta: '+12%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
+                { label: 'Active Group Buys', value: combinedLoading ? '—' : activeGroupBuys.toString(), delta: activeGroupBuys > 0 ? `${activeGroupBuys} active` : 'None', deltaColor: activeGroupBuys > 0 ? 'text-amber-500' : 'text-slate-400', deltaIcon: activeGroupBuys > 0 ? 'trending_up' : 'remove' },
+                { label: 'Avg. Set Price', value: combinedLoading ? '—' : avgPrice > 0 ? `$${avgPrice.toFixed(2)}` : 'N/A', delta: '+5%', deltaColor: 'text-emerald-500', deltaIcon: 'trending_up' },
+                { label: 'Total Vendors', value: combinedLoading ? '—' : totalVendors.toString(), delta: 'Stable', deltaColor: 'text-slate-400', deltaIcon: 'remove' },
               ].map(s => (
                 <div key={s.label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm">
                   <p className="text-slate-500 text-sm font-medium">{s.label}</p>
@@ -329,7 +339,7 @@ export default function KeycapsTracker() {
             </div>
 
             {/* Card grid */}
-            {loading ? (
+            {combinedLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden animate-pulse">
@@ -348,14 +358,14 @@ export default function KeycapsTracker() {
             ) : (
               <div className="text-center py-20 text-slate-400">
                 <span className="material-symbols-outlined text-5xl mb-3 block">search_off</span>
-                <p className="font-medium">{ALL_SETS.length === 0 ? 'No keycap sets available right now.' : 'No sets found'}</p>
-                {ALL_SETS.length > 0 && <p className="text-sm mt-1">Try a different brand or filter.</p>}
+                  <p className="font-medium">{ALL_SETS.length === 0 ? 'No keycap sets available right now.' : 'No sets found'}</p>
+                {ALL_SETS.length > 0 && <p className="text-sm mt-1">Try a different brand, type, or filter.</p>}
               </div>
             )}
 
             {/* Pagination */}
             <div className="flex items-center justify-between py-8 mt-2">
-              <p className="text-xs text-slate-500 font-medium">Showing {filtered.length} of {ALL_SETS.length.toLocaleString()} results</p>
+                <p className="text-xs text-slate-500 font-medium">Showing {filtered.length} of {ALL_SETS.length.toLocaleString()} results{keycapType !== 'all' ? ` (${keycapType})` : ''}</p>
               <div className="flex gap-2">
                 <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-40">Previous</button>
                 <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-500/20">Next</button>
@@ -369,9 +379,25 @@ export default function KeycapsTracker() {
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-base">Filters</h3>
                 <button
-                  onClick={() => { setStatusFilters([]); setPriceMin(''); setPriceMax(''); setProfileFilter('All'); }}
+                  onClick={() => { setStatusFilters([]); setPriceMin(''); setPriceMax(''); setProfileFilter('All'); setKeycapType('all'); }}
                   className="text-xs text-blue-500 font-bold hover:underline"
                 >Clear all</button>
+              </div>
+
+              {/* Type */}
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Type</p>
+                <div className="flex flex-wrap gap-2">
+                  {(['all', 'regular', 'artisan'] as KeycapType[]).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setKeycapType(t)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors capitalize ${
+                        keycapType === t ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 dark:border-slate-700 hover:border-blue-500'
+                      }`}
+                    >{t === 'all' ? 'All Types' : t.charAt(0).toUpperCase() + t.slice(1)}</button>
+                  ))}
+                </div>
               </div>
 
               {/* Status */}
