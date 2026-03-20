@@ -57,6 +57,7 @@ app.get('/api/features', (req, res) => res.json({
   github_oauth:       !!process.env.GITHUB_OAUTH_CLIENT_ID,
   google_oauth:       !!process.env.GOOGLE_CLIENT_ID,
   email_verification: true,
+  dev_auto_verify:    process.env.NODE_ENV !== 'production' && process.env.DEV_AUTO_VERIFY_EMAIL === 'true',
 }));
 
 app.use('/api/auth', authRouter);

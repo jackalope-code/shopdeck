@@ -45,7 +45,13 @@ async function sendVerificationToken(userId, email, frontendUrl) {
     [userId, token, expires]
   );
   const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
-  sendVerificationEmail(email, verifyUrl).catch(err => console.error('Email send error:', err));
+  // Dev sandbox: immediately mark the user as verified so no email click is needed.
+  if (process.env.NODE_ENV !== 'production' && process.env.DEV_AUTO_VERIFY_EMAIL === 'true') {
+    await db.query('UPDATE users SET email_verified=true WHERE id=$1', [userId]);
+    console.log(`[dev] Email auto-verified for ${email}. Verify URL (if needed): ${verifyUrl}`);
+  } else {
+    sendVerificationEmail(email, verifyUrl).catch(err => console.error('Email send error:', err));
+  }
 }
 
 const demoCreateLimiter = rateLimit({
@@ -248,6 +254,60 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+// GET /api/auth/dev/verify-url?email=  — returns the latest pending verification link for
+// a given email address. Only available in development; returns 404 in production.
+router.get('/dev/verify-url', async (req, res) => {
+  if (process.env.NODE_ENV === 'production')
+    return res.status(404).json({ error: 'Not found' });
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'email query param required' });
+  try {
+    const result = await db.query(
+      `SELECT et.token FROM email_tokens et
+       JOIN users u ON u.id = et.user_id
+       WHERE u.email = $1
+         AND et.type = 'verification'
+         AND et.used_at IS NULL
+         AND et.expires_at > NOW()
+       ORDER BY et.created_at DESC LIMIT 1`,
+      [email]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'No pending verification token for that email' });
+    const verifyUrl = `${frontendUrl}/verify-email?token=${result.rows[0].token}`;
+    res.json({ url: verifyUrl });
+  } catch (err) {
+    console.error('dev/verify-url error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/auth/dev/verify-url?email=  — returns the latest pending verification link for
+// a given email address. Only available in development; returns 404 in production.
+router.get('/dev/verify-url', async (req, res) => {
+  if (process.env.NODE_ENV === 'production')
+    return res.status(404).json({ error: 'Not found' });
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'email query param required' });
+  try {
+    const result = await db.query(
+      `SELECT et.token FROM email_tokens et
+       JOIN users u ON u.id = et.user_id
+       WHERE u.email = $1
+         AND et.type = 'verification'
+         AND et.used_at IS NULL
+         AND et.expires_at > NOW()
+       ORDER BY et.created_at DESC LIMIT 1`,
+      [email]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'No pending verification token for that email' });
+    const verifyUrl = `${frontendUrl}/verify-email?token=${result.rows[0].token}`;
+    res.json({ url: verifyUrl });
+  } catch (err) {
+    console.error('dev/verify-url error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // POST /api/auth/developer  — dev-only instant login as the developer account
 router.post('/developer', async (req, res) => {
